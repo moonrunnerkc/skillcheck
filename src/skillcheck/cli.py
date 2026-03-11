@@ -132,13 +132,17 @@ examples:
   skillcheck SKILL.md --format json           machine-readable output for CI
   skillcheck SKILL.md --max-lines 800         override sizing thresholds
   skillcheck SKILL.md --ignore frontmatter    suppress a rule category
+  skillcheck SKILL.md --min-desc-score 50     require minimum description quality
+  skillcheck SKILL.md --target-agent vscode   scope checks to VS Code
+  skillcheck SKILL.md --strict-vscode         treat VS Code issues as errors
+  skillcheck SKILL.md --skip-ref-check        skip file reference validation
 """
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="skillcheck",
-        description="Validate Claude Code SKILL.md files against the Anthropic skill specification.",
+        description="Cross-agent skill quality gate for SKILL.md files. Validates against the agentskills.io spec.",
         epilog=_EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -182,6 +186,37 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Disable colored output.",
     )
     parser.add_argument(
+        "--skip-dirname-check",
+        action="store_true",
+        default=False,
+        help="Skip directory-name matching check (useful for CI temp paths).",
+    )
+    parser.add_argument(
+        "--skip-ref-check",
+        action="store_true",
+        default=False,
+        help="Skip file reference validation (useful when referenced files are unavailable).",
+    )
+    parser.add_argument(
+        "--min-desc-score",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Minimum description quality score (0-100). Below this triggers a warning.",
+    )
+    parser.add_argument(
+        "--target-agent",
+        choices=["claude", "vscode", "all"],
+        default="all",
+        help="Scope compatibility checks to a specific agent (default: all).",
+    )
+    parser.add_argument(
+        "--strict-vscode",
+        action="store_true",
+        default=False,
+        help="Promote VS Code compatibility issues to errors.",
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version=f"%(prog)s {__version__}",
@@ -214,6 +249,11 @@ def main() -> None:
             max_lines=args.max_lines,
             max_tokens=args.max_tokens,
             ignore_prefixes=args.ignore_prefixes or None,
+            skip_dirname_check=args.skip_dirname_check,
+            skip_ref_check=args.skip_ref_check,
+            min_desc_score=args.min_desc_score,
+            strict_vscode=args.strict_vscode,
+            target_agent=args.target_agent,
         )
         for p in paths
     ]

@@ -98,6 +98,73 @@ def check_name_charset(skill: ParsedSkill) -> list[Diagnostic]:
     return []
 
 
+def check_name_leading_trailing_hyphen(skill: ParsedSkill) -> list[Diagnostic]:
+    name = skill.frontmatter.get("name")
+    if name is None:
+        return []
+    name = str(name)
+    if not name:
+        return []
+    issues = []
+    if name.startswith("-"):
+        issues.append("starts with a hyphen")
+    if name.endswith("-"):
+        issues.append("ends with a hyphen")
+    if issues:
+        return [Diagnostic(
+            rule="frontmatter.name.leading-trailing-hyphen",
+            severity=Severity.ERROR,
+            message=(
+                f"Name {' and '.join(issues)}: '{name}'. "
+                f"Hyphens are only allowed between characters."
+            ),
+            line=_field_line(skill.raw_text, "name"),
+            context=f"name: {name}",
+        )]
+    return []
+
+
+def check_name_consecutive_hyphens(skill: ParsedSkill) -> list[Diagnostic]:
+    name = skill.frontmatter.get("name")
+    if name is None:
+        return []
+    name = str(name)
+    if "--" in name:
+        return [Diagnostic(
+            rule="frontmatter.name.consecutive-hyphens",
+            severity=Severity.ERROR,
+            message=(
+                f"Name contains consecutive hyphens: '{name}'. "
+                f"Use a single hyphen between words."
+            ),
+            line=_field_line(skill.raw_text, "name"),
+            context=f"name: {name}",
+        )]
+    return []
+
+
+def check_name_directory_match(skill: ParsedSkill) -> list[Diagnostic]:
+    name = skill.frontmatter.get("name")
+    if name is None:
+        return []
+    name = str(name)
+    if not name:
+        return []
+    parent_dir = skill.path.parent.name
+    if parent_dir and parent_dir != name:
+        return [Diagnostic(
+            rule="frontmatter.name.directory-mismatch",
+            severity=Severity.ERROR,
+            message=(
+                f"Name '{name}' does not match parent directory '{parent_dir}'. "
+                f"VS Code requires these to match or the skill will not load."
+            ),
+            line=_field_line(skill.raw_text, "name"),
+            context=f"name: {name} | directory: {parent_dir}",
+        )]
+    return []
+
+
 def check_name_reserved_words(skill: ParsedSkill) -> list[Diagnostic]:
     name = skill.frontmatter.get("name")
     if name is None:

@@ -2,7 +2,7 @@ from skillcheck.core import validate
 from skillcheck.parser import ParsedSkill, ParseError
 from skillcheck.result import Diagnostic, Severity, ValidationResult
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "validate",

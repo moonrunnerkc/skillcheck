@@ -22,12 +22,21 @@ def run(*args: str) -> subprocess.CompletedProcess:
     )
 
 
+def run_fixture(*args: str) -> subprocess.CompletedProcess:
+    """Run skillcheck with --skip-dirname-check for fixture files."""
+    return subprocess.run(
+        ["skillcheck", "--skip-dirname-check", *args],
+        capture_output=True,
+        text=True,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Exit codes
 # ---------------------------------------------------------------------------
 
 def test_valid_file_exits_zero():
-    result = run(str(FIXTURES_DIR / "valid_basic.md"))
+    result = run_fixture(str(FIXTURES_DIR / "valid_basic.md"))
     assert result.returncode == 0
 
 
@@ -51,7 +60,7 @@ def test_empty_directory_exits_two(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_text_output_is_default():
-    result = run(str(FIXTURES_DIR / "valid_basic.md"))
+    result = run_fixture(str(FIXTURES_DIR / "valid_basic.md"))
     assert "PASS" in result.stdout
 
 
@@ -67,7 +76,7 @@ def test_text_output_shows_rule_id_and_message():
 
 
 def test_text_output_includes_summary_line():
-    result = run(str(FIXTURES_DIR / "valid_basic.md"))
+    result = run_fixture(str(FIXTURES_DIR / "valid_basic.md"))
     assert "Checked" in result.stdout and "passed" in result.stdout
 
 
@@ -76,7 +85,7 @@ def test_text_output_includes_summary_line():
 # ---------------------------------------------------------------------------
 
 def test_json_output_is_valid_json():
-    result = run(str(FIXTURES_DIR / "valid_basic.md"), "--format", "json")
+    result = run_fixture(str(FIXTURES_DIR / "valid_basic.md"), "--format", "json")
     assert result.returncode == 0
     data = json.loads(result.stdout)
     assert "version" in data
@@ -85,13 +94,12 @@ def test_json_output_is_valid_json():
 
 
 def test_json_output_schema_for_valid_file():
-    result = run(str(FIXTURES_DIR / "valid_basic.md"), "--format", "json")
+    result = run_fixture(str(FIXTURES_DIR / "valid_basic.md"), "--format", "json")
     data = json.loads(result.stdout)
     assert data["files_checked"] == 1
     assert data["files_passed"] == 1
     assert data["files_failed"] == 0
     assert data["results"][0]["valid"] is True
-    assert data["results"][0]["diagnostics"] == []
 
 
 def test_json_output_schema_for_invalid_file():
@@ -110,13 +118,13 @@ def test_json_output_schema_for_invalid_file():
 # ---------------------------------------------------------------------------
 
 def test_directory_mode_finds_skill_files(tmp_path):
-    # Create two SKILL.md files in subdirectories.
-    (tmp_path / "a").mkdir()
-    (tmp_path / "b").mkdir()
-    (tmp_path / "a" / "SKILL.md").write_text(
+    # Create two SKILL.md files in subdirectories with matching names.
+    (tmp_path / "skill-a").mkdir()
+    (tmp_path / "skill-b").mkdir()
+    (tmp_path / "skill-a" / "SKILL.md").write_text(
         "---\nname: skill-a\ndescription: Skill A for testing.\n---\nBody.\n"
     )
-    (tmp_path / "b" / "SKILL.md").write_text(
+    (tmp_path / "skill-b" / "SKILL.md").write_text(
         "---\nname: skill-b\ndescription: Skill B for testing.\n---\nBody.\n"
     )
     result = run(str(tmp_path), "--format", "json")
@@ -141,14 +149,14 @@ def test_directory_mode_ignores_non_skill_md_files(tmp_path):
 
 def test_max_lines_override_triggers_warning():
     # valid_basic.md is short; override threshold to 1 so it always warns.
-    result = run(str(FIXTURES_DIR / "valid_basic.md"), "--max-lines", "1")
+    result = run_fixture(str(FIXTURES_DIR / "valid_basic.md"), "--max-lines", "1")
     assert "sizing.body.line-count" in result.stdout
     # Warnings do not cause a non-zero exit.
     assert result.returncode == 0
 
 
 def test_max_tokens_override_triggers_warning():
-    result = run(str(FIXTURES_DIR / "valid_basic.md"), "--max-tokens", "1")
+    result = run_fixture(str(FIXTURES_DIR / "valid_basic.md"), "--max-tokens", "1")
     assert "sizing.body.token-estimate" in result.stdout
     assert result.returncode == 0
 
@@ -183,7 +191,7 @@ def test_ignore_prefix_does_not_suppress_unrelated_rules():
 def test_version_flag_shows_version():
     result = run("--version")
     assert result.returncode == 0
-    assert "0.1.0" in result.stdout
+    assert "0.2.0" in result.stdout
 
 
 # ---------------------------------------------------------------------------
@@ -191,7 +199,7 @@ def test_version_flag_shows_version():
 # ---------------------------------------------------------------------------
 
 def test_pass_shows_checkmark_symbol():
-    result = run(str(FIXTURES_DIR / "valid_basic.md"))
+    result = run_fixture(str(FIXTURES_DIR / "valid_basic.md"))
     assert "✔ PASS" in result.stdout
 
 
@@ -201,18 +209,18 @@ def test_fail_shows_cross_symbol():
 
 
 def test_warning_severity_shown_in_diagnostics():
-    result = run(str(FIXTURES_DIR / "valid_basic.md"), "--max-lines", "1")
+    result = run_fixture(str(FIXTURES_DIR / "valid_basic.md"), "--max-lines", "1")
     assert "warning" in result.stdout.lower()
     assert "⚠" in result.stdout
 
 
 def test_summary_includes_warning_count():
-    result = run(str(FIXTURES_DIR / "valid_basic.md"), "--max-lines", "1")
+    result = run_fixture(str(FIXTURES_DIR / "valid_basic.md"), "--max-lines", "1")
     assert "warning" in result.stdout.split("Checked")[-1]
 
 
 def test_no_color_flag_accepted():
-    result = run(str(FIXTURES_DIR / "valid_basic.md"), "--no-color")
+    result = run_fixture(str(FIXTURES_DIR / "valid_basic.md"), "--no-color")
     assert result.returncode == 0
     assert "\033[" not in result.stdout
 

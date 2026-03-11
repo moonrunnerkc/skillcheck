@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "skillcheck"
-version = "0.1.0"
-description = "Validates Claude Code SKILL.md files against the Anthropic skill specification"
+version = "0.2.0"
+description = "Cross-agent skill quality gate for SKILL.md files conforming to the agentskills.io specification"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"

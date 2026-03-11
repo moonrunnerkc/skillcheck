@@ -13,6 +13,11 @@ def validate(
     max_lines: int | None = None,
     max_tokens: int | None = None,
     ignore_prefixes: list[str] | None = None,
+    skip_dirname_check: bool = False,
+    skip_ref_check: bool = False,
+    min_desc_score: int | None = None,
+    strict_vscode: bool = False,
+    target_agent: str = "all",
 ) -> ValidationResult:
     """Validate a single SKILL.md file and return a ValidationResult.
 
@@ -21,6 +26,11 @@ def validate(
         max_lines: Override the default line-count threshold.
         max_tokens: Override the default token-count threshold.
         ignore_prefixes: Suppress any diagnostic whose rule ID starts with one of these prefixes.
+        skip_dirname_check: Skip the directory-name matching check.
+        skip_ref_check: Skip file reference validation.
+        min_desc_score: Minimum description quality score (0-100). Below this triggers a warning.
+        strict_vscode: Promote VS Code compatibility issues to errors.
+        target_agent: Scope compatibility checks ('claude', 'vscode', 'all').
     """
     try:
         skill = parse(path)
@@ -34,7 +44,15 @@ def validate(
             )],
         )
 
-    rules = get_rules(max_lines=max_lines, max_tokens=max_tokens)
+    rules = get_rules(
+        max_lines=max_lines,
+        max_tokens=max_tokens,
+        skip_dirname_check=skip_dirname_check,
+        skip_ref_check=skip_ref_check,
+        min_desc_score=min_desc_score,
+        strict_vscode=strict_vscode,
+        target_agent=target_agent,
+    )
     diagnostics: list[Diagnostic] = [
         diagnostic
         for rule in rules
