@@ -1,0 +1,230 @@
+from __future__ import annotations
+
+import re
+
+from skillcheck import config
+from skillcheck.parser import ParsedSkill
+from skillcheck.result import Diagnostic, Severity
+
+_XML_TAG_RE = re.compile(r"<[a-zA-Z/][^>]*>")
+_NAME_VALID_CHARS_RE = re.compile(r"^[a-z0-9-]+$")
+
+# First-person patterns: "I can", "I will", "I'm", "My approach", etc.
+# Catches subject "I" at sentence start, "I" before a verb, and possessive "My".
+_FIRST_PERSON_RE = re.compile(
+    r"(?:(?:^|(?<=\.\s))I\b)"
+    r"|\bI (?:can|will|am|do|have|would|should|need|shall|won't|didn't|don't)\b"
+    r"|\bMy\b",
+    re.MULTILINE,
+)
+
+# Second-person patterns: "You can", "you will", "you should", etc.
+_SECOND_PERSON_RE = re.compile(
+    r"\b[Yy]ou (?:can|will|should|must|need|are|have|do|get|use)\b",
+)
+
+
+def _field_line(raw_text: str, field: str) -> int | None:
+    """Return the 1-based line number where a frontmatter field appears.
+
+    Only searches within the frontmatter block to avoid false positives from
+    body content that happens to start with a field name.
+    """
+    lines = raw_text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return None
+    # Scan only until the closing --- delimiter.
+    for i, line in enumerate(lines[1:], 2):
+        if line.strip() == "---":
+            break
+        if line.lstrip().startswith(f"{field}:"):
+            return i
+    return None
+
+
+def check_name_required(skill: ParsedSkill) -> list[Diagnostic]:
+    if skill.frontmatter.get("name") is None:
+        return [Diagnostic(
+            rule="frontmatter.name.required",
+            severity=Severity.ERROR,
+            message="Required field 'name' is missing from frontmatter.",
+        )]
+    return []
+
+
+def check_name_max_length(skill: ParsedSkill) -> list[Diagnostic]:
+    name = skill.frontmatter.get("name")
+    if name is None:
+        return []
+    name = str(name)
+    if len(name) > config.NAME_MAX_LENGTH:
+        return [Diagnostic(
+            rule="frontmatter.name.max-length",
+            severity=Severity.ERROR,
+            message=(
+                f"Name exceeds {config.NAME_MAX_LENGTH} characters "
+                f"(got {len(name)}): '{name}'"
+            ),
+            line=_field_line(skill.raw_text, "name"),
+            context=f"name: {name}",
+        )]
+    return []
+
+
+def check_name_charset(skill: ParsedSkill) -> list[Diagnostic]:
+    name = skill.frontmatter.get("name")
+    if name is None:
+        return []
+    name = str(name)
+    if not name:
+        return [Diagnostic(
+            rule="frontmatter.name.invalid-chars",
+            severity=Severity.ERROR,
+            message="Name is empty. Use lowercase letters, numbers, and hyphens only.",
+            line=_field_line(skill.raw_text, "name"),
+        )]
+    if not _NAME_VALID_CHARS_RE.match(name):
+        invalid = sorted(set(c for c in name if not re.match(r"[a-z0-9-]", c)))
+        return [Diagnostic(
+            rule="frontmatter.name.invalid-chars",
+            severity=Severity.ERROR,
+            message=(
+                f"Name contains invalid characters {invalid}: '{name}'. "
+                f"Use lowercase letters, numbers, and hyphens only."
+            ),
+            line=_field_line(skill.raw_text, "name"),
+            context=f"name: {name}",
+        )]
+    return []
+
+
+def check_name_reserved_words(skill: ParsedSkill) -> list[Diagnostic]:
+    name = skill.frontmatter.get("name")
+    if name is None:
+        return []
+    name = str(name)
+    for word in ("anthropic", "claude"):
+        if word in name:
+            return [Diagnostic(
+                rule="frontmatter.name.reserved-word",
+                severity=Severity.ERROR,
+                message=f"Name contains reserved word '{word}': '{name}'.",
+                line=_field_line(skill.raw_text, "name"),
+                context=f"name: {name}",
+            )]
+    return []
+
+
+def check_description_required(skill: ParsedSkill) -> list[Diagnostic]:
+    if "description" not in skill.frontmatter:
+        return [Diagnostic(
+            rule="frontmatter.description.required",
+            severity=Severity.ERROR,
+            message="Required field 'description' is missing from frontmatter.",
+        )]
+    return []
+
+
+def check_description_non_empty(skill: ParsedSkill) -> list[Diagnostic]:
+    if "description" not in skill.frontmatter:
+        return []  # already covered by check_description_required
+    desc = skill.frontmatter.get("description")
+    # Treat null (description:) and whitespace-only strings as empty.
+    if not desc or (isinstance(desc, str) and not desc.strip()):
+        return [Diagnostic(
+            rule="frontmatter.description.empty",
+            severity=Severity.ERROR,
+            message="Description is empty. Provide a meaningful description of the skill.",
+            line=_field_line(skill.raw_text, "description"),
+            context="description: (empty)",
+        )]
+    return []
+
+
+def check_description_max_length(skill: ParsedSkill) -> list[Diagnostic]:
+    desc = skill.frontmatter.get("description")
+    if not desc:
+        return []
+    desc = str(desc)
+    if len(desc) > config.DESCRIPTION_MAX_LENGTH:
+        return [Diagnostic(
+            rule="frontmatter.description.max-length",
+            severity=Severity.ERROR,
+            message=(
+                f"Description exceeds {config.DESCRIPTION_MAX_LENGTH} characters "
+                f"(got {len(desc)})."
+            ),
+            line=_field_line(skill.raw_text, "description"),
+        )]
+    return []
+
+
+def check_description_no_xml_tags(skill: ParsedSkill) -> list[Diagnostic]:
+    desc = skill.frontmatter.get("description")
+    if not desc:
+        return []
+    desc = str(desc)
+    tags_found = _XML_TAG_RE.findall(desc)
+    if tags_found:
+        return [Diagnostic(
+            rule="frontmatter.description.xml-tags",
+            severity=Severity.ERROR,
+            message=(
+                f"Description contains XML tags: {tags_found}. "
+                f"Remove markup from the description."
+            ),
+            line=_field_line(skill.raw_text, "description"),
+        )]
+    return []
+
+
+def check_description_person_voice(skill: ParsedSkill) -> list[Diagnostic]:
+    desc = skill.frontmatter.get("description")
+    if not desc:
+        return []
+    desc = str(desc)
+
+    first_match = _FIRST_PERSON_RE.search(desc)
+    if first_match:
+        return [Diagnostic(
+            rule="frontmatter.description.person-voice",
+            severity=Severity.ERROR,
+            message=(
+                f"Description uses first-person voice ('{first_match.group().strip()}'). "
+                f"Use third person, e.g., 'Generates...' or 'Analyzes...'"
+            ),
+            line=_field_line(skill.raw_text, "description"),
+            context=f"description: {desc[:80]}{'...' if len(desc) > 80 else ''}",
+        )]
+
+    second_match = _SECOND_PERSON_RE.search(desc)
+    if second_match:
+        return [Diagnostic(
+            rule="frontmatter.description.person-voice",
+            severity=Severity.ERROR,
+            message=(
+                f"Description uses second-person voice ('{second_match.group()}'). "
+                f"Use third person, e.g., 'Generates...' or 'Analyzes...'"
+            ),
+            line=_field_line(skill.raw_text, "description"),
+            context=f"description: {desc[:80]}{'...' if len(desc) > 80 else ''}",
+        )]
+
+    return []
+
+
+def check_unknown_fields(skill: ParsedSkill) -> list[Diagnostic]:
+    diagnostics = []
+    for field in skill.frontmatter:
+        if field not in config.KNOWN_FRONTMATTER_FIELDS:
+            diagnostics.append(Diagnostic(
+                rule="frontmatter.field.unknown",
+                severity=Severity.WARNING,
+                message=(
+                    f"Unknown frontmatter field '{field}'. "
+                    f"Known fields: {', '.join(sorted(config.KNOWN_FRONTMATTER_FIELDS))}."
+                ),
+                line=_field_line(skill.raw_text, str(field)),
+                context=f"{field}: ...",
+            ))
+    return diagnostics
