@@ -47,6 +47,7 @@ jobs:
       - name: Compile check (all modules)
         run: |
           python -m py_compile src/skillcheck/__init__.py
+          python -m py_compile src/skillcheck/__main__.py
           python -m py_compile src/skillcheck/cli.py
           python -m py_compile src/skillcheck/config.py
           python -m py_compile src/skillcheck/core.py

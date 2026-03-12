@@ -1,8 +1,15 @@
 """Tests for Feature 3: File reference validation."""
 
 import os
+import sys
 
 import pytest
+
+_WINDOWS = sys.platform == "win32"
+_skip_symlink = pytest.mark.skipif(
+    _WINDOWS,
+    reason="os.symlink requires developer mode / elevated privileges on Windows",
+)
 
 from skillcheck.parser import parse
 from skillcheck.result import Severity
@@ -173,6 +180,7 @@ def test_no_refs_no_depth_issues(tmp_path):
 # Symlink / path-escape containment (CWE-59)
 # ---------------------------------------------------------------------------
 
+@_skip_symlink
 def test_symlink_escape_detected(tmp_path):
     """A symlink pointing outside the skill directory triggers references.escape."""
     skill_dir = tmp_path / "my-skill"
@@ -211,6 +219,7 @@ def test_dotdot_escape_detected(tmp_path):
     assert any(d.rule == "references.escape" for d in diagnostics)
 
 
+@_skip_symlink
 def test_symlink_within_skill_dir_passes(tmp_path):
     """A symlink that resolves within the skill directory is fine."""
     skill_dir = tmp_path / "my-skill"

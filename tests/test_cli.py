@@ -19,6 +19,7 @@ def run(*args: str) -> subprocess.CompletedProcess:
         ["skillcheck", *args],
         capture_output=True,
         text=True,
+        encoding="utf-8",
     )
 
 
@@ -28,6 +29,7 @@ def run_fixture(*args: str) -> subprocess.CompletedProcess:
         ["skillcheck", "--skip-dirname-check", *args],
         capture_output=True,
         text=True,
+        encoding="utf-8",
     )
 
 
