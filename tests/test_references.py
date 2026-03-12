@@ -152,8 +152,26 @@ def test_parent_traversal_flagged(tmp_path):
     )
     skill = parse(f)
     diagnostics = check_reference_depth(skill)
-    assert len(diagnostics) >= 1
-    assert any("traverses above" in d.message for d in diagnostics)
+    # ../../other/file.py is depth 3 — the depth check catches it.
+    # Only one diagnostic should fire (no duplicate from startswith check).
+    assert len(diagnostics) == 1
+    assert diagnostics[0].rule == "references.depth-exceeded"
+    assert "3 levels deep" in diagnostics[0].message
+
+
+def test_single_dotdot_traversal_flagged(tmp_path):
+    """../file.txt has depth 1 — only the startswith('..') traversal warning fires."""
+    skill_dir = tmp_path / "my-skill"
+    skill_dir.mkdir()
+    f = skill_dir / "SKILL.md"
+    f.write_text(
+        "---\nname: my-skill\ndescription: Single dotdot.\n---\n"
+        "See [up](../notes.txt) for context.\n"
+    )
+    skill = parse(f)
+    diagnostics = check_reference_depth(skill)
+    assert len(diagnostics) == 1
+    assert "traverses above" in diagnostics[0].message
 
 
 def test_shallow_ref_passes(tmp_path):

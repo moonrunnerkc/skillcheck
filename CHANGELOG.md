@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Agent-scoped checks** — `--target-agent {claude,vscode,all}` scopes compatibility diagnostics to a specific agent.
 - **Skip flags** — `--skip-dirname-check` and `--skip-ref-check` for CI environments where filesystem context is unavailable.
 - **`-q`/`--quiet` flag** — suppresses all output; exit code only.
+- **YAML type coercion detection** — `frontmatter.name.type` and `frontmatter.description.type` catch when `yaml.safe_load` silently converts bare values like `true`, `123`, or `null` into non-string types. Provides clear fix advice (quote the value).
 - **YAML anchor detection** — `frontmatter.yaml-anchors` warns when YAML anchors/aliases silently copy values in frontmatter.
 - **Symlink escape detection** — `references.escape` errors when a file reference resolves outside the skill directory (CWE-59).
 - **GitHub Actions CI workflow** — test matrix across Python 3.10–3.13 on Ubuntu, macOS, and Windows; compile check; package build verification.
@@ -28,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `KNOWN_FRONTMATTER_FIELDS` expanded to include `model`, `context`, `agent`, `hooks`, `user-invocable`, `disable-model-invocation`, `skills`, `mode`, `tags`, `version`, `author`.
 - Token estimation uses a word-run + punctuation-run heuristic (~15% error) with optional `tiktoken` for ~5% error.
+- Standardized on `collections.abc.Callable` across all modules (was `typing.Callable` in some).
+
+### Fixed
+- `check_reference_depth` emitted duplicate diagnostics for `../../` paths (both depth-exceeded and traverses-above). Changed to `elif` so only the most specific warning fires.
+- README Rules table described sizing rules as "Body exceeds..." but the code counts full file lines/tokens. Table now says "File exceeds...".
 
 ## [0.1.0] - 2026-03-10
 

@@ -60,6 +60,50 @@ def check_name_required(skill: ParsedSkill) -> list[Diagnostic]:
     return []
 
 
+def check_name_type(skill: ParsedSkill) -> list[Diagnostic]:
+    """Ensure ``name`` is a string, not a YAML-coerced boolean/number/null.
+
+    ``yaml.safe_load`` silently converts bare values like ``true``, ``123``,
+    and ``null`` into Python ``bool``, ``int``, and ``None``.  When this
+    happens, every downstream rule sees corrupted data (e.g., ``str(True)``
+    becomes ``'True'`` and then fails charset checks for uppercase ``T``).
+    """
+    name = skill.frontmatter.get("name")
+    if name is None:
+        return []  # handled by check_name_required
+    if isinstance(name, str):
+        return []
+    yaml_type = type(name).__name__
+    return [Diagnostic(
+        rule="frontmatter.name.type",
+        severity=Severity.ERROR,
+        message=(
+            f"Field 'name' must be a string but YAML parsed it as {yaml_type} "
+            f"({name!r}). Quote the value: name: \"{name}\""
+        ),
+        line=_field_line(skill.raw_text, "name"),
+    )]
+
+
+def check_description_type(skill: ParsedSkill) -> list[Diagnostic]:
+    """Ensure ``description`` is a string, not a YAML-coerced type."""
+    desc = skill.frontmatter.get("description")
+    if desc is None:
+        return []  # handled by check_description_required
+    if isinstance(desc, str):
+        return []
+    yaml_type = type(desc).__name__
+    return [Diagnostic(
+        rule="frontmatter.description.type",
+        severity=Severity.ERROR,
+        message=(
+            f"Field 'description' must be a string but YAML parsed it as {yaml_type} "
+            f"({desc!r}). Quote the value: description: \"{desc}\""
+        ),
+        line=_field_line(skill.raw_text, "description"),
+    )]
+
+
 def check_name_max_length(skill: ParsedSkill) -> list[Diagnostic]:
     name = skill.frontmatter.get("name")
     if name is None:

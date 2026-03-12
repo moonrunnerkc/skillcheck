@@ -16,7 +16,7 @@ Validates against the [agentskills.io specification](https://agentskills.io/spec
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776ab.svg)](https://python.org)
 [![PyYAML](https://img.shields.io/badge/deps-PyYAML-yellow.svg)](https://pyyaml.org)
-[![Tests](https://img.shields.io/badge/tests-160%20passed-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-171%20passed-brightgreen.svg)](#testing)
 
 </div>
 
@@ -212,6 +212,7 @@ Rules marked **spec** are derived from the [agentskills.io specification](https:
 | Rule ID | Severity | Source | What it checks |
 |---|---|---|---|
 | `frontmatter.name.required` | error | spec | `name` field must exist |
+| `frontmatter.name.type` | error | advisory | `name` must be a string (catches YAML coercion of `true`, `123`, `null`) |
 | `frontmatter.name.max-length` | error | spec | Name must be 64 characters or fewer |
 | `frontmatter.name.invalid-chars` | error | spec | Lowercase, numbers, hyphens only |
 | `frontmatter.name.leading-trailing-hyphen` | error | spec | No leading or trailing hyphens |
@@ -219,6 +220,7 @@ Rules marked **spec** are derived from the [agentskills.io specification](https:
 | `frontmatter.name.reserved-word` | error | advisory | Not a reserved word (`claude`, `anthropic`) |
 | `frontmatter.name.directory-mismatch` | error | spec | Name must match parent directory (VS Code requirement) |
 | `frontmatter.description.required` | error | spec | `description` field must exist |
+| `frontmatter.description.type` | error | advisory | `description` must be a string (catches YAML coercion) |
 | `frontmatter.description.empty` | error | spec | Description must not be blank |
 | `frontmatter.description.max-length` | error | spec | Description must be 1024 characters or fewer |
 | `frontmatter.description.xml-tags` | error | advisory | No XML/HTML tags in description |
@@ -227,8 +229,8 @@ Rules marked **spec** are derived from the [agentskills.io specification](https:
 | `frontmatter.yaml-anchors` | warning | advisory | YAML anchors/aliases can silently copy values |
 | `description.quality-score` | info | advisory | Scores description 0-100 for agent discoverability |
 | `description.min-score` | warning | advisory | Description score below `--min-desc-score` threshold |
-| `sizing.body.line-count` | warning | spec | Body exceeds line threshold |
-| `sizing.body.token-estimate` | warning | spec | Body exceeds token threshold |
+| `sizing.body.line-count` | warning | spec | File exceeds line threshold |
+| `sizing.body.token-estimate` | warning | spec | File exceeds token threshold |
 | `disclosure.metadata-budget` | warning | spec | Frontmatter exceeds ~100 token metadata budget |
 | `disclosure.body-budget` | warning | spec | Body exceeds 5000 token instruction budget |
 | `disclosure.body-bloat` | info | advisory | Large code blocks, tables, or base64 in body |

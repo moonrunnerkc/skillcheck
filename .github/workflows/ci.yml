@@ -61,6 +61,7 @@ jobs:
           python -m py_compile src/skillcheck/rules/frontmatter.py
           python -m py_compile src/skillcheck/rules/references.py
           python -m py_compile src/skillcheck/rules/sizing.py
+          python -m py_compile action/entrypoint.py
 
   package:
     runs-on: ubuntu-latest

@@ -117,8 +117,7 @@ def check_reference_depth(skill: ParsedSkill) -> list[Diagnostic]:
                     f"Keep file references one level deep from SKILL.md."
                 ),
             ))
-        # Also flag parent traversal
-        if ref.startswith(".."):
+        elif ref.startswith(".."):
             diagnostics.append(Diagnostic(
                 rule="references.depth-exceeded",
                 severity=Severity.WARNING,
