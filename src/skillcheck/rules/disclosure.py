@@ -28,7 +28,19 @@ _CODE_BLOCK_RE = re.compile(
 _TABLE_ROW_RE = re.compile(r"^\|.*\|$", re.MULTILINE)
 
 # Matches base64-encoded content (long strings of base64 characters).
-_BASE64_RE = re.compile(r"[A-Za-z0-9+/]{64,}={0,2}")
+# To avoid false positives on hex hashes (all-lowercase a-f0-9), repeated
+# single characters, or API keys, we use a two-step check:
+#   1. A candidate regex matches 64+ characters from the base64 alphabet.
+#   2. A validator function confirms the candidate contains BOTH uppercase
+#      and lowercase letters — a hallmark of real base64 (RFC 4648).
+_BASE64_CANDIDATE_RE = re.compile(r"[A-Za-z0-9+/]{64,}={0,2}")
+
+
+def _is_real_base64(text: str) -> bool:
+    """Return True if *text* looks like genuine base64 (mixed case)."""
+    has_upper = any(c.isupper() for c in text)
+    has_lower = any(c.islower() for c in text)
+    return has_upper and has_lower
 
 
 def _extract_frontmatter_text(raw_text: str) -> str:
@@ -120,8 +132,9 @@ def check_body_bloat(skill: ParsedSkill) -> list[Diagnostic]:
             ),
         ))
 
-    # Check for base64 content
-    if _BASE64_RE.search(skill.body):
+    # Check for base64 content (two-step: candidate match + mixed-case validation)
+    match = _BASE64_CANDIDATE_RE.search(skill.body)
+    if match and _is_real_base64(match.group()):
         diagnostics.append(Diagnostic(
             rule="disclosure.body-bloat",
             severity=Severity.INFO,

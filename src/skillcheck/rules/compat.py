@@ -10,6 +10,8 @@ can make informed decisions about portability.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from skillcheck import config
 from skillcheck.parser import ParsedSkill
 from skillcheck.result import Diagnostic, Severity
@@ -82,7 +84,7 @@ def check_unverified_fields(skill: ParsedSkill) -> list[Diagnostic]:
     return diagnostics
 
 
-def make_strict_vscode_rule() -> callable:
+def make_strict_vscode_rule() -> Callable[[ParsedSkill], list[Diagnostic]]:
     """Return a rule that promotes VS Code compat issues to ERROR severity."""
 
     def check_strict_vscode(skill: ParsedSkill) -> list[Diagnostic]:

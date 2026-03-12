@@ -9,6 +9,14 @@ from skillcheck.result import Diagnostic, Severity
 _XML_TAG_RE = re.compile(r"<[a-zA-Z/][^>]*>")
 _NAME_VALID_CHARS_RE = re.compile(r"^[a-z0-9-]+$")
 
+# YAML anchor (&name) and alias (*name) patterns.
+# Anchors define a reusable value; aliases reference it.  When safe_load
+# resolves ``description: *anchor``, the description silently becomes
+# whatever the anchor pointed to — a subtle semantic trap that bypasses
+# all downstream description-quality checks.
+_YAML_ANCHOR_RE = re.compile(r"&([A-Za-z_][A-Za-z0-9_-]*)")
+_YAML_ALIAS_RE = re.compile(r"\*([A-Za-z_][A-Za-z0-9_-]*)")
+
 # First-person patterns: "I can", "I will", "I'm", "My approach", etc.
 # Catches subject "I" at sentence start, "I" before a verb, and possessive "My".
 _FIRST_PERSON_RE = re.compile(
@@ -294,4 +302,49 @@ def check_unknown_fields(skill: ParsedSkill) -> list[Diagnostic]:
                 line=_field_line(skill.raw_text, str(field)),
                 context=f"{field}: ...",
             ))
+    return diagnostics
+
+
+def _extract_frontmatter_raw(raw_text: str) -> str:
+    """Return the raw frontmatter text between ``---`` delimiters."""
+    lines = raw_text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return ""
+    fm_lines: list[str] = []
+    for line in lines[1:]:
+        if line.strip() == "---":
+            break
+        fm_lines.append(line)
+    return "\n".join(fm_lines)
+
+
+def check_yaml_anchors(skill: ParsedSkill) -> list[Diagnostic]:
+    """Warn when YAML anchors or aliases are used in frontmatter.
+
+    ``yaml.safe_load`` silently resolves anchors/aliases, which can cause
+    a field like ``description: *name_anchor`` to inherit the name value.
+    This bypasses description-quality checks and is almost always a mistake
+    in SKILL.md files.
+    """
+    fm_raw = _extract_frontmatter_raw(skill.raw_text)
+    if not fm_raw:
+        return []
+
+    diagnostics: list[Diagnostic] = []
+
+    anchors = _YAML_ANCHOR_RE.findall(fm_raw)
+    aliases = _YAML_ALIAS_RE.findall(fm_raw)
+
+    if anchors or aliases:
+        names = sorted(set(anchors + aliases))
+        diagnostics.append(Diagnostic(
+            rule="frontmatter.yaml-anchors",
+            severity=Severity.WARNING,
+            message=(
+                f"YAML anchors/aliases detected in frontmatter ({', '.join(names)}). "
+                f"Anchors silently copy values between fields, which can bypass "
+                f"validation. Use explicit values instead."
+            ),
+        ))
+
     return diagnostics

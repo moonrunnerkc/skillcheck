@@ -93,6 +93,7 @@ Checked 2 files: 1 passed, 1 failed, 1 warning
 | `--max-tokens N` | Override token-count threshold (default: 8000) |
 | `--ignore PREFIX` | Suppress rules matching a prefix (repeatable) |
 | `--no-color` | Disable colored output |
+| `-q`, `--quiet` | Suppress all output; exit code only (for CI) |
 | `--skip-dirname-check` | Skip directory-name matching (useful for CI temp paths) |
 | `--skip-ref-check` | Skip file reference validation |
 | `--min-desc-score N` | Minimum description quality score (0-100); below triggers a warning |
@@ -120,6 +121,9 @@ skillcheck SKILL.md --strict-vscode
 
 # Pipe-friendly plain output
 skillcheck SKILL.md --no-color
+
+# Silent mode for CI — exit code only
+skillcheck SKILL.md --quiet
 ```
 
 ## Exit Codes
@@ -147,6 +151,7 @@ skillcheck SKILL.md --no-color
 | `frontmatter.description.xml-tags` | error | No XML/HTML tags in description |
 | `frontmatter.description.person-voice` | error | No first/second-person pronouns |
 | `frontmatter.field.unknown` | warning | Flags fields not in the spec |
+| `frontmatter.yaml-anchors` | warning | YAML anchors/aliases can silently copy values |
 | `description.quality-score` | info | Scores description 0-100 for agent discoverability |
 | `description.min-score` | warning | Description score below `--min-desc-score` threshold |
 | `sizing.body.line-count` | warning | Body exceeds line threshold |
@@ -155,6 +160,7 @@ skillcheck SKILL.md --no-color
 | `disclosure.body-budget` | warning | Body exceeds 5000 token instruction budget |
 | `disclosure.body-bloat` | info | Large code blocks, tables, or base64 in body |
 | `references.broken-link` | error | Referenced file does not exist |
+| `references.escape` | error | Reference resolves outside skill directory (CWE-59) |
 | `references.depth-exceeded` | warning | Reference deeper than one level from SKILL.md |
 | `compat.claude-only` | info | Field only works in Claude Code |
 | `compat.vscode-dirname` | info/error | Name does not match parent directory (VS Code) |

@@ -57,16 +57,37 @@ def _reference_depth(ref_path: str) -> int:
 
 
 def check_broken_references(skill: ParsedSkill) -> list[Diagnostic]:
-    """Check that all file references in the body resolve to existing files."""
+    """Check that all file references in the body resolve to existing files.
+
+    Also rejects symlinks (or ``..`` chains) that escape the skill directory
+    tree.  Allowing unchecked symlinks would let a SKILL.md reference
+    ``/etc/passwd`` via a crafted symlink (CWE-59 / path-traversal).
+    """
     refs = _extract_references(skill.body)
     if not refs:
         return []
 
-    skill_dir = skill.path.parent
+    skill_dir = skill.path.parent.resolve()
     diagnostics: list[Diagnostic] = []
 
     for ref in refs:
         target = (skill_dir / ref).resolve()
+
+        # Containment check: the resolved target must stay inside the
+        # skill directory tree.  This catches symlinks pointing outside,
+        # as well as ``../../`` traversal that escapes the root.
+        if not target.is_relative_to(skill_dir):
+            diagnostics.append(Diagnostic(
+                rule="references.escape",
+                severity=Severity.ERROR,
+                message=(
+                    f"Reference '{ref}' resolves outside the skill directory. "
+                    f"File references must stay within the skill tree."
+                ),
+                context=f"resolved to: {target}",
+            ))
+            continue
+
         if not target.exists():
             diagnostics.append(Diagnostic(
                 rule="references.broken-link",

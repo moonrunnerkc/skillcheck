@@ -105,8 +105,11 @@ def test_body_bloat_flags_large_table(tmp_path):
 
 
 def test_body_bloat_flags_base64(tmp_path):
-    # A long base64-like string
-    b64 = "A" * 100 + "=="
+    # Real base64 has mixed upper/lower characters.
+    import base64
+    b64 = base64.b64encode(b"\x00" * 80).decode()  # 108 chars, mixed case? No...
+    # Manually craft realistic base64 (like an embedded image):
+    b64 = "SGVsbG8gV29ybGQhIFRoaXMgaXMgYSByZWFsbHkgbG9uZyBiYXNlNjQgc3RyaW5nIHRoYXQgc2hvdWxkIGJlIGRldGVjdGVkIGJ5IHRoZSBibG9hdCBjaGVjaw=="
     content = (
         "---\nname: bloat-b64\ndescription: Base64 bloat test.\n---\n"
         f"\nEmbedded data: {b64}\n"
@@ -130,3 +133,48 @@ def test_body_bloat_handles_empty_body(tmp_path):
     f.write_text(content)
     skill = parse(f)
     assert check_body_bloat(skill) == []
+
+
+# ---------------------------------------------------------------------------
+# base64 false-positive hardening
+# ---------------------------------------------------------------------------
+
+def test_base64_rejects_repeated_single_char(tmp_path):
+    """64+ repeated 'a' chars should NOT trigger base64 detection."""
+    body_str = "a" * 100
+    content = (
+        "---\nname: b64-repeat\ndescription: Repeated char test.\n---\n"
+        f"\n{body_str}\n"
+    )
+    f = tmp_path / "SKILL.md"
+    f.write_text(content)
+    skill = parse(f)
+    diagnostics = check_body_bloat(skill)
+    assert not any("base64" in d.message.lower() for d in diagnostics)
+
+
+def test_base64_rejects_hex_hash(tmp_path):
+    """A SHA-256 hex hash (all lowercase a-f + digits) should NOT trigger."""
+    hex_hash = "a" * 32 + "0123456789abcdef" * 3  # 80 chars, lowercase hex-like
+    content = (
+        "---\nname: b64-hex\ndescription: Hex hash test.\n---\n"
+        f"\ncommit: {hex_hash}\n"
+    )
+    f = tmp_path / "SKILL.md"
+    f.write_text(content)
+    skill = parse(f)
+    diagnostics = check_body_bloat(skill)
+    assert not any("base64" in d.message.lower() for d in diagnostics)
+
+
+def test_base64_rejects_all_uppercase(tmp_path):
+    """64+ uppercase-only chars should NOT trigger base64 detection."""
+    content = (
+        "---\nname: b64-upper\ndescription: All-upper test.\n---\n"
+        f"\n{'A' * 100}==\n"
+    )
+    f = tmp_path / "SKILL.md"
+    f.write_text(content)
+    skill = parse(f)
+    diagnostics = check_body_bloat(skill)
+    assert not any("base64" in d.message.lower() for d in diagnostics)

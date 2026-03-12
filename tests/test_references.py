@@ -1,5 +1,7 @@
 """Tests for Feature 3: File reference validation."""
 
+import os
+
 import pytest
 
 from skillcheck.parser import parse
@@ -165,3 +167,63 @@ def test_no_refs_no_depth_issues(tmp_path):
     f.write_text("---\nname: no-refs\ndescription: No refs.\n---\nBody.\n")
     skill = parse(f)
     assert check_reference_depth(skill) == []
+
+
+# ---------------------------------------------------------------------------
+# Symlink / path-escape containment (CWE-59)
+# ---------------------------------------------------------------------------
+
+def test_symlink_escape_detected(tmp_path):
+    """A symlink pointing outside the skill directory triggers references.escape."""
+    skill_dir = tmp_path / "my-skill"
+    skill_dir.mkdir()
+    # Create a symlink that points to /etc/passwd (or any file outside)
+    target_outside = tmp_path / "secret.txt"
+    target_outside.write_text("secret data")
+    link = skill_dir / "evil-link.txt"
+    link.symlink_to(target_outside)
+    f = skill_dir / "SKILL.md"
+    f.write_text(
+        "---\nname: my-skill\ndescription: Symlink test.\n---\n"
+        "See [config](evil-link.txt) for settings.\n"
+    )
+    skill = parse(f)
+    diagnostics = check_broken_references(skill)
+    assert len(diagnostics) == 1
+    assert diagnostics[0].rule == "references.escape"
+    assert diagnostics[0].severity == Severity.ERROR
+    assert "outside" in diagnostics[0].message.lower()
+
+
+def test_dotdot_escape_detected(tmp_path):
+    """A ../../ chain that escapes the skill directory triggers references.escape."""
+    skill_dir = tmp_path / "my-skill"
+    skill_dir.mkdir()
+    # Create a file outside the skill dir
+    (tmp_path / "outside.txt").write_text("outside content")
+    f = skill_dir / "SKILL.md"
+    f.write_text(
+        "---\nname: my-skill\ndescription: Dotdot test.\n---\n"
+        "See [outside](../outside.txt) for context.\n"
+    )
+    skill = parse(f)
+    diagnostics = check_broken_references(skill)
+    assert any(d.rule == "references.escape" for d in diagnostics)
+
+
+def test_symlink_within_skill_dir_passes(tmp_path):
+    """A symlink that resolves within the skill directory is fine."""
+    skill_dir = tmp_path / "my-skill"
+    skill_dir.mkdir()
+    real_file = skill_dir / "real.txt"
+    real_file.write_text("hello")
+    link = skill_dir / "linked.txt"
+    link.symlink_to(real_file)
+    f = skill_dir / "SKILL.md"
+    f.write_text(
+        "---\nname: my-skill\ndescription: Internal symlink.\n---\n"
+        "See [linked](linked.txt) for details.\n"
+    )
+    skill = parse(f)
+    diagnostics = check_broken_references(skill)
+    assert diagnostics == []

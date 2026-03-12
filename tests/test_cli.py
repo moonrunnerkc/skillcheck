@@ -229,3 +229,31 @@ def test_help_shows_examples():
     result = run("--help")
     assert "examples:" in result.stdout
     assert "--format json" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# Quiet flag
+# ---------------------------------------------------------------------------
+
+def test_quiet_flag_suppresses_output_valid():
+    result = run_fixture(str(FIXTURES_DIR / "valid_basic.md"), "--quiet")
+    assert result.returncode == 0
+    assert result.stdout == ""
+
+
+def test_quiet_flag_short_form():
+    result = run_fixture(str(FIXTURES_DIR / "valid_basic.md"), "-q")
+    assert result.returncode == 0
+    assert result.stdout == ""
+
+
+def test_quiet_flag_still_fails_with_exit_code():
+    result = run(str(FIXTURES_DIR / "bad_name_caps.md"), "--quiet")
+    assert result.returncode == 1
+    assert result.stdout == ""
+
+
+def test_quiet_flag_with_json_format():
+    result = run_fixture(str(FIXTURES_DIR / "valid_basic.md"), "--quiet", "--format", "json")
+    assert result.returncode == 0
+    assert result.stdout == ""

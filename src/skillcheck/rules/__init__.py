@@ -34,6 +34,7 @@ from skillcheck.rules.frontmatter import (
     check_name_required,
     check_name_reserved_words,
     check_unknown_fields,
+    check_yaml_anchors,
 )
 from skillcheck.rules.references import (
     check_broken_references,
@@ -54,6 +55,7 @@ _FRONTMATTER_RULES: list[Callable[[ParsedSkill], list[Diagnostic]]] = [
     check_description_no_xml_tags,
     check_description_person_voice,
     check_unknown_fields,
+    check_yaml_anchors,
 ]
 
 _DESCRIPTION_RULES: list[Callable[[ParsedSkill], list[Diagnostic]]] = [

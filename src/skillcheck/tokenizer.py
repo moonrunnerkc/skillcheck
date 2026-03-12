@@ -1,4 +1,5 @@
 import re
+from typing import Any
 
 # Two patterns that cover the token-relevant structure of BPE tokenization:
 #   Word runs: contiguous word characters (letters, digits, underscores).
@@ -15,6 +16,25 @@ import re
 _WORD_RE = re.compile(r"\w+")
 _PUNCT_RE = re.compile(r"[^\w\s]+")
 
+# Lazy-cached tiktoken encoding.  The BPE merge table is allocated once on
+# first use and reused for all subsequent calls, avoiding the per-call
+# overhead of ``tiktoken.get_encoding()``.
+_tiktoken_enc: Any | None = None
+_tiktoken_available: bool | None = None  # tri-state: None = untested
+
+
+def _get_tiktoken_enc() -> Any | None:
+    """Return a cached tiktoken ``Encoding``, or *None* if unavailable."""
+    global _tiktoken_enc, _tiktoken_available  # noqa: PLW0603
+    if _tiktoken_available is None:
+        try:
+            import tiktoken  # type: ignore[import-untyped]
+            _tiktoken_enc = tiktoken.get_encoding("cl100k_base")
+            _tiktoken_available = True
+        except ImportError:
+            _tiktoken_available = False
+    return _tiktoken_enc
+
 
 def estimate_tokens(text: str) -> int:
     """Estimate the BPE token count of a text string.
@@ -27,12 +47,9 @@ def estimate_tokens(text: str) -> int:
     publicly released), but both are accurate enough for a WARNING-level
     size check where a 15% threshold margin is acceptable.
     """
-    try:
-        import tiktoken  # type: ignore[import-untyped]
-        enc = tiktoken.get_encoding("cl100k_base")
+    enc = _get_tiktoken_enc()
+    if enc is not None:
         return len(enc.encode(text))
-    except ImportError:
-        pass
 
     word_tokens = int(len(_WORD_RE.findall(text)) * 1.3)
     punct_tokens = int(len(_PUNCT_RE.findall(text)) * 1.5)

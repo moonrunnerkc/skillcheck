@@ -58,7 +58,6 @@ jobs:
           python -m py_compile src/skillcheck/rules/description.py
           python -m py_compile src/skillcheck/rules/disclosure.py
           python -m py_compile src/skillcheck/rules/frontmatter.py
-          python -m py_compile src/skillcheck/rules/patterns.py
           python -m py_compile src/skillcheck/rules/references.py
           python -m py_compile src/skillcheck/rules/sizing.py
 

@@ -186,6 +186,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Disable colored output.",
     )
     parser.add_argument(
+        "-q", "--quiet",
+        action="store_true",
+        default=False,
+        help="Suppress all output. Only the exit code indicates result.",
+    )
+    parser.add_argument(
         "--skip-dirname-check",
         action="store_true",
         default=False,
@@ -258,11 +264,12 @@ def main() -> None:
         for p in paths
     ]
 
-    if args.format == "json":
-        print(_format_json(results, __version__))
-    else:
-        use_color = not args.no_color and sys.stdout.isatty()
-        print(_format_text(results, color=use_color))
+    if not args.quiet:
+        if args.format == "json":
+            print(_format_json(results, __version__))
+        else:
+            use_color = not args.no_color and sys.stdout.isatty()
+            print(_format_text(results, color=use_color))
 
     any_errors = any(not r.valid for r in results)
     sys.exit(1 if any_errors else 0)

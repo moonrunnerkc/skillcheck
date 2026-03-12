@@ -14,6 +14,7 @@ to decide whether to activate a skill. A low score means the skill is invisible.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 
 from skillcheck.parser import ParsedSkill
 from skillcheck.result import Diagnostic, Severity
@@ -209,7 +210,7 @@ def check_description_quality(skill: ParsedSkill) -> list[Diagnostic]:
 
 def make_min_score_rule(
     min_score: int,
-) -> callable:
+) -> Callable[[ParsedSkill], list[Diagnostic]]:
     """Return a rule that errors/warns when description score falls below threshold."""
 
     def check_description_min_score(skill: ParsedSkill) -> list[Diagnostic]:
