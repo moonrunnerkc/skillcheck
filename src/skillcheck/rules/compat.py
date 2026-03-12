@@ -34,6 +34,20 @@ def check_claude_only_fields(skill: ParsedSkill) -> list[Diagnostic]:
     return diagnostics
 
 
+def _dirname_mismatch(skill: ParsedSkill) -> tuple[str, str] | None:
+    """Return ``(name, parent_dir)`` if they differ, else *None*."""
+    name = skill.frontmatter.get("name")
+    if name is None:
+        return None
+    name = str(name)
+    if not name:
+        return None
+    parent_dir = skill.path.parent.name
+    if parent_dir and parent_dir != name:
+        return name, parent_dir
+    return None
+
+
 def check_vscode_dirname(skill: ParsedSkill) -> list[Diagnostic]:
     """Info-level note when name does not match the parent directory.
 
@@ -41,24 +55,19 @@ def check_vscode_dirname(skill: ParsedSkill) -> list[Diagnostic]:
     skipped via --skip-dirname-check). This compat rule always runs as INFO
     unless --strict-vscode promotes it.
     """
-    name = skill.frontmatter.get("name")
-    if name is None:
+    pair = _dirname_mismatch(skill)
+    if pair is None:
         return []
-    name = str(name)
-    if not name:
-        return []
-    parent_dir = skill.path.parent.name
-    if parent_dir and parent_dir != name:
-        return [Diagnostic(
-            rule="compat.vscode-dirname",
-            severity=Severity.INFO,
-            message=(
-                f"VS Code requires the name field ('{name}') to match the "
-                f"parent directory ('{parent_dir}'). This skill would not "
-                f"load in VS Code/Copilot."
-            ),
-        )]
-    return []
+    name, parent_dir = pair
+    return [Diagnostic(
+        rule="compat.vscode-dirname",
+        severity=Severity.INFO,
+        message=(
+            f"VS Code requires the name field ('{name}') to match the "
+            f"parent directory ('{parent_dir}'). This skill would not "
+            f"load in VS Code/Copilot."
+        ),
+    )]
 
 
 def check_unverified_fields(skill: ParsedSkill) -> list[Diagnostic]:
@@ -88,24 +97,19 @@ def make_strict_vscode_rule() -> Callable[[ParsedSkill], list[Diagnostic]]:
     """Return a rule that promotes VS Code compat issues to ERROR severity."""
 
     def check_strict_vscode(skill: ParsedSkill) -> list[Diagnostic]:
-        name = skill.frontmatter.get("name")
-        if name is None:
+        pair = _dirname_mismatch(skill)
+        if pair is None:
             return []
-        name = str(name)
-        if not name:
-            return []
-        parent_dir = skill.path.parent.name
-        if parent_dir and parent_dir != name:
-            return [Diagnostic(
-                rule="compat.vscode-dirname",
-                severity=Severity.ERROR,
-                message=(
-                    f"VS Code requires the name field ('{name}') to match the "
-                    f"parent directory ('{parent_dir}'). This skill will not "
-                    f"load in VS Code/Copilot."
-                ),
-            )]
-        return []
+        name, parent_dir = pair
+        return [Diagnostic(
+            rule="compat.vscode-dirname",
+            severity=Severity.ERROR,
+            message=(
+                f"VS Code requires the name field ('{name}') to match the "
+                f"parent directory ('{parent_dir}'). This skill will not "
+                f"load in VS Code/Copilot."
+            ),
+        )]
 
     check_strict_vscode.__name__ = "check_strict_vscode"
     return check_strict_vscode

@@ -4,6 +4,7 @@ import pytest
 
 from skillcheck.parser import parse
 from skillcheck.result import Severity
+from skillcheck.rules import get_rules
 from skillcheck.rules.compat import (
     check_claude_only_fields,
     check_unverified_fields,
@@ -135,3 +136,28 @@ def test_strict_vscode_passes_when_matching(tmp_path):
     skill = parse(f)
     rule = make_strict_vscode_rule()
     assert rule(skill) == []
+
+
+# ---------------------------------------------------------------------------
+# Duplicate diagnostic prevention & target_agent validation
+# ---------------------------------------------------------------------------
+
+def test_strict_vscode_all_emits_single_dirname_diagnostic(tmp_path):
+    """strict_vscode + target_agent='all' should emit exactly one dirname
+    diagnostic (ERROR), not both INFO and ERROR."""
+    skill_dir = tmp_path / "wrong-dir"
+    skill_dir.mkdir()
+    f = skill_dir / "SKILL.md"
+    f.write_text("---\nname: my-skill\ndescription: Dup test.\n---\n")
+    skill = parse(f)
+    rules = get_rules(strict_vscode=True, target_agent="all")
+    diagnostics = [d for rule in rules for d in rule(skill)]
+    dirname_diags = [d for d in diagnostics if d.rule == "compat.vscode-dirname"]
+    assert len(dirname_diags) == 1
+    assert dirname_diags[0].severity == Severity.ERROR
+
+
+def test_invalid_target_agent_raises():
+    """An invalid target_agent should raise ValueError, not silently skip rules."""
+    with pytest.raises(ValueError, match="Unknown target_agent"):
+        get_rules(target_agent="cursor")

@@ -16,7 +16,7 @@ Validates against the [agentskills.io specification](https://agentskills.io/spec
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776ab.svg)](https://python.org)
 [![PyYAML](https://img.shields.io/badge/deps-PyYAML-yellow.svg)](https://pyyaml.org)
-[![Tests](https://img.shields.io/badge/tests-137%20passed-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-160%20passed-brightgreen.svg)](#testing)
 
 </div>
 
@@ -136,35 +136,37 @@ skillcheck SKILL.md --quiet
 
 ## Rules
 
-| Rule ID | Severity | What it checks |
-|---|---|---|
-| `frontmatter.name.required` | error | `name` field must exist |
-| `frontmatter.name.max-length` | error | Name must be 64 characters or fewer |
-| `frontmatter.name.invalid-chars` | error | Lowercase, numbers, hyphens only |
-| `frontmatter.name.leading-trailing-hyphen` | error | No leading or trailing hyphens |
-| `frontmatter.name.consecutive-hyphens` | error | No consecutive hyphens |
-| `frontmatter.name.reserved-word` | error | Not a reserved word (`claude`, `anthropic`) |
-| `frontmatter.name.directory-mismatch` | error | Name must match parent directory (VS Code requirement) |
-| `frontmatter.description.required` | error | `description` field must exist |
-| `frontmatter.description.empty` | error | Description must not be blank |
-| `frontmatter.description.max-length` | error | Description must be 1024 characters or fewer |
-| `frontmatter.description.xml-tags` | error | No XML/HTML tags in description |
-| `frontmatter.description.person-voice` | error | No first/second-person pronouns |
-| `frontmatter.field.unknown` | warning | Flags fields not in the spec |
-| `frontmatter.yaml-anchors` | warning | YAML anchors/aliases can silently copy values |
-| `description.quality-score` | info | Scores description 0-100 for agent discoverability |
-| `description.min-score` | warning | Description score below `--min-desc-score` threshold |
-| `sizing.body.line-count` | warning | Body exceeds line threshold |
-| `sizing.body.token-estimate` | warning | Body exceeds token threshold |
-| `disclosure.metadata-budget` | warning | Frontmatter exceeds ~100 token metadata budget |
-| `disclosure.body-budget` | warning | Body exceeds 5000 token instruction budget |
-| `disclosure.body-bloat` | info | Large code blocks, tables, or base64 in body |
-| `references.broken-link` | error | Referenced file does not exist |
-| `references.escape` | error | Reference resolves outside skill directory (CWE-59) |
-| `references.depth-exceeded` | warning | Reference deeper than one level from SKILL.md |
-| `compat.claude-only` | info | Field only works in Claude Code |
-| `compat.vscode-dirname` | info/error | Name does not match parent directory (VS Code) |
-| `compat.unverified` | info | Field behavior unverified in Codex/Cursor |
+Rules marked **spec** are derived from the [agentskills.io specification](https://agentskills.io/specification) or agent-specific documentation. Rules marked **advisory** are best-practice recommendations enforced by skillcheck.
+
+| Rule ID | Severity | Source | What it checks |
+|---|---|---|---|
+| `frontmatter.name.required` | error | spec | `name` field must exist |
+| `frontmatter.name.max-length` | error | spec | Name must be 64 characters or fewer |
+| `frontmatter.name.invalid-chars` | error | spec | Lowercase, numbers, hyphens only |
+| `frontmatter.name.leading-trailing-hyphen` | error | spec | No leading or trailing hyphens |
+| `frontmatter.name.consecutive-hyphens` | error | spec | No consecutive hyphens |
+| `frontmatter.name.reserved-word` | error | advisory | Not a reserved word (`claude`, `anthropic`) |
+| `frontmatter.name.directory-mismatch` | error | spec | Name must match parent directory (VS Code requirement) |
+| `frontmatter.description.required` | error | spec | `description` field must exist |
+| `frontmatter.description.empty` | error | spec | Description must not be blank |
+| `frontmatter.description.max-length` | error | spec | Description must be 1024 characters or fewer |
+| `frontmatter.description.xml-tags` | error | advisory | No XML/HTML tags in description |
+| `frontmatter.description.person-voice` | error | advisory | No first/second-person pronouns |
+| `frontmatter.field.unknown` | warning | advisory | Flags fields not in the spec |
+| `frontmatter.yaml-anchors` | warning | advisory | YAML anchors/aliases can silently copy values |
+| `description.quality-score` | info | advisory | Scores description 0-100 for agent discoverability |
+| `description.min-score` | warning | advisory | Description score below `--min-desc-score` threshold |
+| `sizing.body.line-count` | warning | spec | Body exceeds line threshold |
+| `sizing.body.token-estimate` | warning | spec | Body exceeds token threshold |
+| `disclosure.metadata-budget` | warning | spec | Frontmatter exceeds ~100 token metadata budget |
+| `disclosure.body-budget` | warning | spec | Body exceeds 5000 token instruction budget |
+| `disclosure.body-bloat` | info | advisory | Large code blocks, tables, or base64 in body |
+| `references.broken-link` | error | advisory | Referenced file does not exist |
+| `references.escape` | error | advisory | Reference resolves outside skill directory (CWE-59) |
+| `references.depth-exceeded` | warning | spec | Reference deeper than one level from SKILL.md |
+| `compat.claude-only` | info | spec | Field only works in Claude Code |
+| `compat.vscode-dirname` | info/error | spec | Name does not match parent directory (VS Code) |
+| `compat.unverified` | info | advisory | Field behavior unverified in Codex/Cursor |
 
 ## Limitations
 

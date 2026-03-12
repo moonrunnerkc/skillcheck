@@ -32,4 +32,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Body sizing: configurable line-count and token-count thresholds.
 - CLI with `--format json`, `--max-lines`, `--max-tokens`, `--ignore PREFIX`, `--no-color`, `--version`.
 - Deterministic exit codes: 0 (pass), 1 (fail), 2 (input error).
-- 137 tests covering all rules and CLI behavior.
+- 137 tests covering all rules and initial CLI behavior.

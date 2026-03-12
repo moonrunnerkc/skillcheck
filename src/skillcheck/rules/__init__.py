@@ -117,20 +117,27 @@ def get_rules(
     rules.extend(_DISCLOSURE_RULES)
 
     # Cross-agent compatibility (Feature 5)
+    _VALID_AGENTS = {"all", "claude", "vscode"}
+    if target_agent not in _VALID_AGENTS:
+        raise ValueError(
+            f"Unknown target_agent '{target_agent}'. "
+            f"Must be one of: {', '.join(sorted(_VALID_AGENTS))}"
+        )
+
     if target_agent == "all":
-        rules.extend(_COMPAT_RULES)
+        compat_rules = list(_COMPAT_RULES)
+        if strict_vscode:
+            # Replace the INFO-level dirname check with an ERROR-level one
+            # so the same mismatch is not reported twice.
+            compat_rules = [r for r in compat_rules if r is not check_vscode_dirname]
+            compat_rules.append(make_strict_vscode_rule())
+        rules.extend(compat_rules)
     elif target_agent == "vscode":
-        rules.append(check_vscode_dirname)
         if strict_vscode:
             rules.append(make_strict_vscode_rule())
+        else:
+            rules.append(check_vscode_dirname)
     elif target_agent == "claude":
         rules.append(check_claude_only_fields)
 
-    if strict_vscode and target_agent != "vscode":
-        rules.append(make_strict_vscode_rule())
-
     return rules
-
-
-# Default rule list using config thresholds; used by callers that do not need overrides.
-ALL_RULES: list[Callable[[ParsedSkill], list[Diagnostic]]] = get_rules()
