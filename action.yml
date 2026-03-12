@@ -1,0 +1,91 @@
+name: "skillcheck"
+description: "Cross-agent skill quality gate for SKILL.md files. Validates against the agentskills.io specification."
+author: "moonrunnerkc"
+
+branding:
+  icon: "check-circle"
+  color: "green"
+
+inputs:
+  path:
+    description: "Path to a SKILL.md file or directory to scan recursively."
+    required: false
+    default: "."
+  version:
+    description: "skillcheck version to install (e.g., '0.2.0'). Leave empty for latest."
+    required: false
+    default: ""
+  min-desc-score:
+    description: "Minimum description quality score (0-100). Below this triggers a warning."
+    required: false
+    default: ""
+  target-agent:
+    description: "Scope compat checks: claude, vscode, or all (default: all)."
+    required: false
+    default: ""
+  strict-vscode:
+    description: "Promote VS Code compat issues to errors."
+    required: false
+    default: "false"
+  skip-dirname-check:
+    description: "Skip directory-name matching check."
+    required: false
+    default: "false"
+  skip-ref-check:
+    description: "Skip file reference validation."
+    required: false
+    default: "false"
+  ignore:
+    description: "Comma-separated rule prefixes to suppress (e.g., 'sizing,disclosure')."
+    required: false
+    default: ""
+  max-lines:
+    description: "Override the line-count threshold (default: 500)."
+    required: false
+    default: ""
+  max-tokens:
+    description: "Override the token-count threshold (default: 8000)."
+    required: false
+    default: ""
+
+outputs:
+  exit-code:
+    description: "skillcheck exit code (0=pass, 1=errors, 2=input error)."
+    value: ${{ steps.run.outputs.exit-code }}
+  json:
+    description: "Full JSON output from skillcheck."
+    value: ${{ steps.run.outputs.json }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ">=3.10"
+
+    - name: Install skillcheck
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+      run: |
+        if [ -n "$INPUT_VERSION" ]; then
+          python -m pip install --quiet "skillcheck==$INPUT_VERSION"
+        else
+          python -m pip install --quiet skillcheck
+        fi
+
+    - name: Run skillcheck
+      id: run
+      shell: bash
+      env:
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_STRICT_VSCODE: ${{ inputs.strict-vscode }}
+        INPUT_SKIP_DIRNAME_CHECK: ${{ inputs.skip-dirname-check }}
+        INPUT_SKIP_REF_CHECK: ${{ inputs.skip-ref-check }}
+        INPUT_MIN_DESC_SCORE: ${{ inputs.min-desc-score }}
+        INPUT_TARGET_AGENT: ${{ inputs.target-agent }}
+        INPUT_IGNORE: ${{ inputs.ignore }}
+        INPUT_MAX_LINES: ${{ inputs.max-lines }}
+        INPUT_MAX_TOKENS: ${{ inputs.max-tokens }}
+      run: python "${{ github.action_path }}/action/entrypoint.py"

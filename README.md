@@ -68,6 +68,77 @@ skillcheck SKILL.md --target-agent vscode --strict-vscode
 skillcheck SKILL.md --skip-dirname-check --skip-ref-check
 ```
 
+## GitHub Action
+
+Add skillcheck to any CI pipeline in three lines:
+
+```yaml
+# .github/workflows/skills.yml
+name: Skill Validation
+on: [push, pull_request]
+
+jobs:
+  skillcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: moonrunnerkc/skillcheck@v0
+        with:
+          path: .github/skills/
+```
+
+That's it. Failures block the PR, diagnostics appear inline on the diff, and a summary table is added to the job.
+
+### Action Inputs
+
+| Input | Default | Description |
+|---|---|---|
+| `path` | `.` | Path to a SKILL.md file or directory to scan recursively |
+| `version` | latest | Pin a specific skillcheck version (e.g., `0.2.0`) |
+| `min-desc-score` | | Minimum description quality score (0-100) |
+| `target-agent` | `all` | Scope compat checks: `claude`, `vscode`, or `all` |
+| `strict-vscode` | `false` | Promote VS Code compat issues to errors |
+| `skip-dirname-check` | `false` | Skip directory-name matching check |
+| `skip-ref-check` | `false` | Skip file reference validation |
+| `ignore` | | Comma-separated rule prefixes to suppress |
+| `max-lines` | `500` | Override line-count threshold |
+| `max-tokens` | `8000` | Override token-count threshold |
+
+### Action Outputs
+
+| Output | Description |
+|---|---|
+| `exit-code` | `0` = pass, `1` = errors, `2` = input error |
+| `json` | Full JSON output from skillcheck |
+
+### What You Get
+
+- **PR annotations** — errors and warnings appear inline on the diff
+- **Job summary** — a Markdown results table on the workflow run page
+- **Exit code gating** — the step fails if any skill has errors
+
+### Examples
+
+Strict VS Code mode with a description quality floor:
+
+```yaml
+- uses: moonrunnerkc/skillcheck@v0
+  with:
+    path: skills/
+    strict-vscode: true
+    min-desc-score: 60
+```
+
+Use the JSON output in a downstream step:
+
+```yaml
+- uses: moonrunnerkc/skillcheck@v0
+  id: check
+  with:
+    path: SKILL.md
+- run: echo '${{ steps.check.outputs.json }}' | jq .files_failed
+```
+
 ## Example Output
 
 ```
@@ -167,6 +238,10 @@ Rules marked **spec** are derived from the [agentskills.io specification](https:
 | `compat.claude-only` | info | spec | Field only works in Claude Code |
 | `compat.vscode-dirname` | info/error | spec | Name does not match parent directory (VS Code) |
 | `compat.unverified` | info | advisory | Field behavior unverified in Codex/Cursor |
+
+## Case Study
+
+**[The Skill That Silently Disappeared in VS Code](docs/case-study-silent-skill-failure.md)** — A deploy skill works in Claude Code but never loads in VS Code/Copilot. No error. No warning. It just isn't there. This walkthrough shows how `skillcheck` catches the name/directory mismatch that causes silent failures, with verified source links to the spec and VS Code documentation.
 
 ## Limitations
 

@@ -8,3 +8,4 @@ build/
 .ruff_cache/
 *.egg
 CLAUDE.md
+.copilot-instructions.md
