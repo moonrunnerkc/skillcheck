@@ -113,9 +113,9 @@ That's it. Failures block the PR, diagnostics appear inline on the diff, and a s
 
 ### What You Get
 
-- **PR annotations** — errors and warnings appear inline on the diff
-- **Job summary** — a Markdown results table on the workflow run page
-- **Exit code gating** — the step fails if any skill has errors
+- **PR annotations** that put errors and warnings inline on the diff
+- **Job summary** with a Markdown results table on the workflow run page
+- **Exit code gating** so the step fails if any skill has errors
 
 ### Examples
 
@@ -193,7 +193,7 @@ skillcheck SKILL.md --strict-vscode
 # Pipe-friendly plain output
 skillcheck SKILL.md --no-color
 
-# Silent mode for CI — exit code only
+# Silent mode for CI (exit code only)
 skillcheck SKILL.md --quiet
 ```
 
@@ -243,7 +243,7 @@ Rules marked **spec** are derived from the [agentskills.io specification](https:
 
 ## Case Study
 
-**[The Skill That Silently Disappeared in VS Code](docs/case-study-silent-skill-failure.md)** — A deploy skill works in Claude Code but never loads in VS Code/Copilot. No error. No warning. It just isn't there. This walkthrough shows how `skillcheck` catches the name/directory mismatch that causes silent failures, with verified source links to the spec and VS Code documentation.
+**[The Skill That Silently Disappeared in VS Code](docs/case-study-silent-skill-failure.md)**: A deploy skill works in Claude Code but never loads in VS Code/Copilot. No error. No warning. It just isn't there. This walkthrough shows how `skillcheck` catches the name/directory mismatch that causes silent failures, with verified source links to the spec and VS Code documentation.
 
 ## Limitations
 

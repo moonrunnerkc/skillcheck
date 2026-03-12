@@ -32,7 +32,7 @@ _TABLE_ROW_RE = re.compile(r"^\|.*\|$", re.MULTILINE)
 # single characters, or API keys, we use a two-step check:
 #   1. A candidate regex matches 64+ characters from the base64 alphabet.
 #   2. A validator function confirms the candidate contains BOTH uppercase
-#      and lowercase letters — a hallmark of real base64 (RFC 4648).
+#      and lowercase letters, a hallmark of real base64 (RFC 4648).
 _BASE64_CANDIDATE_RE = re.compile(r"[A-Za-z0-9+/]{64,}={0,2}")
 
 

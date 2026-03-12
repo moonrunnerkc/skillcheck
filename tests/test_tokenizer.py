@@ -4,7 +4,7 @@ from skillcheck.tokenizer import _get_tiktoken_enc, estimate_tokens
 
 
 def test_tokenizer_returns_positive():
-    """Basic smoke test — estimate_tokens always returns >= 1."""
+    """Basic smoke test: estimate_tokens always returns >= 1."""
     assert estimate_tokens("Hello world") >= 1
 
 

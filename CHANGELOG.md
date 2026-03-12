@@ -8,22 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2026-03-11
 
 ### Added
-- **GitHub Action** — composite action (`moonrunnerkc/skillcheck@v0`) with PR annotations, job summary table, and JSON output. All CLI flags exposed as action inputs. Three lines of YAML to add to any CI pipeline.
-- **`__main__.py` entry point** — `python -m skillcheck` now works as an alternative to the console script.
-- **File reference validation** — parses markdown body for `[text](path)`, `![alt](path)`, and `source:`/`file:`/`include:` directives; verifies referenced files exist on disk; warns when references exceed one directory level from SKILL.md.
-- **Progressive disclosure budget** — three-tier token budgeting: metadata/frontmatter at ~100 tokens, body at <5,000 tokens, resources loaded on demand. Flags oversized code blocks (>50 lines), large tables (>20 rows), and embedded base64.
-- **Cross-agent compatibility warnings** — flags Claude Code-only fields (`model`, `disable-model-invocation`, `mode`, `hooks`, `agent`, `skills`), notes VS Code directory-name requirements, marks fields with unverified behavior in Codex and Cursor. Full compatibility matrix across four agents.
-- **Description quality scoring** — scores 0–100 across action verbs, trigger phrases, keyword density, specificity, and length. `--min-desc-score N` flag to enforce a minimum threshold.
-- **VS Code strict mode** — `--strict-vscode` promotes VS Code compatibility issues from INFO to ERROR.
-- **Agent-scoped checks** — `--target-agent {claude,vscode,all}` scopes compatibility diagnostics to a specific agent.
-- **Skip flags** — `--skip-dirname-check` and `--skip-ref-check` for CI environments where filesystem context is unavailable.
-- **`-q`/`--quiet` flag** — suppresses all output; exit code only.
-- **YAML type coercion detection** — `frontmatter.name.type` and `frontmatter.description.type` catch when `yaml.safe_load` silently converts bare values like `true`, `123`, or `null` into non-string types. Provides clear fix advice (quote the value).
-- **YAML anchor detection** — `frontmatter.yaml-anchors` warns when YAML anchors/aliases silently copy values in frontmatter.
-- **Symlink escape detection** — `references.escape` errors when a file reference resolves outside the skill directory (CWE-59).
-- **GitHub Actions CI workflow** — test matrix across Python 3.10–3.13 on Ubuntu, macOS, and Windows; compile check; package build verification.
-- **PEP 561 `py.typed` marker** — enables downstream type-checking for library consumers.
-- **[Case study](docs/case-study-silent-skill-failure.md)** — documented the silent VS Code skill failure caused by name/directory mismatch.
+- **GitHub Action**: composite action (`moonrunnerkc/skillcheck@v0`) with PR annotations, job summary table, and JSON output. All CLI flags exposed as action inputs. Three lines of YAML to add to any CI pipeline.
+- **`__main__.py` entry point**: `python -m skillcheck` now works as an alternative to the console script.
+- **File reference validation**: parses markdown body for `[text](path)`, `![alt](path)`, and `source:`/`file:`/`include:` directives; verifies referenced files exist on disk; warns when references exceed one directory level from SKILL.md.
+- **Progressive disclosure budget**: three-tier token budgeting: metadata/frontmatter at ~100 tokens, body at <5,000 tokens, resources loaded on demand. Flags oversized code blocks (>50 lines), large tables (>20 rows), and embedded base64.
+- **Cross-agent compatibility warnings**: flags Claude Code-only fields (`model`, `disable-model-invocation`, `mode`, `hooks`, `agent`, `skills`), notes VS Code directory-name requirements, marks fields with unverified behavior in Codex and Cursor. Full compatibility matrix across four agents.
+- **Description quality scoring**: scores 0-100 across action verbs, trigger phrases, keyword density, specificity, and length. `--min-desc-score N` flag to enforce a minimum threshold.
+- **VS Code strict mode**: `--strict-vscode` promotes VS Code compatibility issues from INFO to ERROR.
+- **Agent-scoped checks**: `--target-agent {claude,vscode,all}` scopes compatibility diagnostics to a specific agent.
+- **Skip flags**: `--skip-dirname-check` and `--skip-ref-check` for CI environments where filesystem context is unavailable.
+- **`-q`/`--quiet` flag**: suppresses all output; exit code only.
+- **YAML type coercion detection**: `frontmatter.name.type` and `frontmatter.description.type` catch when `yaml.safe_load` silently converts bare values like `true`, `123`, or `null` into non-string types. Provides clear fix advice (quote the value).
+- **YAML anchor detection**: `frontmatter.yaml-anchors` warns when YAML anchors/aliases silently copy values in frontmatter.
+- **Symlink escape detection**: `references.escape` errors when a file reference resolves outside the skill directory (CWE-59).
+- **GitHub Actions CI workflow**: test matrix across Python 3.10-3.13 on Ubuntu, macOS, and Windows; compile check; package build verification.
+- **PEP 561 `py.typed` marker**: enables downstream type-checking for library consumers.
+- **[Case study](docs/case-study-silent-skill-failure.md)**: documented the silent VS Code skill failure caused by name/directory mismatch.
 - This changelog.
 
 ### Changed

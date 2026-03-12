@@ -12,7 +12,7 @@ _NAME_VALID_CHARS_RE = re.compile(r"^[a-z0-9-]+$")
 # YAML anchor (&name) and alias (*name) patterns.
 # Anchors define a reusable value; aliases reference it.  When safe_load
 # resolves ``description: *anchor``, the description silently becomes
-# whatever the anchor pointed to — a subtle semantic trap that bypasses
+# whatever the anchor pointed to, a subtle semantic trap that bypasses
 # all downstream description-quality checks.
 _YAML_ANCHOR_RE = re.compile(r"&([A-Za-z_][A-Za-z0-9_-]*)")
 _YAML_ALIAS_RE = re.compile(r"\*([A-Za-z_][A-Za-z0-9_-]*)")

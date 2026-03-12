@@ -108,9 +108,9 @@ def _write_summary(data: dict) -> None:
     lines: list[str] = []
 
     if failed == 0:
-        lines.append(f"### ✅ skillcheck — {passed}/{total} files passed\n")
+        lines.append(f"### ✅ skillcheck: {passed}/{total} files passed\n")
     else:
-        lines.append(f"### ❌ skillcheck — {failed}/{total} files failed\n")
+        lines.append(f"### ❌ skillcheck: {failed}/{total} files failed\n")
 
     lines.append("| File | Status | Errors | Warnings |")
     lines.append("|------|--------|--------|----------|")
@@ -138,7 +138,7 @@ def _write_summary(data: dict) -> None:
                 )
                 loc = f"L{d['line']}" if d.get("line") else ""
                 lines.append(
-                    f"- {icon} {loc} `{d['rule']}` — {d['message']}"
+                    f"- {icon} {loc} `{d['rule']}`: {d['message']}"
                 )
             lines.append("")
         lines.append("</details>")
@@ -202,7 +202,7 @@ def main() -> None:
     cmd = _build_command()
     result = subprocess.run(cmd, capture_output=True, text=True)
 
-    # Input errors (exit 2) — no JSON to parse
+    # Input errors (exit 2) - no JSON to parse
     if result.returncode == 2:
         msg = result.stderr.strip() or "unknown input error"
         print(f"::error::skillcheck: {msg}")
