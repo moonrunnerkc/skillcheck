@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Symlink escape detection** — `references.escape` errors when a file reference resolves outside the skill directory (CWE-59).
 - **GitHub Actions CI workflow** — test matrix across Python 3.10–3.13 on Ubuntu, macOS, and Windows; compile check; package build verification.
 - **PEP 561 `py.typed` marker** — enables downstream type-checking for library consumers.
-- **Case study** — documented the silent VS Code skill failure caused by name/directory mismatch.
+- **[Case study](docs/case-study-silent-skill-failure.md)** — documented the silent VS Code skill failure caused by name/directory mismatch.
 - This changelog.
 
 ### Changed
