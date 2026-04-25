@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import stat
 import sys
 from datetime import datetime, timezone
@@ -87,7 +88,7 @@ def test_load_raises_on_missing_top_level_field(tmp_path: Path):
 def test_load_raises_error_includes_path(tmp_path: Path):
     lp = tmp_path / ".skillcheck-history.json"
     lp.write_text("bad json!", encoding="utf-8")
-    with pytest.raises(LedgerError, match=str(lp)):
+    with pytest.raises(LedgerError, match=re.escape(str(lp))):
         load_ledger(lp)
 
 

@@ -223,7 +223,9 @@ def test_ingest_critique_missing_path_exits_two() -> None:
 def test_ingest_critique_missing_path_message_names_path() -> None:
     bad_path = "/nonexistent/response.json"
     result = run_fixture(_VALID_SKILL, "--ingest-critique", bad_path)
-    assert bad_path in result.stderr or bad_path in result.stdout
+    output = result.stderr + result.stdout
+    assert "response.json" in output
+    assert "nonexistent" in output
 
 
 # ---------------------------------------------------------------------------

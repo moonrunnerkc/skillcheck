@@ -45,23 +45,7 @@ jobs:
           python-version: "3.12"
 
       - name: Compile check (all modules)
-        run: |
-          python -m py_compile src/skillcheck/__init__.py
-          python -m py_compile src/skillcheck/__main__.py
-          python -m py_compile src/skillcheck/cli.py
-          python -m py_compile src/skillcheck/config.py
-          python -m py_compile src/skillcheck/core.py
-          python -m py_compile src/skillcheck/parser.py
-          python -m py_compile src/skillcheck/result.py
-          python -m py_compile src/skillcheck/tokenizer.py
-          python -m py_compile src/skillcheck/rules/__init__.py
-          python -m py_compile src/skillcheck/rules/compat.py
-          python -m py_compile src/skillcheck/rules/description.py
-          python -m py_compile src/skillcheck/rules/disclosure.py
-          python -m py_compile src/skillcheck/rules/frontmatter.py
-          python -m py_compile src/skillcheck/rules/references.py
-          python -m py_compile src/skillcheck/rules/sizing.py
-          python -m py_compile action/entrypoint.py
+        run: python -m compileall -q src/skillcheck action
 
   package:
     runs-on: ubuntu-latest
