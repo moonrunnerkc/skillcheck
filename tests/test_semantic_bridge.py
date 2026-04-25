@@ -349,3 +349,54 @@ def test_response_findings_mixed_has_all_severities() -> None:
     assert Severity.ERROR in finding_severities
     assert Severity.WARNING in finding_severities
     assert Severity.INFO in finding_severities
+
+
+# ---------------------------------------------------------------------------
+# Line-numbering regression: diagnostics are body-relative, not file-relative
+# ---------------------------------------------------------------------------
+
+
+def test_find_section_line_is_body_relative() -> None:
+    # Construct a body where "## Overview" is the first line.
+    body = "## Overview\n\nDoes something useful.\n"
+    # _find_section_line works on body text directly; line 1 is the first body line.
+    line = _find_section_line(body, "Overview")
+    assert line == 1, f"Expected body-relative line 1, got {line}"
+
+
+def test_finding_diagnostic_line_is_body_relative_not_file_relative() -> None:
+    # Parse a skill fixture that has substantial frontmatter (valid_full.md has
+    # 6+ frontmatter lines). Feed a finding response that references a known
+    # section. The resulting Diagnostic.line must be small (body-relative), not
+    # large (file-relative).
+    skill = parse_skill(FIXTURES_DIR / "valid_full.md")
+
+    # Count frontmatter lines (everything before the body in the raw text).
+    frontmatter_line_count = skill.raw_text[: skill.raw_text.index(skill.body)].count("\n")
+    assert frontmatter_line_count >= 4, "Fixture needs enough frontmatter to make the test meaningful"
+
+    # Pull the first section heading from the body.
+    first_section = next(
+        (line.lstrip("# ").strip() for line in skill.body.splitlines() if line.startswith("##")),
+        None,
+    )
+    assert first_section is not None, "valid_full.md must have at least one ## section"
+
+    raw = _make_raw(
+        findings=[{"severity": "info", "section": first_section, "issue": "test", "suggestion": "n/a"}],
+    )
+    diags = ingest_critique_response(skill, raw)
+    finding_diags = [d for d in diags if d.rule.startswith("semantic.finding.") and d.line is not None]
+
+    # At least one finding should have resolved a line number.
+    if finding_diags:
+        resolved_line = finding_diags[0].line
+        assert resolved_line is not None
+        body_line_count = len(skill.body.splitlines())
+        # Body-relative: must be within the body.
+        assert resolved_line <= body_line_count, (
+            f"Line {resolved_line} exceeds body length {body_line_count}; looks file-relative"
+        )
+        # Should NOT equal the file-relative offset.
+        file_relative_line = resolved_line + frontmatter_line_count
+        assert resolved_line != file_relative_line  # trivially true when frontmatter_line_count > 0

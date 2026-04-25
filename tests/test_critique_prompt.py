@@ -69,7 +69,7 @@ def test_render_contains_severity_options() -> None:
 
 def test_render_instructs_json_only_response() -> None:
     rendered = _render("minimal_valid.md")
-    assert "only that JSON object" in rendered
+    assert "only with the JSON object" in rendered
     assert "No preamble" in rendered
 
 
@@ -120,20 +120,20 @@ def test_render_different_skills_produce_different_prompts() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Agent subclasses return base prompt class
+# Agent subclasses have correct AGENT_ID and render skill content
 # ---------------------------------------------------------------------------
 
 
-def test_claude_template_returns_base_prompt_class() -> None:
-    from skillcheck.agents.claude import ClaudeTemplate
-    assert ClaudeTemplate.prompt_class() is SelfCritiquePrompt
+def test_claude_prompt_agent_id() -> None:
+    from skillcheck.agents.claude import ClaudePrompt
+    assert ClaudePrompt.AGENT_ID == "claude"
 
 
-def test_codex_template_returns_base_prompt_class() -> None:
-    from skillcheck.agents.codex import CodexTemplate
-    assert CodexTemplate.prompt_class() is SelfCritiquePrompt
+def test_codex_prompt_agent_id() -> None:
+    from skillcheck.agents.codex import CodexPrompt
+    assert CodexPrompt.AGENT_ID == "codex"
 
 
-def test_cursor_template_returns_base_prompt_class() -> None:
-    from skillcheck.agents.cursor import CursorTemplate
-    assert CursorTemplate.prompt_class() is SelfCritiquePrompt
+def test_cursor_prompt_agent_id() -> None:
+    from skillcheck.agents.cursor import CursorPrompt
+    assert CursorPrompt.AGENT_ID == "cursor"

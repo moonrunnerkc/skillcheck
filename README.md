@@ -173,6 +173,7 @@ Checked 2 files: 1 passed, 1 failed, 1 warning
 | `--version` | Show version |
 | `--emit-critique-prompt` | Print agent self-critique prompt to stdout, exit 0. Combines with `--format json` |
 | `--ingest-critique PATH` | Read agent response from PATH (or `-` for stdin), merge with symbolic results |
+| `--critique-agent NAME` | Prompt template variant: `claude`, `codex`, or `cursor` (default: `claude`). Requires `--emit-critique-prompt` or `--ingest-critique` |
 
 ### Examples
 
@@ -208,6 +209,8 @@ skillcheck path/to/SKILL.md --emit-critique-prompt > prompt.txt
 # Hand prompt.txt to your agent. Agent returns JSON.
 skillcheck path/to/SKILL.md --ingest-critique response.json
 ```
+
+The prompt template is tuned per vendor based on each agent's published prompting best practices. Pass `--critique-agent codex` or `--critique-agent cursor` to select a variant. The schema, parser, and exit codes are identical across all agents; only the framing changes. Specifying `--critique-agent` records the agent name in `critique_source` in the output (`--format json`) or as a header line in text output.
 
 The unified report includes symbolic results and semantic diagnostics from the critique. Exit code 3 means symbolic validation passed but the agent found semantic errors (contradictions, or scores below the error threshold). Exit code 1 takes priority when symbolic errors exist. Use `--format json` with either flag for structured output.
 

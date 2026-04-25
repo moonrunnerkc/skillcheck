@@ -1,20 +1,26 @@
-"""Claude-specific agent configuration for self-critique prompts."""
+"""Claude-specific self-critique prompt.
+
+The base SelfCritiquePrompt class already implements the Claude variant.
+This module exists as a concrete, named subclass so the agent registry can
+reference it explicitly and tests can verify AGENT_ID.
+
+Framing basis: Anthropic's prompt engineering documentation recommends XML
+tags for structuring non-trivial inputs, explicit role framing, bracketing
+instructions at start and end, and full worked examples for format-sensitive
+tasks. All four techniques are applied in the base class render().
+"""
 
 from __future__ import annotations
 
 from skillcheck.agents.base import SelfCritiquePrompt
+from skillcheck.parser import ParsedSkill
 
 
-class ClaudeTemplate:
-    """Claude configuration for the self-critique workflow.
+class ClaudePrompt(SelfCritiquePrompt):
+    """Claude-variant self-critique prompt.
 
-    Returns the base SelfCritiquePrompt because Claude follows the
-    generic schema without dialect-specific adjustments. This class
-    exists so Phase 1B can add Claude-specific tuning here without
-    restructuring callers.
+    Inherits render() from SelfCritiquePrompt (that method IS the Claude
+    variant). Defined here so the registry maps "claude" to this class.
     """
 
-    @staticmethod
-    def prompt_class() -> type[SelfCritiquePrompt]:
-        """Return the prompt class to use for Claude."""
-        return SelfCritiquePrompt
+    AGENT_ID: str = "claude"

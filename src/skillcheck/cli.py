@@ -59,8 +59,10 @@ def _collect_paths(target: Path) -> list[Path]:
 # ---------------------------------------------------------------------------
 
 
-def _format_text(results: list[ValidationResult], *, color: bool = False) -> str:
+def _format_text(results: list[ValidationResult], *, color: bool = False, critique_source: str | None = None) -> str:
     lines: list[str] = []
+    if critique_source is not None:
+        lines.append(f"Critique source: {critique_source}")
     for result in results:
         if result.valid:
             tag = _style("✔ PASS", _BOLD, _GREEN, color=color)
@@ -100,13 +102,14 @@ def _format_text(results: list[ValidationResult], *, color: bool = False) -> str
     return "\n".join(lines)
 
 
-def _format_json(results: list[ValidationResult], version: str) -> str:
+def _format_json(results: list[ValidationResult], version: str, critique_source: str | None = None) -> str:
     passed = sum(1 for r in results if r.valid)
-    payload = {
+    payload: dict[str, object] = {
         "version": version,
         "files_checked": len(results),
         "files_passed": passed,
         "files_failed": len(results) - passed,
+        **(({"critique_source": critique_source}) if critique_source is not None else {}),
         "results": [
             {
                 "path": str(r.path),
@@ -258,6 +261,16 @@ def _build_parser() -> argparse.ArgumentParser:
             "Exit code 3 signals semantic drift when symbolic validation passed."
         ),
     )
+    parser.add_argument(
+        "--critique-agent",
+        choices=["claude", "codex", "cursor"],
+        default=None,
+        metavar="NAME",
+        help=(
+            "Agent variant for the self-critique prompt (claude, codex, cursor; default: claude). "
+            "Requires --emit-critique-prompt or --ingest-critique."
+        ),
+    )
     return parser
 
 
@@ -279,12 +292,12 @@ def _resolve_paths(args: argparse.Namespace) -> list[Path]:
     return paths
 
 
-def _do_emit_critique_prompts(paths: list[Path], fmt: str) -> None:
+def _do_emit_critique_prompts(paths: list[Path], fmt: str, agent_id: str = "claude") -> None:
     """Print critique prompts to stdout and exit 0."""
     multiple = len(paths) > 1
     for path in paths:
         skill = _parse_skill(path)
-        prompt = render_critique_prompt(skill)
+        prompt = render_critique_prompt(skill, agent_id=agent_id)
         if multiple:
             print(_PROMPT_DELIMITER.format(path=path))
         if fmt == "json":
@@ -327,11 +340,16 @@ def main() -> None:
         )
         sys.exit(2)
 
+    agent_id = args.critique_agent or "claude"
+
+    if args.critique_agent is not None and not args.emit_critique_prompt and args.ingest_critique is None:
+        parser.error("--critique-agent requires --emit-critique-prompt or --ingest-critique")
+
     paths = _resolve_paths(args)
 
     # --emit-critique-prompt: skip symbolic validation entirely
     if args.emit_critique_prompt:
-        _do_emit_critique_prompts(paths, fmt=args.format)
+        _do_emit_critique_prompts(paths, fmt=args.format, agent_id=agent_id)
         sys.exit(0)
 
     # Run symbolic validation (always, including when ingesting)
@@ -375,10 +393,10 @@ def main() -> None:
 
         if not args.quiet:
             if args.format == "json":
-                print(_format_json(results, __version__))
+                print(_format_json(results, __version__, critique_source=agent_id))
             else:
                 use_color = not args.no_color and sys.stdout.isatty()
-                print(_format_text(results, color=use_color))
+                print(_format_text(results, color=use_color, critique_source=agent_id))
 
         if ingest_failed or symbolic_any_errors:
             sys.exit(1)

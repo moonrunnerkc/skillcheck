@@ -8,7 +8,7 @@ string is parsed. All three public functions are pure given their inputs.
 
 import re
 
-from skillcheck.agents.base import SelfCritiquePrompt
+from skillcheck.agents import get_agent_prompt
 from skillcheck.agents.parser import parse_critique_response
 from skillcheck.agents.schema import SemanticCritique
 from skillcheck.parser import ParsedSkill
@@ -24,19 +24,25 @@ _HEADING_RE = re.compile(r"^#{2,3}\s+(.+)", re.MULTILINE)
 
 
 
-def render_critique_prompt(skill: ParsedSkill) -> str:
+def render_critique_prompt(skill: ParsedSkill, agent_id: str = "claude") -> str:
     """Build the agent self-critique prompt for a parsed skill.
 
-    Uses the Claude prompt template (hardcoded for Phase 1B; Phase 1C adds
-    agent selection). Pure: no I/O, no side effects.
+    Resolves the agent variant through the agents registry. Unknown agent_id
+    propagates the ValueError from get_agent_prompt; the CLI converts this to
+    exit 2.
 
     Args:
         skill: Parsed skill file.
+        agent_id: Which prompt variant to use. One of "claude", "codex",
+            "cursor". Defaults to "claude".
 
     Returns:
         Full prompt string ready to be pasted into an agent context.
+
+    Raises:
+        ValueError: If agent_id is not a registered agent.
     """
-    return SelfCritiquePrompt().render(skill)
+    return get_agent_prompt(agent_id).render(skill)
 
 
 def _score_diagnostic(rule: str, score: int, label: str) -> Diagnostic | None:
