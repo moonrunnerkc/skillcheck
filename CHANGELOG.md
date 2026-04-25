@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `--emit-graph`: emit mode. Prints the extracted capability graph (text or JSON) to stdout and exits 0. Identifies `Capability`, `Input`, and `Output` nodes plus `requires`/`produces` edges heuristically from heading structure and backtick references. Mutually exclusive with `--analyze-graph`, `--emit-critique-prompt`, and `--ingest-critique`.
+- `--analyze-graph`: augment mode. Extracts the capability graph from each file, runs all five graph analyzers, and merges diagnostics into the validation report. Compatible with `--ingest-critique` (both run; results merged per file). Graph WARNINGs do not fail validation or change the exit code.
+- Five graph rule checkers (all WARNING severity): `graph.capability.orphaned`, `graph.input.unused`, `graph.output.unproduced`, `graph.capability.empty_description`, `graph.tool.unreferenced`. No double-firing: body inputs and frontmatter tools are handled by separate analyzers.
+- `graph_render` module: `render_graph_text` and `render_graph_json` pure rendering functions. JSON output is deterministic (field order follows dataclass declaration).
+- `merge_diagnostics` public function in `core.semantic` and `core.__init__`. `merge_critique_diagnostics` is now a thin wrapper; existing callers unchanged.
 - `--critique-agent {claude,codex,cursor}`: select the prompt template variant for agent self-critique. Prompt framing is tuned per vendor; the schema, parser, and exit codes are identical across all agents. Requires `--emit-critique-prompt` or `--ingest-critique`. Records the agent name as `critique_source` in JSON output and as a header line in text output. Default: `claude`.
 - `--emit-critique-prompt`: print the agent self-critique prompt to stdout and exit 0. Use `--format json` to wrap in `{"prompt": "..."}`. In directory mode, prompts are separated by a delimiter line so downstream tools can split per-skill.
 - `--ingest-critique PATH`: read an agent self-critique JSON response from PATH (use `-` for stdin), convert to diagnostics, merge with symbolic results, and emit a unified report.

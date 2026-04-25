@@ -174,6 +174,8 @@ Checked 2 files: 1 passed, 1 failed, 1 warning
 | `--emit-critique-prompt` | Print agent self-critique prompt to stdout, exit 0. Combines with `--format json` |
 | `--ingest-critique PATH` | Read agent response from PATH (or `-` for stdin), merge with symbolic results |
 | `--critique-agent NAME` | Prompt template variant: `claude`, `codex`, or `cursor` (default: `claude`). Requires `--emit-critique-prompt` or `--ingest-critique` |
+| `--emit-graph` | Print the extracted capability graph to stdout and exit 0. Use `--format json` for machine-readable output. Mutually exclusive with `--analyze-graph`, `--emit-critique-prompt`, and `--ingest-critique` |
+| `--analyze-graph` | Extract the capability graph, run graph analyzers, and merge diagnostics into the validation report (augment mode). Compatible with `--ingest-critique` |
 
 ### Examples
 
@@ -199,6 +201,26 @@ skillcheck SKILL.md --no-color
 # Silent mode for CI (exit code only)
 skillcheck SKILL.md --quiet
 ```
+
+## Capability Graph
+
+skillcheck can extract a lightweight capability graph from a SKILL.md file using a heuristic over heading structure and backtick references. The graph captures what the skill does (`Capability` nodes), what it needs (`Input` nodes), and what it produces (`Output` nodes), linked by `requires` and `produces` edges.
+
+```bash
+# Print the graph for a skill (human-readable)
+skillcheck path/to/SKILL.md --emit-graph
+
+# Machine-readable JSON graph
+skillcheck path/to/SKILL.md --emit-graph --format json
+
+# Run graph analyzers and merge into the validation report
+skillcheck path/to/SKILL.md --analyze-graph
+
+# Combine with semantic critique (both run, results merged)
+skillcheck path/to/SKILL.md --analyze-graph --ingest-critique response.json
+```
+
+Graph analyzers detect structural intent mismatches: capabilities with no declared I/O, inputs that no capability references, outputs that no capability produces, and tools declared in `allowed-tools` but never backtick-referenced in the body. All graph diagnostics are WARNING severity; they augment the report without blocking CI.
 
 ## Agent Self-Critique
 
@@ -258,6 +280,11 @@ Rules marked **spec** are derived from the [agentskills.io specification](https:
 | `compat.claude-only` | info | spec | Field only works in Claude Code |
 | `compat.vscode-dirname` | info/error | spec | Name does not match parent directory (VS Code) |
 | `compat.unverified` | info | advisory | Field behavior unverified in Codex/Cursor |
+| `graph.capability.orphaned` | warning | advisory | Capability has no declared inputs or outputs |
+| `graph.input.unused` | warning | advisory | Body-declared input not required by any capability |
+| `graph.output.unproduced` | warning | advisory | Declared output not produced by any capability |
+| `graph.capability.empty_description` | warning | advisory | Capability heading has no description body |
+| `graph.tool.unreferenced` | warning | advisory | `allowed-tools` entry not backtick-referenced in the body |
 
 ## Case Study
 
