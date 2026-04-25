@@ -179,6 +179,8 @@ Checked 2 files: 1 passed, 1 failed, 1 warning
 | `--emit-graph-prompt` | Print the graph extraction prompt to stdout and exit 0. Combines with `--graph-agent` to select variant |
 | `--ingest-graph PATH` | Read an agent graph response from PATH (or `-` for stdin), merge with heuristic graph, run divergence analyzers, and include results in the report |
 | `--graph-agent NAME` | Prompt template variant for graph extraction: `claude`, `codex`, or `cursor` (default: `claude`). Requires `--emit-graph-prompt` or `--ingest-graph` |
+| `--history` | Append a validation record to the `.skillcheck-history.json` ledger next to the skill. Off by default. Incompatible with emit modes |
+| `--show-history` | Print the validation history ledger for the skill and exit 0. Use `--format json` for machine-readable output. Incompatible with emit modes and `--history` |
 
 ### Examples
 
@@ -242,6 +244,25 @@ When an agent response is ingested, skillcheck also runs the heuristic extractor
 
 Pass `--graph-agent codex` or `--graph-agent cursor` to select a prompt variant. Like critique prompts, the schema and exit codes are identical across variants; only the framing changes.
 
+## Validation History
+
+Every `SKILL.md` can have a companion `.skillcheck-history.json` ledger file stored next to it. The ledger is opt-in and append-only: one record per `--history` run, ordered by time. Its purpose is to track validation quality over time, showing how a skill's health changes as you update it or as skillcheck's rules evolve. This is distinct from what `gh skill` tracks: GitHub records supply-chain provenance (which repo, which ref, which tree SHA). The skillcheck ledger records whether the skill is actually valid and which checks ran.
+
+```bash
+# Record a run to the ledger
+skillcheck path/to/SKILL.md --history
+
+# Read the ledger (human-readable)
+skillcheck path/to/SKILL.md --show-history
+
+# Read the ledger (machine-readable)
+skillcheck path/to/SKILL.md --show-history --format json
+```
+
+The ledger stores: timestamp, skillcheck version, a 16-char content hash of the skill file, which validation modes ran (symbolic, critique, graph), which agents were used, and diagnostic counts (error/warning/info). It does not store diagnostic messages, skill body content, agent prompts or responses, machine identifiers, or user identifiers. Committing `.skillcheck-history.json` to git is safe.
+
+When `--history` is used and the ledger contains a prior passing run on the same file content that now fails, skillcheck emits a `history.skill.regressed` WARNING. This catches rule tightening or new agent findings without requiring you to diff outputs manually.
+
 ## Agent Self-Critique
 
 skillcheck does not call any LLM API. It emits a prompt, and the calling agent executes it. The JSON response comes back to skillcheck for validation and reporting.
@@ -267,7 +288,9 @@ The unified report includes symbolic results and semantic diagnostics from the c
 
 ## Rules
 
-Rules marked **spec** are derived from the [agentskills.io specification](https://agentskills.io/specification) or agent-specific documentation. Rules marked **advisory** are best-practice recommendations enforced by skillcheck. Rules marked **heuristic** come from structural analysis of the skill body. Rules marked **agent** fire only when an agent response is ingested and the agent's claim is compared against the heuristic baseline.
+For a worked example of a SKILL.md that passes every rule below, see [skills/skillcheck/SKILL.md](skills/skillcheck/SKILL.md).
+
+Rules marked **spec** are derived from the [agentskills.io specification](https://agentskills.io/specification) or agent-specific documentation. Rules marked **advisory** are best-practice recommendations enforced by skillcheck. Rules marked **heuristic** come from structural analysis of the skill body. Rules marked **agent** fire only when an agent response is ingested and the agent's claim is compared against the heuristic baseline. Rules marked **history** fire only when `--history` is active and concern the validation ledger itself, not the skill content.
 
 | Rule ID | Severity | Source | What it checks |
 |---|---|---|---|
@@ -306,6 +329,9 @@ Rules marked **spec** are derived from the [agentskills.io specification](https:
 | `graph.capability.empty_description` | warning | advisory | Capability heading has no description body |
 | `graph.tool.unreferenced` | warning | advisory | `allowed-tools` entry not backtick-referenced in the body |
 | `graph.contradiction.heuristic_disagreement` | error | agent | Agent claims an edge between two heuristically-known nodes that the heuristic does not confirm; possible over-claim |
+| `history.skill.regressed` | warning | history | Skill content unchanged from a prior passing run but currently failing; a rule may have tightened or an agent surfaced a new finding |
+| `history.write.failed` | warning | history | Could not write the ledger file; validation exit code is unaffected |
+| `history.read.failed` | warning | history | Could not read the ledger file; validation continues without regression check |
 
 ## Case Study
 
