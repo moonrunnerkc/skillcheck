@@ -9,3 +9,5 @@ build/
 *.egg
 CLAUDE.md
 .copilot-instructions.md
+# Field test artifacts (kept locally, not in git)
+runs/
