@@ -160,17 +160,19 @@ Run   1  2026-04-25T04:21:03Z  FAIL  exit=3
 Three lines to add skillcheck to any CI pipeline:
 
 ```yaml
-- uses: moonrunnerkc/skillcheck@v0
+- uses: moonrunnerkc/skillcheck@v1
   with:
     path: skills/
 ```
+
+Pin to `@v1` for the latest patch within the v1.0 major-version line, or `@v1.0.0` for an immutable release. The `@v0` tag remains in place for existing CI configurations.
 
 Failures block the PR. Errors and warnings appear as inline diff annotations on the changed files. The workflow run page gets a Markdown summary table. For the complete list of action inputs and outputs, see [`action.yml`](action.yml).
 
 The v1.0 graph and critique modes are available as action inputs. Example with strict VS Code mode and a description quality floor:
 
 ```yaml
-- uses: moonrunnerkc/skillcheck@v0
+- uses: moonrunnerkc/skillcheck@v1
   with:
     path: skills/
     strict-vscode: true
@@ -194,7 +196,7 @@ JSON output (`--format json`):
 
 ```json
 {
-  "version": "0.2.0",
+  "version": "1.0.0",
   "files_checked": 18,
   "files_passed": 14,
   "files_failed": 4,

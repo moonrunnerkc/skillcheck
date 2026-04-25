@@ -12,7 +12,7 @@ inputs:
     required: false
     default: "."
   version:
-    description: "skillcheck version to install (e.g., '0.2.0'). Leave empty for latest."
+    description: "skillcheck version to install (e.g., '1.0.0'). Leave empty for latest."
     required: false
     default: ""
   min-desc-score:

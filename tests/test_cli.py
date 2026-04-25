@@ -193,7 +193,7 @@ def test_ignore_prefix_does_not_suppress_unrelated_rules():
 def test_version_flag_shows_version():
     result = run("--version")
     assert result.returncode == 0
-    assert "0.2.0" in result.stdout
+    assert "1.0.0" in result.stdout
 
 
 # ---------------------------------------------------------------------------
