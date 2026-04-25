@@ -23,19 +23,54 @@ IMPERATIVE_VERBS: tuple[str, ...] = (
     "build",
     "check",
     "compile",
+    "configure",
     "convert",
     "create",
+    "define",
+    "describe",
+    "design",
+    "document",
+    "evaluate",
+    "explain",
     "extract",
     "find",
     "format",
     "generate",
+    "identify",
+    "implement",
+    "install",
     "list",
     "parse",
+    "plan",
     "render",
     "review",
+    "run",
+    "set",
+    "setup",
+    "study",
     "summarize",
+    "test",
     "transform",
+    "understand",
     "validate",
+    "write",
+)
+
+# Section prefixes stripped from headings before imperative-verb classification.
+# Matches "Phase 1:", "Phase 1 -", "Step 2.", "Section 3:", "1.", "2)",
+# "1.1", "1.1.1 ", "1.2)" etc. Real-world skills use both flat and nested
+# numbering (mcp-builder uses "#### 1.1 Understand...").  Conservative:
+# strips a single leading section/numeric token plus its trailing delimiter
+# or whitespace, leaving the rest of the heading intact for verb detection.
+_SECTION_PREFIX_RE = re.compile(
+    r"""
+    ^\s*
+    (?:
+        (?:phase|step|section|part|chapter)\s+[\w\.]+\s*[:.\-]?\s+  # named section
+        | \d+(?:\.\d+)*\s*[:.)\-]?\s+                               # numeric (incl. 1.1)
+    )
+    """,
+    re.IGNORECASE | re.VERBOSE,
 )
 
 INPUT_SECTION_ALIASES: tuple[str, ...] = (
@@ -193,9 +228,25 @@ def _is_output_section_heading(text: str) -> bool:
     return _normalize_heading(text) in OUTPUT_SECTION_ALIASES
 
 
+def _strip_section_prefix(text: str) -> str:
+    """Strip a single leading section or numeric prefix.
+
+    Real-world skills frequently nest imperative verbs inside section labels
+    like "Phase 1: Implement Tools" or "2. Build the index". The verb-classifier
+    needs the prefix removed so the first word seen is the actual verb.
+    Returns the text unchanged when no recognized prefix is present.
+    """
+    return _SECTION_PREFIX_RE.sub("", text, count=1)
+
+
 def _is_imperative_heading(text: str) -> bool:
-    """Return True if the heading's first word is a known imperative verb."""
-    first_word = text.lower().split()[0] if text.split() else ""
+    """Return True if the heading's first word is a known imperative verb.
+
+    Section/numeric prefixes ("Phase 1:", "Step 2.", "1.") are stripped first
+    so that headings like "Phase 1: Implement Tools" classify on "Implement".
+    """
+    stripped = _strip_section_prefix(text)
+    first_word = stripped.lower().split()[0] if stripped.split() else ""
     return first_word in IMPERATIVE_VERBS
 
 
@@ -408,9 +459,14 @@ def extract_graph_heuristic(skill: ParsedSkill) -> CapabilityGraph:
                 if stripped and not re.match(r"^#+\s", cline):
                     description = stripped
                     break
-            cid = _make_id("capability", heading_text, line_num)
+            # Strip section/numeric prefix so stored name matches what an agent
+            # would produce. Agents typically drop "1.1" but keep "Phase 1:";
+            # we drop both for consistent name-based comparison in divergence
+            # analyzers.
+            cap_name = _strip_section_prefix(heading_text).strip() or heading_text
+            cid = _make_id("capability", cap_name, line_num)
             cap = Capability(
-                id=cid, name=heading_text, description=description, line=line_num
+                id=cid, name=cap_name, description=description, line=line_num
             )
             capabilities.append(cap)
             capability_sections.append((cap, content))

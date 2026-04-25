@@ -16,7 +16,9 @@ from skillcheck.core.graph import (
     Edge,
     Input,
     Output,
+    _is_imperative_heading,
     _make_id,
+    _strip_section_prefix,
     extract_graph_heuristic,
 )
 from skillcheck.parser import parse
@@ -164,6 +166,109 @@ def test_imperative_caps_overview_excluded() -> None:
     names = {c.name for c in g.capabilities}
     assert "Overview" not in names
     assert "Usage Notes" not in names
+
+
+# ---------------------------------------------------------------------------
+# Section-prefix stripping for imperative classification
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "heading",
+    [
+        "Phase 1: Implement Tools",
+        "Phase 2 - Build the index",
+        "Step 3: Validate output",
+        "Section 4: Generate report",
+        "Part 1: Create artifact",
+        "Chapter 2: Extract data",
+        "1. Implement Tools",
+        "2) Build the index",
+        "3.  Validate output",
+        "1.1 Understand the API",
+        "2.1 Set Up Project Structure",
+        "4.2 Create 10 Evaluation Questions",
+        "1.1.1 Implement helper",
+    ],
+)
+def test_section_prefix_stripped_for_imperative_check(heading: str) -> None:
+    """Headings nested under section/numeric prefixes still classify as imperative."""
+    assert _is_imperative_heading(heading) is True
+
+
+@pytest.mark.parametrize(
+    "heading,expected",
+    [
+        ("Phase 1: Implement Tools", "Implement Tools"),
+        ("Step 2. Build", "Build"),
+        ("Section 3: Generate", "Generate"),
+        ("1. Implement", "Implement"),
+        ("Plain heading no prefix", "Plain heading no prefix"),
+    ],
+)
+def test_strip_section_prefix(heading: str, expected: str) -> None:
+    assert _strip_section_prefix(heading) == expected
+
+
+def test_strip_section_prefix_only_strips_one_prefix() -> None:
+    """Stripping is single-pass: 'Phase 1: Step 2: Foo' -> 'Step 2: Foo'."""
+    result = _strip_section_prefix("Phase 1: Step 2: Foo")
+    assert result == "Step 2: Foo"
+
+
+def test_imperative_verbs_includes_real_world_verbs() -> None:
+    """Verbs found in shipped Anthropic skills must classify."""
+    for verb in (
+        "implement",
+        "plan",
+        "study",
+        "understand",
+        "set",
+        "test",
+        "design",
+        "define",
+        "describe",
+        "document",
+        "evaluate",
+        "explain",
+        "identify",
+        "install",
+        "run",
+        "write",
+        "configure",
+        "setup",
+    ):
+        assert verb in IMPERATIVE_VERBS, f"Missing real-world verb: {verb}"
+
+
+def test_heuristic_capability_names_strip_section_prefix(tmp_path: Path) -> None:
+    """Stored capability names drop section/numeric prefix so they match agent
+    extraction by name. Without this, divergence analyzers can never match
+    'Implement Tools' (agent) against '2.3 Implement Tools' (heuristic)."""
+    skill = tmp_path / "section-prefixed" / "SKILL.md"
+    skill.parent.mkdir()
+    skill.write_text(
+        "---\n"
+        "name: section-prefixed\n"
+        "description: Tests that section/numeric prefixes are stripped from "
+        "heuristic capability names so divergence analysis can match by name.\n"
+        "---\n"
+        "# Body\n"
+        "## Phase 1: Implement Tools\n"
+        "Body for tools.\n"
+        "### 2.1 Build Index\n"
+        "Body for index.\n"
+        "#### 3.1.2 Validate Output\n"
+        "Body for output.\n"
+    )
+    g = extract_graph_heuristic(parse(skill))
+    names = {c.name for c in g.capabilities}
+    assert "Implement Tools" in names
+    assert "Build Index" in names
+    assert "Validate Output" in names
+    # Original prefixed forms must NOT appear:
+    assert not any(n.startswith("Phase ") for n in names)
+    assert not any(n[:3] in {"2.1", "3.1"} for n in names)
 
 
 # ---------------------------------------------------------------------------
