@@ -464,3 +464,28 @@ def extract_graph_heuristic(skill: ParsedSkill) -> CapabilityGraph:
         edges=sorted_edges,
         source="heuristic",
     )
+
+
+def extract_graph_agent(skill: ParsedSkill, raw_response: str) -> CapabilityGraph:
+    """Extract a CapabilityGraph from an agent JSON response.
+
+    Thin wrapper around parse_graph_response. Returns a graph with
+    source="agent". The heuristic extractor is not modified or removed;
+    drift detection relies on both extractors coexisting.
+
+    Args:
+        skill: ParsedSkill the response was generated for. Used to validate
+            that agent-claimed line numbers fall within the actual body.
+        raw_response: Raw string from the agent (may include noise, fences,
+            prose preamble).
+
+    Returns:
+        CapabilityGraph with source="agent".
+
+    Raises:
+        GraphParseError: Subclasses GraphJSONError, GraphSchemaError, or
+            GraphValueError depending on failure mode. See agents/graph_parser.py.
+    """
+    from skillcheck.agents.graph_parser import parse_graph_response  # noqa: PLC0415
+
+    return parse_graph_response(raw_response, skill)
