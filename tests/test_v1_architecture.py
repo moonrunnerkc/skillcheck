@@ -66,14 +66,66 @@ def test_history_module_is_implemented() -> None:
     )
 
 
-def test_reporter_stub_functions_raise_not_implemented() -> None:
+def test_reporter_functions_return_correct_types() -> None:
     result = ValidationResult(path=FIXTURES_DIR / "valid_basic.md", diagnostics=[])
 
-    with pytest.raises(NotImplementedError, match="Reasoning-trace reporting lands in v1.0."):
-        reporter.render_markdown_report(result)
+    md = reporter.render_markdown_report(result)
+    assert isinstance(md, str)
+    assert "PASS" in md
+    assert "valid_basic.md" in md
 
-    with pytest.raises(NotImplementedError, match="Reasoning-trace reporting lands in v1.0."):
-        reporter.render_json_report(result)
+    payload = reporter.render_json_report(result)
+    assert isinstance(payload, dict)
+    assert payload["valid"] is True
+    assert payload["error_count"] == 0
+    assert payload["diagnostics"] == []
+
+
+def test_reporter_markdown_fail_path_contains_table_header() -> None:
+    result = ValidationResult(
+        path=FIXTURES_DIR / "bad_name_caps.md",
+        diagnostics=[
+            Diagnostic(
+                rule="frontmatter.name.invalid-chars",
+                severity=Severity.ERROR,
+                message="name contains uppercase characters",
+                line=2,
+            ),
+        ],
+    )
+
+    md = reporter.render_markdown_report(result)
+    assert "FAIL" in md
+    for header in ("Line", "Severity", "Rule", "Message"):
+        assert header in md
+    assert "frontmatter.name.invalid-chars" in md
+
+
+def test_reporter_json_counts_mixed_severities() -> None:
+    result = ValidationResult(
+        path=FIXTURES_DIR / "valid_basic.md",
+        diagnostics=[
+            Diagnostic(rule="r.error", severity=Severity.ERROR, message="boom"),
+            Diagnostic(rule="r.warn1", severity=Severity.WARNING, message="meh"),
+            Diagnostic(rule="r.warn2", severity=Severity.WARNING, message="also meh"),
+            Diagnostic(rule="r.info", severity=Severity.INFO, message="fyi"),
+        ],
+    )
+
+    payload = reporter.render_json_report(result)
+    assert payload["error_count"] == 1
+    assert payload["warning_count"] == 2
+    assert payload["info_count"] == 1
+    assert len(payload["diagnostics"]) == 4
+    assert payload["valid"] is False
+
+
+def test_reporter_json_path_is_string() -> None:
+    result = ValidationResult(path=FIXTURES_DIR / "valid_basic.md", diagnostics=[])
+
+    payload = reporter.render_json_report(result)
+    assert isinstance(payload["path"], str)
+    assert payload["path"] == str(result.path)
 
 
 def test_agent_base_interface_shape() -> None:

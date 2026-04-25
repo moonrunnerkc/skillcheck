@@ -156,7 +156,7 @@ def ingest_critique_response(skill: ParsedSkill, raw: str) -> list[Diagnostic]:
         diagnostics.append(Diagnostic(
             rule=f"semantic.finding.{finding.severity.value}",
             severity=finding.severity,
-            message=f"[{finding.section}] {finding.issue} — {finding.suggestion}",
+            message=f"[{finding.section}] {finding.issue}: {finding.suggestion}",
             line=line,
         ))
 

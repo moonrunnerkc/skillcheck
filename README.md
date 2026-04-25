@@ -334,7 +334,7 @@ pip install -e ".[dev]"
 python3 -m pytest tests/ -q
 ```
 
-647 tests cover all rule modules, CLI exit codes, graph analyzers, divergence detection, critique parsing, history round-trips, and the full self-host pipeline against `skills/skillcheck/SKILL.md`. Fixtures are in `tests/fixtures/`; every rule has at least one positive and one negative test case.
+653 tests cover all rule modules, CLI exit codes, graph analyzers, divergence detection, critique parsing, history round-trips, and the full self-host pipeline against `skills/skillcheck/SKILL.md`. Fixtures are in `tests/fixtures/`; every rule has at least one positive and one negative test case.
 
 ## Maintainer Notes
 
