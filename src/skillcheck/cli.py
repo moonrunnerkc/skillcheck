@@ -7,9 +7,14 @@ from pathlib import Path
 
 from skillcheck import __version__
 from skillcheck.core import (
+    extract_graph_heuristic,
     ingest_critique_response,
     merge_critique_diagnostics,
+    merge_diagnostics,
     render_critique_prompt,
+    render_graph_json,
+    render_graph_text,
+    run_graph_analyzers,
     validate,
 )
 from skillcheck.agents.parser import CritiqueParseError
@@ -153,6 +158,9 @@ examples:
 # Delimiter used between prompts when emitting for multiple skills.
 _PROMPT_DELIMITER = "# === skillcheck:critique-prompt:{path} ==="
 
+# Delimiter used between graph renders when emitting for multiple skills.
+_GRAPH_DELIMITER = "# === skillcheck:graph:{path} ==="
+
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -271,6 +279,24 @@ def _build_parser() -> argparse.ArgumentParser:
             "Requires --emit-critique-prompt or --ingest-critique."
         ),
     )
+    parser.add_argument(
+        "--emit-graph",
+        action="store_true",
+        default=False,
+        help=(
+            "Print the extracted capability graph to stdout and exit 0. "
+            "Replaces the validation report. Use --format json for machine-readable output."
+        ),
+    )
+    parser.add_argument(
+        "--analyze-graph",
+        action="store_true",
+        default=False,
+        help=(
+            "Extract the capability graph, run graph analyzers, and merge diagnostics "
+            "into the validation report. Augments (does not replace) the report."
+        ),
+    )
     return parser
 
 
@@ -290,6 +316,20 @@ def _resolve_paths(args: argparse.Namespace) -> list[Path]:
         print(f"No SKILL.md files found under: {target}", file=sys.stderr)
         sys.exit(2)
     return paths
+
+
+def _do_emit_graph(paths: list[Path], fmt: str) -> None:
+    """Print the capability graph for each path and exit 0."""
+    multiple = len(paths) > 1
+    for path in paths:
+        skill = _parse_skill(path)
+        graph = extract_graph_heuristic(skill)
+        if multiple:
+            print(_GRAPH_DELIMITER.format(path=path))
+        if fmt == "json":
+            print(render_graph_json(graph))
+        else:
+            print(render_graph_text(graph))
 
 
 def _do_emit_critique_prompts(paths: list[Path], fmt: str, agent_id: str = "claude") -> None:
@@ -340,12 +380,42 @@ def main() -> None:
         )
         sys.exit(2)
 
+    if args.emit_graph and args.analyze_graph:
+        print(
+            "Cannot use --emit-graph with --analyze-graph. "
+            "--emit-graph is an emit mode (replaces the report). "
+            "--analyze-graph is an augment mode (adds to the report).",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    if args.emit_graph and args.emit_critique_prompt:
+        print(
+            "Cannot use --emit-graph with --emit-critique-prompt. "
+            "Both are emit modes; pick one.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    if args.emit_graph and args.ingest_critique is not None:
+        print(
+            "Cannot use --emit-graph with --ingest-critique. "
+            "--emit-graph replaces the report; --ingest-critique augments it.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
     agent_id = args.critique_agent or "claude"
 
     if args.critique_agent is not None and not args.emit_critique_prompt and args.ingest_critique is None:
         parser.error("--critique-agent requires --emit-critique-prompt or --ingest-critique")
 
     paths = _resolve_paths(args)
+
+    # --emit-graph: emit the graph and skip symbolic validation entirely
+    if args.emit_graph:
+        _do_emit_graph(paths, fmt=args.format)
+        sys.exit(0)
 
     # --emit-critique-prompt: skip symbolic validation entirely
     if args.emit_critique_prompt:
@@ -389,6 +459,16 @@ def main() -> None:
             ingest_failed = True
 
         results = [merge_critique_diagnostics(r, critique_diags) for r in results]
+
+        # When both --ingest-critique and --analyze-graph are set, run analyzers
+        # after the critique merge so all diagnostics appear in one report.
+        if args.analyze_graph:
+            for i, (path, result) in enumerate(zip(paths, results)):
+                skill = _parse_skill(path)
+                graph = extract_graph_heuristic(skill)
+                graph_diags = run_graph_analyzers(graph)
+                results[i] = merge_diagnostics(result, graph_diags)
+
         semantic_any_errors = any(not r.valid for r in results)
 
         if not args.quiet:
@@ -403,6 +483,14 @@ def main() -> None:
         if semantic_any_errors:
             sys.exit(3)
         sys.exit(0)
+
+    # --analyze-graph without --ingest-critique: run analyzers and merge into symbolic results
+    if args.analyze_graph:
+        for i, (path, result) in enumerate(zip(paths, results)):
+            skill = _parse_skill(path)
+            graph = extract_graph_heuristic(skill)
+            graph_diags = run_graph_analyzers(graph)
+            results[i] = merge_diagnostics(result, graph_diags)
 
     # Normal v0.2.0 path
     if not args.quiet:
