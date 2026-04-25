@@ -163,15 +163,35 @@ def ingest_critique_response(skill: ParsedSkill, raw: str) -> list[Diagnostic]:
     return diagnostics
 
 
+def merge_diagnostics(
+    result: ValidationResult,
+    additional: list[Diagnostic],
+) -> ValidationResult:
+    """Return a new ValidationResult with additional diagnostics appended.
+
+    The original result is not mutated (frozen dataclass). ``valid`` is
+    recomputed from the merged list: True iff no ERROR-severity diagnostics
+    are present.
+
+    Args:
+        result: Existing validation result.
+        additional: Extra diagnostics to append (critique, graph, etc.).
+
+    Returns:
+        New ValidationResult combining both diagnostic lists.
+    """
+    merged = list(result.diagnostics) + additional
+    return ValidationResult(path=result.path, diagnostics=merged)
+
+
 def merge_critique_diagnostics(
     result: ValidationResult,
     critique_diagnostics: list[Diagnostic],
 ) -> ValidationResult:
     """Return a new ValidationResult with symbolic and semantic diagnostics merged.
 
-    The original result is not mutated (it's a frozen dataclass). ``valid`` is
-    recomputed from the merged list: True iff no ERROR-severity diagnostics are
-    present.
+    Thin wrapper around ``merge_diagnostics`` kept for backward compatibility
+    with internal Phase 1B callers. Behavior is identical.
 
     Args:
         result: Existing symbolic validation result.
@@ -180,5 +200,4 @@ def merge_critique_diagnostics(
     Returns:
         New ValidationResult combining both diagnostic lists.
     """
-    merged = list(result.diagnostics) + critique_diagnostics
-    return ValidationResult(path=result.path, diagnostics=merged)
+    return merge_diagnostics(result, critique_diagnostics)
