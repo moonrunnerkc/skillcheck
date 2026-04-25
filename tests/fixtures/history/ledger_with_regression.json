@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "skill_path": "SKILL.md",
+  "runs": [
+    {
+      "timestamp_utc": "2026-04-18T09:00:00Z",
+      "skillcheck_version": "0.2.0",
+      "skill_content_hash": "f0f1f2f3f4f5f6f7",
+      "validation_modes": {
+        "symbolic": true,
+        "critique": false,
+        "graph": false
+      },
+      "agents": {
+        "critique_agent": null,
+        "graph_agent": null
+      },
+      "result": {
+        "error": 0,
+        "warning": 0,
+        "info": 0,
+        "valid": true
+      },
+      "exit_code": 0
+    },
+    {
+      "timestamp_utc": "2026-04-24T14:00:00Z",
+      "skillcheck_version": "0.2.0",
+      "skill_content_hash": "f0f1f2f3f4f5f6f7",
+      "validation_modes": {
+        "symbolic": true,
+        "critique": false,
+        "graph": false
+      },
+      "agents": {
+        "critique_agent": null,
+        "graph_agent": null
+      },
+      "result": {
+        "error": 1,
+        "warning": 0,
+        "info": 0,
+        "valid": false
+      },
+      "exit_code": 1
+    }
+  ]
+}

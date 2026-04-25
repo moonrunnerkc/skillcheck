@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "skill_path": "SKILL.md",
+  "runs": [
+    {
+      "timestamp_utc": "2026-04-10T08:00:00Z",
+      "skillcheck_version": "0.2.0",
+      "skill_content_hash": "deadbeefcafebabe",
+      "validation_modes": {
+        "symbolic": true,
+        "critique": false,
+        "graph": false
+      },
+      "agents": {
+        "critique_agent": null,
+        "graph_agent": null
+      },
+      "result": {
+        "error": 0,
+        "warning": 0,
+        "info": 1,
+        "valid": true
+      },
+      "exit_code": 0
+    },
+    {
+      "timestamp_utc": "2026-04-15T12:00:00Z",
+      "skillcheck_version": "0.2.0",
+      "skill_content_hash": "deadbeefcafebabe",
+      "validation_modes": {
+        "symbolic": true,
+        "critique": false,
+        "graph": false
+      },
+      "agents": {
+        "critique_agent": null,
+        "graph_agent": null
+      },
+      "result": {
+        "error": 0,
+        "warning": 0,
+        "info": 1,
+        "valid": true
+      },
+      "exit_code": 0
+    },
+    {
+      "timestamp_utc": "2026-04-20T18:30:00Z",
+      "skillcheck_version": "0.2.0",
+      "skill_content_hash": "deadbeefcafebabe",
+      "validation_modes": {
+        "symbolic": true,
+        "critique": false,
+        "graph": false
+      },
+      "agents": {
+        "critique_agent": null,
+        "graph_agent": null
+      },
+      "result": {
+        "error": 0,
+        "warning": 1,
+        "info": 1,
+        "valid": true
+      },
+      "exit_code": 0
+    }
+  ]
+}

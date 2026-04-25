@@ -49,15 +49,21 @@ def test_graph_extract_heuristic_is_callable() -> None:
     )
 
 
-def test_history_stub_function_raises_not_implemented() -> None:
-    snapshot = history.ValidationSnapshot(
-        timestamp="2026-04-24T00:00:00Z",
-        path="tests/fixtures/valid_basic.md",
-        valid=True,
-        metadata={},
+def test_history_module_is_implemented() -> None:
+    # Phase 2D replaced the Phase 0 stub with a real implementation.
+    # Verify the key callables exist and are not stubs.
+    assert callable(getattr(history, "append_run", None)), (
+        "history.append_run must exist (Phase 2D implementation)"
     )
-    with pytest.raises(NotImplementedError, match="Validation history ledger lands in v1.0."):
-        history.append_validation_snapshot(FIXTURES_DIR / ".skillcheck-history.json", snapshot)
+    assert callable(getattr(history, "load_ledger", None)), (
+        "history.load_ledger must exist"
+    )
+    assert callable(getattr(history, "save_ledger", None)), (
+        "history.save_ledger must exist"
+    )
+    assert callable(getattr(history, "check_regression", None)), (
+        "history.check_regression must exist"
+    )
 
 
 def test_reporter_stub_functions_raise_not_implemented() -> None:

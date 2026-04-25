@@ -7,17 +7,28 @@ from pathlib import Path
 
 from skillcheck import __version__
 from skillcheck.core import (
+    append_run,
+    build_entry,
+    check_regression,
     extract_graph_agent,
     extract_graph_heuristic,
     ingest_critique_response,
+    ledger_path_for,
+    load_ledger,
     merge_critique_diagnostics,
     merge_diagnostics,
     render_critique_prompt,
     render_graph_json,
     render_graph_text,
+    render_ledger_json,
+    render_ledger_text,
     run_divergence_analyzers,
     run_graph_analyzers,
     validate,
+    LedgerEntry,
+    LedgerError,
+    RunAgents,
+    ValidationModes,
 )
 from skillcheck.agents import get_graph_prompt
 from skillcheck.agents.graph_parser import GraphParseError
@@ -349,6 +360,25 @@ def _build_parser() -> argparse.ArgumentParser:
             "Requires --emit-graph-prompt or --ingest-graph."
         ),
     )
+    parser.add_argument(
+        "--history",
+        action="store_true",
+        default=False,
+        help=(
+            "Append a validation record to the per-skill .skillcheck-history.json ledger "
+            "next to the SKILL.md file. Off by default. Incompatible with emit modes."
+        ),
+    )
+    parser.add_argument(
+        "--show-history",
+        action="store_true",
+        default=False,
+        help=(
+            "Print the validation history ledger for the skill and exit 0. "
+            "Skips all validation. Use --format json for machine-readable output. "
+            "Incompatible with emit modes and with --history."
+        ),
+    )
     return parser
 
 
@@ -539,6 +569,36 @@ def main() -> None:
         )
         sys.exit(2)
 
+    # Emit modes incompatible with --history (emit modes skip validation entirely).
+    _EMIT_FLAGS = {
+        "--emit-critique-prompt": args.emit_critique_prompt,
+        "--emit-graph": args.emit_graph,
+        "--emit-graph-prompt": args.emit_graph_prompt,
+    }
+    for emit_flag, emit_active in _EMIT_FLAGS.items():
+        if emit_active and args.history:
+            print(
+                f"Cannot use --history with {emit_flag}. "
+                f"--history records validation runs; emit modes skip validation.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        if emit_active and args.show_history:
+            print(
+                f"Cannot use --show-history with {emit_flag}. "
+                f"--show-history reads the ledger; {emit_flag} emits a prompt.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+
+    if args.show_history and args.history:
+        print(
+            "Cannot use --show-history with --history. "
+            "--show-history reads the ledger; --history writes to it. Pick one.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
     agent_id = args.critique_agent or "claude"
     graph_agent_id = args.graph_agent or "claude"
 
@@ -549,6 +609,31 @@ def main() -> None:
         parser.error("--graph-agent requires --emit-graph-prompt or --ingest-graph")
 
     paths = _resolve_paths(args)
+
+    # --show-history: read the ledger for the first path, print it, and exit.
+    # Directory mode is not supported for show-history because each skill has
+    # its own ledger; run per-skill instead.
+    if args.show_history:
+        target_path = paths[0]
+        lp = ledger_path_for(target_path)
+        if not lp.exists():
+            print(
+                f"No history ledger found for {target_path}. "
+                f"Run 'skillcheck {target_path} --history' to start tracking.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        try:
+            ledger = load_ledger(lp)
+        except LedgerError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(1)
+        if not args.quiet:
+            if args.format == "json":
+                print(render_ledger_json(ledger))
+            else:
+                print(render_ledger_text(ledger))
+        sys.exit(0)
 
     # --emit-graph: emit the heuristic graph and skip symbolic validation entirely
     if args.emit_graph:
@@ -643,6 +728,86 @@ def main() -> None:
         graph_source_text = "heuristic"
         graph_source_json = {"mode": "heuristic"}
 
+    # Determine exit code based on current results (before history processing).
+    # Exit 1: symbolic rules failed before any ingest, or an ingest parse failed.
+    if symbolic_errors_before_ingest or any_ingest_failed:
+        final_exit_code = 1
+    elif any(
+        d.severity == Severity.ERROR
+        for r in results
+        for d in r.diagnostics
+        if d.rule.startswith("semantic.")
+    ):
+        # Exit 3: symbolic passed, all parses succeeded, but a critique ingest added a
+        # semantic-namespace contradiction (semantic.*).
+        final_exit_code = 3
+    elif any(not r.valid for r in results):
+        # Exit 1: any remaining errors (e.g. graph.contradiction from agent ingest).
+        final_exit_code = 1
+    else:
+        final_exit_code = 0
+
+    # --history: run regression check against prior runs, then append the ledger entry.
+    # This must happen BEFORE the final print so regression diagnostics appear in output.
+    if args.history and len(paths) == 1:
+        skill_for_history = _parse_skill(paths[0])
+        modes = ValidationModes(
+            symbolic=True,
+            critique=args.ingest_critique is not None,
+            graph=args.ingest_graph is not None or args.analyze_graph,
+        )
+        run_agents = RunAgents(
+            critique_agent=agent_id if args.ingest_critique is not None else None,
+            graph_agent=graph_agent_id if args.ingest_graph is not None else None,
+        )
+        # Preliminary entry: used only to evaluate regression against prior runs.
+        preliminary_entry = build_entry(
+            skill_for_history,
+            results[0],
+            modes,
+            run_agents,
+            final_exit_code,
+            __version__,
+        )
+        lp = ledger_path_for(paths[0])
+        try:
+            prior_ledger = load_ledger(lp)
+            prior_runs = prior_ledger.runs if prior_ledger is not None else ()
+            regression_diags = check_regression(prior_runs, preliminary_entry)
+        except LedgerError as exc:
+            regression_diags = [
+                Diagnostic(
+                    rule="history.read.failed",
+                    severity=Severity.WARNING,
+                    message=f"Could not read history ledger: {exc}",
+                )
+            ]
+        if regression_diags:
+            results[0] = merge_diagnostics(results[0], regression_diags)
+            # Regression is WARNING; does not raise or change the exit code.
+
+        # Build final entry with all diagnostics included (regression if any).
+        final_entry = build_entry(
+            skill_for_history,
+            results[0],
+            modes,
+            run_agents,
+            final_exit_code,
+            __version__,
+        )
+        try:
+            append_run(lp, skill_for_history, final_entry)
+        except LedgerError as exc:
+            results[0] = merge_diagnostics(results[0], [
+                Diagnostic(
+                    rule="history.write.failed",
+                    severity=Severity.WARNING,
+                    message=f"Could not write history ledger to {lp}: {exc}",
+                )
+            ])
+            # Write failure is a warning; validation exit code stands.
+
+    # Print report (after history processing so regression/write-fail diagnostics appear).
     if not args.quiet:
         if args.format == "json":
             print(_format_json(
@@ -660,22 +825,4 @@ def main() -> None:
                 graph_source=graph_source_text,
             ))
 
-    # Exit 1: symbolic rules failed before any ingest, or an ingest parse failed.
-    if symbolic_errors_before_ingest or any_ingest_failed:
-        sys.exit(1)
-
-    # Exit 3: symbolic passed, all parses succeeded, but a critique ingest added a
-    # semantic-namespace contradiction (semantic.*). Check before general invalidity.
-    if any(
-        d.severity == Severity.ERROR
-        for r in results
-        for d in r.diagnostics
-        if d.rule.startswith("semantic.")
-    ):
-        sys.exit(3)
-
-    # Exit 1: any remaining errors (e.g. graph.contradiction from agent ingest).
-    if any(not r.valid for r in results):
-        sys.exit(1)
-
-    sys.exit(0)
+    sys.exit(final_exit_code)
