@@ -7,6 +7,7 @@ from pathlib import Path
 
 from skillcheck import __version__
 from skillcheck.core import (
+    extract_graph_agent,
     extract_graph_heuristic,
     ingest_critique_response,
     merge_critique_diagnostics,
@@ -14,9 +15,12 @@ from skillcheck.core import (
     render_critique_prompt,
     render_graph_json,
     render_graph_text,
+    run_divergence_analyzers,
     run_graph_analyzers,
     validate,
 )
+from skillcheck.agents import get_graph_prompt
+from skillcheck.agents.graph_parser import GraphParseError
 from skillcheck.agents.parser import CritiqueParseError
 from skillcheck.parser import parse as _parse_skill
 from skillcheck.result import Diagnostic, Severity, ValidationResult
@@ -64,10 +68,18 @@ def _collect_paths(target: Path) -> list[Path]:
 # ---------------------------------------------------------------------------
 
 
-def _format_text(results: list[ValidationResult], *, color: bool = False, critique_source: str | None = None) -> str:
+def _format_text(
+    results: list[ValidationResult],
+    *,
+    color: bool = False,
+    critique_source: str | None = None,
+    graph_source: str | None = None,
+) -> str:
     lines: list[str] = []
     if critique_source is not None:
         lines.append(f"Critique source: {critique_source}")
+    if graph_source is not None:
+        lines.append(f"Graph source: {graph_source}")
     for result in results:
         if result.valid:
             tag = _style("✔ PASS", _BOLD, _GREEN, color=color)
@@ -107,7 +119,12 @@ def _format_text(results: list[ValidationResult], *, color: bool = False, critiq
     return "\n".join(lines)
 
 
-def _format_json(results: list[ValidationResult], version: str, critique_source: str | None = None) -> str:
+def _format_json(
+    results: list[ValidationResult],
+    version: str,
+    critique_source: str | None = None,
+    graph_source: dict | None = None,
+) -> str:
     passed = sum(1 for r in results if r.valid)
     payload: dict[str, object] = {
         "version": version,
@@ -115,6 +132,7 @@ def _format_json(results: list[ValidationResult], version: str, critique_source:
         "files_passed": passed,
         "files_failed": len(results) - passed,
         **(({"critique_source": critique_source}) if critique_source is not None else {}),
+        **(({"graph_source": graph_source}) if graph_source is not None else {}),
         "results": [
             {
                 "path": str(r.path),
@@ -160,6 +178,9 @@ _PROMPT_DELIMITER = "# === skillcheck:critique-prompt:{path} ==="
 
 # Delimiter used between graph renders when emitting for multiple skills.
 _GRAPH_DELIMITER = "# === skillcheck:graph:{path} ==="
+
+# Delimiter used between graph-extraction prompts when emitting for multiple skills.
+_GRAPH_PROMPT_DELIMITER = "# === skillcheck:graph-prompt:{path} ==="
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -297,6 +318,37 @@ def _build_parser() -> argparse.ArgumentParser:
             "into the validation report. Augments (does not replace) the report."
         ),
     )
+    parser.add_argument(
+        "--emit-graph-prompt",
+        action="store_true",
+        default=False,
+        help=(
+            "Print the graph-extraction prompt to stdout and exit 0. "
+            "Hand the output to an agent, then use --ingest-graph with the response. "
+            "Mutually exclusive with all other emit and augment modes."
+        ),
+    )
+    parser.add_argument(
+        "--ingest-graph",
+        metavar="PATH",
+        default=None,
+        help=(
+            "Read an agent graph-extraction JSON response from PATH (use - for stdin), "
+            "build a CapabilityGraph, run graph analyzers and divergence analyzers, and "
+            "merge all diagnostics into the report. Compatible with --ingest-critique. "
+            "Supersedes --analyze-graph (which does heuristic-only analysis)."
+        ),
+    )
+    parser.add_argument(
+        "--graph-agent",
+        choices=["claude", "codex", "cursor"],
+        default=None,
+        metavar="NAME",
+        help=(
+            "Agent variant for the graph-extraction prompt (claude, codex, cursor; default: claude). "
+            "Requires --emit-graph-prompt or --ingest-graph."
+        ),
+    )
     return parser
 
 
@@ -361,6 +413,20 @@ def _read_ingest_raw(ingest_path: str) -> str:
         sys.exit(2)
 
 
+def _do_emit_graph_prompts(paths: list[Path], fmt: str, agent_id: str = "claude") -> None:
+    """Print graph-extraction prompts to stdout and exit 0."""
+    multiple = len(paths) > 1
+    for path in paths:
+        skill = _parse_skill(path)
+        prompt = get_graph_prompt(agent_id).render(skill)
+        if multiple:
+            print(_GRAPH_PROMPT_DELIMITER.format(path=path))
+        if fmt == "json":
+            print(json.dumps({"prompt": prompt}))
+        else:
+            print(prompt)
+
+
 def main() -> None:
     # Ensure UTF-8 output on Windows where the default encoding may be cp1252.
     if sys.stdout.encoding and sys.stdout.encoding.lower().replace("-", "") != "utf8":
@@ -371,7 +437,10 @@ def main() -> None:
     parser = _build_parser()
     args = parser.parse_args()
 
-    # Mutual exclusion
+    # -----------------------------------------------------------------------
+    # Mutual exclusion checks
+    # -----------------------------------------------------------------------
+
     if args.emit_critique_prompt and args.ingest_critique is not None:
         print(
             "Cannot use --emit-critique-prompt and --ingest-critique together. "
@@ -405,14 +474,83 @@ def main() -> None:
         )
         sys.exit(2)
 
+    if args.emit_graph_prompt and args.emit_graph:
+        print(
+            "Cannot use --emit-graph-prompt with --emit-graph. "
+            "Both are emit modes; pick one.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    if args.emit_graph_prompt and args.emit_critique_prompt:
+        print(
+            "Cannot use --emit-graph-prompt with --emit-critique-prompt. "
+            "Both are emit modes; pick one.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    if args.emit_graph_prompt and args.ingest_critique is not None:
+        print(
+            "Cannot use --emit-graph-prompt with --ingest-critique. "
+            "--emit-graph-prompt is an emit mode; --ingest-critique is an augment mode.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    if args.emit_graph_prompt and args.analyze_graph:
+        print(
+            "Cannot use --emit-graph-prompt with --analyze-graph. "
+            "--emit-graph-prompt is an emit mode; --analyze-graph is an augment mode.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    if args.emit_graph_prompt and args.ingest_graph is not None:
+        print(
+            "Cannot use --emit-graph-prompt with --ingest-graph. "
+            "--emit-graph-prompt emits a prompt; --ingest-graph ingests the agent's response. "
+            "Use them in separate invocations.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    if args.ingest_graph is not None and args.emit_graph:
+        print(
+            "Cannot use --ingest-graph with --emit-graph. "
+            "--emit-graph replaces the report; --ingest-graph augments it.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    if args.ingest_graph is not None and args.emit_critique_prompt:
+        print(
+            "Cannot use --ingest-graph with --emit-critique-prompt. "
+            "--emit-critique-prompt is an emit mode; --ingest-graph is an augment mode.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    if args.ingest_graph is not None and args.analyze_graph:
+        print(
+            "Cannot use --ingest-graph with --analyze-graph. "
+            "--ingest-graph supersedes heuristic-only graph analysis.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
     agent_id = args.critique_agent or "claude"
+    graph_agent_id = args.graph_agent or "claude"
 
     if args.critique_agent is not None and not args.emit_critique_prompt and args.ingest_critique is None:
         parser.error("--critique-agent requires --emit-critique-prompt or --ingest-critique")
 
+    if args.graph_agent is not None and not args.emit_graph_prompt and args.ingest_graph is None:
+        parser.error("--graph-agent requires --emit-graph-prompt or --ingest-graph")
+
     paths = _resolve_paths(args)
 
-    # --emit-graph: emit the graph and skip symbolic validation entirely
+    # --emit-graph: emit the heuristic graph and skip symbolic validation entirely
     if args.emit_graph:
         _do_emit_graph(paths, fmt=args.format)
         sys.exit(0)
@@ -420,6 +558,11 @@ def main() -> None:
     # --emit-critique-prompt: skip symbolic validation entirely
     if args.emit_critique_prompt:
         _do_emit_critique_prompts(paths, fmt=args.format, agent_id=agent_id)
+        sys.exit(0)
+
+    # --emit-graph-prompt: render and print the graph-extraction prompt, then exit
+    if args.emit_graph_prompt:
+        _do_emit_graph_prompts(paths, fmt=args.format, agent_id=graph_agent_id)
         sys.exit(0)
 
     # Run symbolic validation (always, including when ingesting)
@@ -438,14 +581,15 @@ def main() -> None:
         for p in paths
     ]
 
+    critique_source: str | None = None
+    graph_source_text: str | None = None
+    graph_source_json: dict | None = None
+
     if args.ingest_critique is not None:
         raw = _read_ingest_raw(args.ingest_critique)
-        symbolic_any_errors = any(not r.valid for r in results)
         ingest_failed = False
 
         try:
-            # Use the first path for section-header line lookups; same critique
-            # response applies across all results when multiple paths are given.
             first_skill = _parse_skill(paths[0])
             critique_diags = ingest_critique_response(first_skill, raw)
         except CritiqueParseError as exc:
@@ -459,45 +603,92 @@ def main() -> None:
             ingest_failed = True
 
         results = [merge_critique_diagnostics(r, critique_diags) for r in results]
+        critique_source = agent_id
 
-        # When both --ingest-critique and --analyze-graph are set, run analyzers
-        # after the critique merge so all diagnostics appear in one report.
-        if args.analyze_graph:
-            for i, (path, result) in enumerate(zip(paths, results)):
-                skill = _parse_skill(path)
-                graph = extract_graph_heuristic(skill)
-                graph_diags = run_graph_analyzers(graph)
-                results[i] = merge_diagnostics(result, graph_diags)
-
-        semantic_any_errors = any(not r.valid for r in results)
-
-        if not args.quiet:
-            if args.format == "json":
-                print(_format_json(results, __version__, critique_source=agent_id))
-            else:
-                use_color = not args.no_color and sys.stdout.isatty()
-                print(_format_text(results, color=use_color, critique_source=agent_id))
-
-        if ingest_failed or symbolic_any_errors:
+        if ingest_failed:
+            if not args.quiet:
+                if args.format == "json":
+                    print(_format_json(results, __version__, critique_source=critique_source))
+                else:
+                    use_color = not args.no_color and sys.stdout.isatty()
+                    print(_format_text(results, color=use_color, critique_source=critique_source))
             sys.exit(1)
-        if semantic_any_errors:
-            sys.exit(3)
-        sys.exit(0)
 
-    # --analyze-graph without --ingest-critique: run analyzers and merge into symbolic results
-    if args.analyze_graph:
+    if args.ingest_graph is not None:
+        raw_graph = _read_ingest_raw(args.ingest_graph)
+        graph_ingest_failed = False
+
+        try:
+            first_skill = _parse_skill(paths[0])
+            agent_graph = extract_graph_agent(first_skill, raw_graph)
+            heuristic_graph = extract_graph_heuristic(first_skill)
+            agent_graph_diags = run_graph_analyzers(agent_graph)
+            divergence_diags = run_divergence_analyzers(agent_graph, heuristic_graph)
+            all_graph_diags = agent_graph_diags + divergence_diags
+        except GraphParseError as exc:
+            all_graph_diags = [
+                Diagnostic(
+                    rule="semantic.ingest.graph_parse_error",
+                    severity=Severity.ERROR,
+                    message=str(exc),
+                )
+            ]
+            graph_ingest_failed = True
+
+        for i, result in enumerate(results):
+            results[i] = merge_diagnostics(result, all_graph_diags)
+
+        if not graph_ingest_failed:
+            graph_source_text = f"agent ({graph_agent_id})"
+            graph_source_json = {"mode": "agent", "agent": graph_agent_id}
+
+        if graph_ingest_failed:
+            if not args.quiet:
+                if args.format == "json":
+                    print(_format_json(results, __version__, critique_source=critique_source))
+                else:
+                    use_color = not args.no_color and sys.stdout.isatty()
+                    print(_format_text(results, color=use_color, critique_source=critique_source))
+            sys.exit(1)
+
+    elif args.analyze_graph:
         for i, (path, result) in enumerate(zip(paths, results)):
             skill = _parse_skill(path)
             graph = extract_graph_heuristic(skill)
             graph_diags = run_graph_analyzers(graph)
             results[i] = merge_diagnostics(result, graph_diags)
+        graph_source_text = "heuristic"
+        graph_source_json = {"mode": "heuristic"}
 
-    # Normal v0.2.0 path
+    symbolic_errors = any(not r.valid for r in results)
+
     if not args.quiet:
         if args.format == "json":
-            print(_format_json(results, __version__))
+            print(_format_json(
+                results,
+                __version__,
+                critique_source=critique_source,
+                graph_source=graph_source_json,
+            ))
         else:
             use_color = not args.no_color and sys.stdout.isatty()
-            print(_format_text(results, color=use_color))
+            print(_format_text(
+                results,
+                color=use_color,
+                critique_source=critique_source,
+                graph_source=graph_source_text,
+            ))
 
-    sys.exit(1 if any(not r.valid for r in results) else 0)
+    if symbolic_errors:
+        sys.exit(1)
+
+    # Exit code 3: symbolic passed but semantic drift detected
+    if any(
+        d.severity == Severity.ERROR
+        for r in results
+        for d in r.diagnostics
+        if d.rule.startswith("semantic.")
+    ):
+        sys.exit(3)
+
+    sys.exit(0)
