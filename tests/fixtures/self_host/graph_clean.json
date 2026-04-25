@@ -1,0 +1,130 @@
+{
+  "capabilities": [
+    {
+      "id": "c3b87004",
+      "name": "Validate a skill",
+      "description": "Pass `path` to `skillcheck` for a full structural check against the agentskills.io specification. Validates name constraints, description quality, body sizing, file references, and cross-agent compatibility. The `validation report` is written to stdout. Exit codes: 0 no errors, 1 errors found, 2 input error (missing file), 3 symbolic passed but semantic critique flagged errors.",
+      "line": 10
+    },
+    {
+      "id": "6c9baa72",
+      "name": "Review a skill with an agent",
+      "description": "skillcheck generates a structured critique prompt for `path` and ingests `response.json` as the agent's reply. Save the emitted prompt to `prompt.txt`. The merged `validation report` combines symbolic diagnostics and semantic findings from the critique.",
+      "line": 19
+    },
+    {
+      "id": "d2063529",
+      "name": "Extract a capability graph",
+      "description": "skillcheck extracts the `capability graph` from heading structure and backtick references in the body of `path`. Use `prompt.txt` for emitted graph prompts and ingest `response.json` from your agent for richer extraction.",
+      "line": 35
+    },
+    {
+      "id": "b8a07419",
+      "name": "Check validation history",
+      "description": "Append a record to the `validation ledger` for each `--history` run on `path`. The ledger is stored in `.skillcheck-history.json` next to the skill file, is append-only, and is safe to commit.",
+      "line": 61
+    }
+  ],
+  "inputs": [
+    {
+      "id": "fda08960",
+      "name": "path",
+      "kind": "prerequisite",
+      "line": 6
+    },
+    {
+      "id": "b000ab22",
+      "name": "prompt.txt",
+      "kind": "file",
+      "line": 7
+    },
+    {
+      "id": "7a3c8bbb",
+      "name": "response.json",
+      "kind": "file",
+      "line": 8
+    }
+  ],
+  "outputs": [
+    {
+      "id": "13bb08bc",
+      "name": "validation report",
+      "kind": "artifact",
+      "line": 75
+    },
+    {
+      "id": "b69591ce",
+      "name": "capability graph",
+      "kind": "artifact",
+      "line": 76
+    },
+    {
+      "id": "c787241a",
+      "name": "validation ledger",
+      "kind": "artifact",
+      "line": 77
+    }
+  ],
+  "edges": [
+    {
+      "source_id": "6c9baa72",
+      "target_id": "13bb08bc",
+      "kind": "produces"
+    },
+    {
+      "source_id": "6c9baa72",
+      "target_id": "7a3c8bbb",
+      "kind": "requires"
+    },
+    {
+      "source_id": "6c9baa72",
+      "target_id": "b000ab22",
+      "kind": "requires"
+    },
+    {
+      "source_id": "6c9baa72",
+      "target_id": "fda08960",
+      "kind": "requires"
+    },
+    {
+      "source_id": "b8a07419",
+      "target_id": "c787241a",
+      "kind": "produces"
+    },
+    {
+      "source_id": "b8a07419",
+      "target_id": "fda08960",
+      "kind": "requires"
+    },
+    {
+      "source_id": "c3b87004",
+      "target_id": "13bb08bc",
+      "kind": "produces"
+    },
+    {
+      "source_id": "c3b87004",
+      "target_id": "fda08960",
+      "kind": "requires"
+    },
+    {
+      "source_id": "d2063529",
+      "target_id": "7a3c8bbb",
+      "kind": "requires"
+    },
+    {
+      "source_id": "d2063529",
+      "target_id": "b000ab22",
+      "kind": "requires"
+    },
+    {
+      "source_id": "d2063529",
+      "target_id": "b69591ce",
+      "kind": "produces"
+    },
+    {
+      "source_id": "d2063529",
+      "target_id": "fda08960",
+      "kind": "requires"
+    }
+  ]
+}
