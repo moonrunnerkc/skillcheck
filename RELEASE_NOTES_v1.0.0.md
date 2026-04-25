@@ -1,16 +1,4 @@
-# Changelog
-
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [Unreleased]
-
-### Added
-- Release prep artifacts for v1.0.0: `RELEASE_NOTES_v1.0.0.md`, `LAUNCH_POST_v1.0.md`, `LAUNCH_CHECKLIST.md`.
-
-## [1.0.0] - 2026-04-25
+skillcheck v1.0.0 is the first major release. It adds agent-native semantic self-critique, heuristic capability graph extraction with five structural analyzers, and a per-skill validation history ledger on top of the v0.2.0 symbolic foundation. The tool is designed for two modes: when a calling agent is present it uses that agent for semantic analysis; when no agent is present it runs symbolic checks only. No LLM API keys required. Suitable for CI pipelines, local pre-commit hooks, or agent-loop integration.
 
 ### Changed
 - Rewrote README end-to-end for v1.0 launch audience. New sections: "Why This Exists", "Modes" (five subsections: Symbolic, Heuristic Graph, Agent Critique, Agent Graph, History), "Maintainer Notes". Removed v0.2.0-era feature bullet list and duplicated section prose. Restructured Quick Start to lead with the agent-native workflow. Rebuilt Options table from live `argparse` audit; every flag matches its actual help text and default. Rebuilt Rules table from live rule module audit; added source-tag legend paragraph. Added inline v1.0 case study paragraph (full detail at `docs/case-study-v1-real-world-runs.md`). All cited diagnostics and output excerpts trace verbatim to field-test artifacts in `runs/`.
@@ -41,43 +29,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `graph.contradiction.heuristic_disagreement` (ERROR, source: `agent`): fires when an ingested agent graph claims an edge between two nodes that both appear in the heuristic graph but that edge is absent heuristically. Indicates a possible over-claimed capability. Only active when `--ingest-graph` is used.
 - Graph extraction prompt module (`agents.graph_base`, `agents.graph_claude`, `agents.graph_codex`, `agents.graph_cursor`): parallel to the critique prompt module. Claude variant uses XML tags and a full worked example; Codex uses markdown headers and a full worked example; Cursor uses a compact type signature only.
 
-## [0.2.0] - 2026-03-11
+## Verification
 
-### Added
-- **GitHub Action**: composite action (`moonrunnerkc/skillcheck@v0`) with PR annotations, job summary table, and JSON output. All CLI flags exposed as action inputs. Three lines of YAML to add to any CI pipeline.
-- **`__main__.py` entry point**: `python -m skillcheck` now works as an alternative to the console script.
-- **File reference validation**: parses markdown body for `[text](path)`, `![alt](path)`, and `source:`/`file:`/`include:` directives; verifies referenced files exist on disk; warns when references exceed one directory level from SKILL.md.
-- **Progressive disclosure budget**: three-tier token budgeting: metadata/frontmatter at ~100 tokens, body at <5,000 tokens, resources loaded on demand. Flags oversized code blocks (>50 lines), large tables (>20 rows), and embedded base64.
-- **Cross-agent compatibility warnings**: flags Claude Code-only fields (`model`, `disable-model-invocation`, `mode`, `hooks`, `agent`, `skills`), notes VS Code directory-name requirements, marks fields with unverified behavior in Codex and Cursor. Full compatibility matrix across four agents.
-- **Description quality scoring**: scores 0-100 across action verbs, trigger phrases, keyword density, specificity, and length. `--min-desc-score N` flag to enforce a minimum threshold.
-- **VS Code strict mode**: `--strict-vscode` promotes VS Code compatibility issues from INFO to ERROR.
-- **Agent-scoped checks**: `--target-agent {claude,vscode,all}` scopes compatibility diagnostics to a specific agent.
-- **Skip flags**: `--skip-dirname-check` and `--skip-ref-check` for CI environments where filesystem context is unavailable.
-- **`-q`/`--quiet` flag**: suppresses all output; exit code only.
-- **YAML type coercion detection**: `frontmatter.name.type` and `frontmatter.description.type` catch when `yaml.safe_load` silently converts bare values like `true`, `123`, or `null` into non-string types. Provides clear fix advice (quote the value).
-- **YAML anchor detection**: `frontmatter.yaml-anchors` warns when YAML anchors/aliases silently copy values in frontmatter.
-- **Symlink escape detection**: `references.escape` errors when a file reference resolves outside the skill directory (CWE-59).
-- **GitHub Actions CI workflow**: test matrix across Python 3.10-3.13 on Ubuntu, macOS, and Windows; compile check; package build verification.
-- **PEP 561 `py.typed` marker**: enables downstream type-checking for library consumers.
-- **[Case study](docs/case-study-silent-skill-failure.md)**: documented the silent VS Code skill failure caused by name/directory mismatch.
-- This changelog.
+After installing `skillcheck==1.0.0`:
 
-### Changed
-- `KNOWN_FRONTMATTER_FIELDS` expanded to include `model`, `context`, `agent`, `hooks`, `user-invocable`, `disable-model-invocation`, `skills`, `mode`, `tags`, `version`, `author`.
-- Token estimation uses a word-run + punctuation-run heuristic (~15% error) with optional `tiktoken` for ~5% error.
-- Standardized on `collections.abc.Callable` across all modules (was `typing.Callable` in some).
+```bash
+skillcheck --version
+# skillcheck 1.0.0
 
-### Fixed
-- `check_reference_depth` emitted duplicate diagnostics for `../../` paths (both depth-exceeded and traverses-above). Changed to `elif` so only the most specific warning fires.
-- README Rules table described sizing rules as "Body exceeds..." but the code counts full file lines/tokens. Table now says "File exceeds...".
+skillcheck skills/skillcheck/SKILL.md --analyze-graph
+# Should exit 0 with no errors and no warnings (only INFO diagnostics)
+```
 
-## [0.1.0] - 2026-03-10
+## Links
 
-### Added
-- Initial release.
-- Frontmatter validation: required fields (`name`, `description`), character constraints, length limits, reserved words, first/second-person voice detection, XML tag rejection, unknown field warnings.
-- Name spec compliance: leading/trailing hyphen checks, consecutive hyphen checks, directory-name matching.
-- Body sizing: configurable line-count and token-count thresholds.
-- CLI with `--format json`, `--max-lines`, `--max-tokens`, `--ignore PREFIX`, `--no-color`, `--version`.
-- Deterministic exit codes: 0 (pass), 1 (fail), 2 (input error).
-- 137 tests covering all rules and initial CLI behavior.
+- PyPI: https://pypi.org/project/skillcheck/1.0.0/ (available after publish)
+- GitHub Release: https://github.com/moonrunnerkc/skillcheck/releases/tag/v1.0.0 (available after maintainer creates the release)
+- agentskills.io specification: https://agentskills.io/specification
+- README: https://github.com/moonrunnerkc/skillcheck/blob/main/README.md
