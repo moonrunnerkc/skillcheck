@@ -1,0 +1,14 @@
+{
+  "clarity_score": 88,
+  "completeness_score": 85,
+  "executability_score": 90,
+  "findings": [],
+  "missing_context": [],
+  "contradictions": [
+    {
+      "location_a": "Overview",
+      "location_b": "Input requirements",
+      "nature": "Overview states the skill accepts any file format, but Input requirements restricts to UTF-8 encoded text files only."
+    }
+  ]
+}

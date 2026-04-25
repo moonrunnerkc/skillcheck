@@ -1,0 +1,27 @@
+{
+  "clarity_score": 86,
+  "completeness_score": 87,
+  "executability_score": 88,
+  "findings": [
+    {
+      "section": "Overview",
+      "issue": "The outputs section is missing entirely, leaving the agent unclear on what to produce.",
+      "severity": "error",
+      "suggestion": "Add an explicit 'What it produces' or 'Output' section describing the expected deliverable."
+    },
+    {
+      "section": "When to use",
+      "issue": "The trigger conditions overlap with a related skill, creating ambiguity about which to activate.",
+      "severity": "warning",
+      "suggestion": "Add a disambiguation note clarifying the distinction from the related skill."
+    },
+    {
+      "section": "Limitations",
+      "issue": "The listed limitations do not cover concurrent file access scenarios.",
+      "severity": "info",
+      "suggestion": "Consider adding a note about concurrent access if this skill reads shared files."
+    }
+  ],
+  "missing_context": [],
+  "contradictions": []
+}

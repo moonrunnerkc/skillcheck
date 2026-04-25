@@ -28,12 +28,18 @@ def test_core_module_surface_imports_cleanly() -> None:
     assert reporter is not None
 
 
-def test_semantic_stub_functions_raise_not_implemented() -> None:
-    with pytest.raises(NotImplementedError, match="Semantic engine requires --agent-reason and lands in v1.0."):
-        semantic.build_self_critique_prompt(FIXTURES_DIR / "valid_basic.md", "claude")
-
-    with pytest.raises(NotImplementedError, match="Semantic engine requires --agent-reason and lands in v1.0."):
-        semantic.validate_agent_report({}, "claude")
+def test_semantic_functions_are_callable() -> None:
+    # Phase 0 stubs replaced in Phase 1B with real implementations.
+    # Verify the three public functions exist and have the right names.
+    assert callable(getattr(semantic, "render_critique_prompt", None)), (
+        "semantic.render_critique_prompt must exist"
+    )
+    assert callable(getattr(semantic, "ingest_critique_response", None)), (
+        "semantic.ingest_critique_response must exist"
+    )
+    assert callable(getattr(semantic, "merge_critique_diagnostics", None)), (
+        "semantic.merge_critique_diagnostics must exist"
+    )
 
 
 def test_graph_stub_function_raises_not_implemented() -> None:

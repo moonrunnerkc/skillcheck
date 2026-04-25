@@ -1,0 +1,8 @@
+{
+  "clarity_score": 65,
+  "completeness_score": 68,
+  "executability_score": 67,
+  "findings": [],
+  "missing_context": ["authentication token format", "error handling expectations"],
+  "contradictions": []
+}

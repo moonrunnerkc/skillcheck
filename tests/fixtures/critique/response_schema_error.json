@@ -1,0 +1,8 @@
+{
+  "clarity_score": 80,
+  "completeness_score": 75,
+  "executability_score": 85,
+  "findings": [],
+  "missing_context": [],
+  "extra_field_that_breaks_schema": "this field is not in the schema"
+}

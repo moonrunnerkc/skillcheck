@@ -171,6 +171,8 @@ Checked 2 files: 1 passed, 1 failed, 1 warning
 | `--target-agent NAME` | Scope compat checks: `claude`, `vscode`, or `all` (default: `all`) |
 | `--strict-vscode` | Promote VS Code compat issues to errors |
 | `--version` | Show version |
+| `--emit-critique-prompt` | Print agent self-critique prompt to stdout, exit 0. Combines with `--format json` |
+| `--ingest-critique PATH` | Read agent response from PATH (or `-` for stdin), merge with symbolic results |
 
 ### Examples
 
@@ -197,6 +199,25 @@ skillcheck SKILL.md --no-color
 skillcheck SKILL.md --quiet
 ```
 
+## Agent Self-Critique
+
+skillcheck does not call any LLM API. Instead, it emits a structured prompt that the calling agent executes within its own context, then ingests the agent's JSON response and converts it to diagnostics that flow through the same validation pipeline as symbolic rules. This means you get semantic critique with zero extra API keys, zero extra cost, and no new runtime dependencies.
+
+The two-step workflow:
+
+```bash
+# Step 1: generate the prompt and feed it to your agent
+skillcheck SKILL.md --emit-critique-prompt > critique-prompt.txt
+# (paste contents into Claude, Codex, or Cursor; save the JSON response as response.json)
+
+# Step 2: ingest the response
+skillcheck SKILL.md --ingest-critique response.json
+```
+
+The report includes both symbolic results and semantic diagnostics from the critique. Exit code 3 signals that symbolic validation passed but the agent found semantic issues (contradictions or low scores). Exit code 1 takes priority if symbolic errors exist. Use `--format json` with either flag for machine-readable output in CI.
+
+For directory mode, `--emit-critique-prompt` separates prompts with a delimiter line (`# === skillcheck:critique-prompt:<path> ===`) so downstream tooling can split them per-skill.
+
 ## Exit Codes
 
 | Code | Meaning |
@@ -204,6 +225,7 @@ skillcheck SKILL.md --quiet
 | `0` | No errors (warnings and info are allowed) |
 | `1` | One or more errors found |
 | `2` | Input error (missing file, empty directory) |
+| `3` | Symbolic validation passed but semantic critique found errors (semantic drift) |
 
 ## Rules
 

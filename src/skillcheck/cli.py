@@ -6,8 +6,15 @@ import sys
 from pathlib import Path
 
 from skillcheck import __version__
-from skillcheck.core import validate
-from skillcheck.result import Severity, ValidationResult
+from skillcheck.core import (
+    ingest_critique_response,
+    merge_critique_diagnostics,
+    render_critique_prompt,
+    validate,
+)
+from skillcheck.agents.parser import CritiqueParseError
+from skillcheck.parser import parse as _parse_skill
+from skillcheck.result import Diagnostic, Severity, ValidationResult
 
 # ---------------------------------------------------------------------------
 # ANSI helpers (zero dependencies)
@@ -136,7 +143,12 @@ examples:
   skillcheck SKILL.md --target-agent vscode   scope checks to VS Code
   skillcheck SKILL.md --strict-vscode         treat VS Code issues as errors
   skillcheck SKILL.md --skip-ref-check        skip file reference validation
+  skillcheck SKILL.md --emit-critique-prompt  print prompt for agent self-critique
+  skillcheck SKILL.md --ingest-critique r.json  ingest agent response and merge diagnostics
 """
+
+# Delimiter used between prompts when emitting for multiple skills.
+_PROMPT_DELIMITER = "# === skillcheck:critique-prompt:{path} ==="
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -227,12 +239,73 @@ def _build_parser() -> argparse.ArgumentParser:
         action="version",
         version=f"%(prog)s {__version__}",
     )
+    parser.add_argument(
+        "--emit-critique-prompt",
+        action="store_true",
+        default=False,
+        help=(
+            "Print the agent self-critique prompt to stdout and exit 0. "
+            "Skips all symbolic validation. Use --format json to wrap in {\"prompt\": \"...\"}."
+        ),
+    )
+    parser.add_argument(
+        "--ingest-critique",
+        metavar="PATH",
+        default=None,
+        help=(
+            "Read an agent self-critique JSON response from PATH (use - for stdin), "
+            "convert to diagnostics, merge with symbolic results, and emit a unified report. "
+            "Exit code 3 signals semantic drift when symbolic validation passed."
+        ),
+    )
     return parser
 
 
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
+
+def _resolve_paths(args: argparse.Namespace) -> list[Path]:
+    """Resolve the target path to a list of SKILL.md files, exiting on error."""
+    target: Path = args.path
+    if not target.exists():
+        print(f"Error: path not found: {target}", file=sys.stderr)
+        sys.exit(2)
+    paths = _collect_paths(target)
+    if not paths:
+        print(f"No SKILL.md files found under: {target}", file=sys.stderr)
+        sys.exit(2)
+    return paths
+
+
+def _do_emit_critique_prompts(paths: list[Path], fmt: str) -> None:
+    """Print critique prompts to stdout and exit 0."""
+    multiple = len(paths) > 1
+    for path in paths:
+        skill = _parse_skill(path)
+        prompt = render_critique_prompt(skill)
+        if multiple:
+            print(_PROMPT_DELIMITER.format(path=path))
+        if fmt == "json":
+            print(json.dumps({"prompt": prompt}))
+        else:
+            print(prompt)
+
+
+def _read_ingest_raw(ingest_path: str) -> str:
+    """Read the raw critique response from PATH or stdin, exiting on error."""
+    if ingest_path == "-":
+        return sys.stdin.read()
+    p = Path(ingest_path)
+    if not p.exists():
+        print(f"Error: critique response file not found: {p}", file=sys.stderr)
+        sys.exit(2)
+    try:
+        return p.read_text(encoding="utf-8")
+    except OSError as exc:
+        print(f"Error: cannot read {p}: {exc}", file=sys.stderr)
+        sys.exit(2)
 
 
 def main() -> None:
@@ -245,16 +318,23 @@ def main() -> None:
     parser = _build_parser()
     args = parser.parse_args()
 
-    target: Path = args.path
-    if not target.exists():
-        print(f"Error: path not found: {target}", file=sys.stderr)
+    # Mutual exclusion
+    if args.emit_critique_prompt and args.ingest_critique is not None:
+        print(
+            "Cannot use --emit-critique-prompt and --ingest-critique together. "
+            "Pick one: emit a prompt for your agent to execute, or ingest the agent's response.",
+            file=sys.stderr,
+        )
         sys.exit(2)
 
-    paths = _collect_paths(target)
-    if not paths:
-        print(f"No SKILL.md files found under: {target}", file=sys.stderr)
-        sys.exit(2)
+    paths = _resolve_paths(args)
 
+    # --emit-critique-prompt: skip symbolic validation entirely
+    if args.emit_critique_prompt:
+        _do_emit_critique_prompts(paths, fmt=args.format)
+        sys.exit(0)
+
+    # Run symbolic validation (always, including when ingesting)
     results = [
         validate(
             p,
@@ -270,6 +350,43 @@ def main() -> None:
         for p in paths
     ]
 
+    if args.ingest_critique is not None:
+        raw = _read_ingest_raw(args.ingest_critique)
+        symbolic_any_errors = any(not r.valid for r in results)
+        ingest_failed = False
+
+        try:
+            # Use the first path for section-header line lookups; same critique
+            # response applies across all results when multiple paths are given.
+            first_skill = _parse_skill(paths[0])
+            critique_diags = ingest_critique_response(first_skill, raw)
+        except CritiqueParseError as exc:
+            critique_diags = [
+                Diagnostic(
+                    rule="semantic.ingest.parse_error",
+                    severity=Severity.ERROR,
+                    message=str(exc),
+                )
+            ]
+            ingest_failed = True
+
+        results = [merge_critique_diagnostics(r, critique_diags) for r in results]
+        semantic_any_errors = any(not r.valid for r in results)
+
+        if not args.quiet:
+            if args.format == "json":
+                print(_format_json(results, __version__))
+            else:
+                use_color = not args.no_color and sys.stdout.isatty()
+                print(_format_text(results, color=use_color))
+
+        if ingest_failed or symbolic_any_errors:
+            sys.exit(1)
+        if semantic_any_errors:
+            sys.exit(3)
+        sys.exit(0)
+
+    # Normal v0.2.0 path
     if not args.quiet:
         if args.format == "json":
             print(_format_json(results, __version__))
@@ -277,5 +394,4 @@ def main() -> None:
             use_color = not args.no_color and sys.stdout.isatty()
             print(_format_text(results, color=use_color))
 
-    any_errors = any(not r.valid for r in results)
-    sys.exit(1 if any_errors else 0)
+    sys.exit(1 if any(not r.valid for r in results) else 0)
