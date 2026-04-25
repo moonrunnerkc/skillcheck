@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `skills/skillcheck/SKILL.md`: skillcheck's own SKILL.md, validating the tool against itself. Passes symbolic, graph, critique, and history validation with zero errors and zero warnings. Serves as the worked example for the Rules table in the README.
+- Self-host integration test suite (`tests/test_self_host.py`): confirms the bundled SKILL.md passes symbolic validation, all five graph analyzers, critique ingestion, agent graph ingestion with divergence analysis, full CLI pipeline, history round-trip, and description scoring threshold.
+- `scripts/regen_self_host_fixtures.py`: regenerates `tests/fixtures/self_host/graph_clean.json` from the live heuristic graph after skill edits.
+- `Makefile` with `regen-self-host-fixtures` target: runs the regen script against `skills/skillcheck/SKILL.md`.
+- `--history` flag: appends a validation record to the per-skill `.skillcheck-history.json` ledger next to the SKILL.md file. Off by default; existing invocations see no behavior change. Incompatible with emit modes.
+- `--show-history` flag: reads the per-skill ledger and prints it (text or JSON via `--format`), then exits 0. Skips all validation. Incompatible with emit modes and `--history`.
+- `history.skill.regressed` WARNING rule: fires when `--history` is active, the skill content hash matches a prior passing run, and the current run fails. Indicates a rule tightened or an agent surfaced a new finding.
+- `history.write.failed` WARNING rule: fires when `--history` is active but the ledger file cannot be written. Validation exit code is unaffected.
+- `history.read.failed` WARNING rule: fires when `--history` is active but the existing ledger cannot be read. Validation continues without regression check.
 - `--emit-graph`: emit mode. Prints the extracted capability graph (text or JSON) to stdout and exits 0. Identifies `Capability`, `Input`, and `Output` nodes plus `requires`/`produces` edges heuristically from heading structure and backtick references. Mutually exclusive with `--analyze-graph`, `--emit-critique-prompt`, and `--ingest-critique`.
 - `--analyze-graph`: augment mode. Extracts the capability graph from each file, runs all five graph analyzers, and merges diagnostics into the validation report. Compatible with `--ingest-critique` (both run; results merged per file). Graph WARNINGs do not fail validation or change the exit code.
 - Five graph rule checkers (all WARNING severity): `graph.capability.orphaned`, `graph.input.unused`, `graph.output.unproduced`, `graph.capability.empty_description`, `graph.tool.unreferenced`. No double-firing: body inputs and frontmatter tools are handled by separate analyzers.
