@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `--emit-critique-prompt`: print the agent self-critique prompt to stdout and exit 0. Use `--format json` to wrap in `{"prompt": "..."}`. In directory mode, prompts are separated by a delimiter line so downstream tools can split per-skill.
+- `--ingest-critique PATH`: read an agent self-critique JSON response from PATH (use `-` for stdin), convert to diagnostics, merge with symbolic results, and emit a unified report.
+- Exit code 3: symbolic validation passed but the ingested critique contains semantic errors (contradictions or findings with ERROR severity). Exit code 1 takes priority when symbolic errors exist.
+
 ## [0.2.0] - 2026-03-11
 
 ### Added

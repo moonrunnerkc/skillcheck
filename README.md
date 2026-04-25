@@ -201,22 +201,15 @@ skillcheck SKILL.md --quiet
 
 ## Agent Self-Critique
 
-skillcheck does not call any LLM API. Instead, it emits a structured prompt that the calling agent executes within its own context, then ingests the agent's JSON response and converts it to diagnostics that flow through the same validation pipeline as symbolic rules. This means you get semantic critique with zero extra API keys, zero extra cost, and no new runtime dependencies.
-
-The two-step workflow:
+skillcheck does not call any LLM API. It emits a prompt, and the calling agent executes it. The JSON response comes back to skillcheck for validation and reporting.
 
 ```bash
-# Step 1: generate the prompt and feed it to your agent
-skillcheck SKILL.md --emit-critique-prompt > critique-prompt.txt
-# (paste contents into Claude, Codex, or Cursor; save the JSON response as response.json)
-
-# Step 2: ingest the response
-skillcheck SKILL.md --ingest-critique response.json
+skillcheck path/to/SKILL.md --emit-critique-prompt > prompt.txt
+# Hand prompt.txt to your agent. Agent returns JSON.
+skillcheck path/to/SKILL.md --ingest-critique response.json
 ```
 
-The report includes both symbolic results and semantic diagnostics from the critique. Exit code 3 signals that symbolic validation passed but the agent found semantic issues (contradictions or low scores). Exit code 1 takes priority if symbolic errors exist. Use `--format json` with either flag for machine-readable output in CI.
-
-For directory mode, `--emit-critique-prompt` separates prompts with a delimiter line (`# === skillcheck:critique-prompt:<path> ===`) so downstream tooling can split them per-skill.
+The unified report includes symbolic results and semantic diagnostics from the critique. Exit code 3 means symbolic validation passed but the agent found semantic errors (contradictions, or scores below the error threshold). Exit code 1 takes priority when symbolic errors exist. Use `--format json` with either flag for structured output.
 
 ## Exit Codes
 
