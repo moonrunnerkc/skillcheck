@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import inspect
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -14,7 +13,7 @@ from skillcheck import (
     ValidationResult,
     validate,
 )
-from skillcheck.agents.base import SelfCritiqueTemplate
+from skillcheck.agents.base import SelfCritiquePrompt
 from skillcheck.core import graph, history, reporter, semantic, symbolic
 
 
@@ -64,27 +63,10 @@ def test_reporter_stub_functions_raise_not_implemented() -> None:
 
 
 def test_agent_base_interface_shape() -> None:
-    members = inspect.getmembers(SelfCritiqueTemplate, predicate=inspect.isfunction)
-    member_names = {name for name, _ in members if not name.startswith("__")}
-    assert member_names == {"build_prompt", "validate_response"}
-
-    agent_name_attr = inspect.getattr_static(SelfCritiqueTemplate, "agent_name")
-    assert isinstance(agent_name_attr, property)
-
-    build_prompt_signature = inspect.signature(SelfCritiqueTemplate.build_prompt)
-    assert list(build_prompt_signature.parameters.keys()) == [
-        "self",
-        "skill_path",
-        "skill_text",
-    ]
-    assert build_prompt_signature.return_annotation in {str, "str"}
-
-    validate_response_signature = inspect.signature(SelfCritiqueTemplate.validate_response)
-    assert list(validate_response_signature.parameters.keys()) == ["self", "payload"]
-    assert validate_response_signature.return_annotation in {
-        dict[str, Any],
-        "dict[str, Any]",
-    }
+    # SelfCritiquePrompt is now a concrete class with a render() method.
+    render_sig = inspect.signature(SelfCritiquePrompt.render)
+    assert list(render_sig.parameters.keys()) == ["self", "skill"]
+    assert render_sig.return_annotation in {str, "str"}
 
 
 def test_public_api_exports_unchanged() -> None:

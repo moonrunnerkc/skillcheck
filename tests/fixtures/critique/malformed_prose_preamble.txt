@@ -1,0 +1,10 @@
+not json at all, this is prose the model generated before it got to the answer
+
+{
+  "clarity_score": 80,
+  "completeness_score": 70,
+  "executability_score": 75,
+  "findings": [],
+  "missing_context": [],
+  "contradictions": []
+}

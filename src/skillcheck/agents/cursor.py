@@ -1,22 +1,19 @@
-"""Cursor-specific self-critique prompt template stub for v1.0."""
+"""Cursor-specific agent configuration for self-critique prompts."""
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any
-
-from skillcheck.agents.base import SelfCritiqueTemplate
+from skillcheck.agents.base import SelfCritiquePrompt
 
 
-class CursorTemplate(SelfCritiqueTemplate):
-    """Stub template for Cursor-specific semantic critique prompts."""
+class CursorTemplate:
+    """Cursor configuration for the self-critique workflow.
 
-    @property
-    def agent_name(self) -> str:
-        raise NotImplementedError("Cursor template lands in v1.0.")
+    Returns the base SelfCritiquePrompt. Cursor follows the generic schema
+    without dialect-specific adjustments in this phase. This class exists so
+    Phase 1B can add Cursor-specific tuning without restructuring callers.
+    """
 
-    def build_prompt(self, skill_path: Path, skill_text: str) -> str:
-        raise NotImplementedError("Cursor template lands in v1.0.")
-
-    def validate_response(self, payload: dict[str, Any]) -> dict[str, Any]:
-        raise NotImplementedError("Cursor template lands in v1.0.")
+    @staticmethod
+    def prompt_class() -> type[SelfCritiquePrompt]:
+        """Return the prompt class to use for Cursor."""
+        return SelfCritiquePrompt

@@ -1,22 +1,20 @@
-"""Claude-specific self-critique prompt template stub for v1.0."""
+"""Claude-specific agent configuration for self-critique prompts."""
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any
-
-from skillcheck.agents.base import SelfCritiqueTemplate
+from skillcheck.agents.base import SelfCritiquePrompt
 
 
-class ClaudeTemplate(SelfCritiqueTemplate):
-    """Stub template for Claude-specific semantic critique prompts."""
+class ClaudeTemplate:
+    """Claude configuration for the self-critique workflow.
 
-    @property
-    def agent_name(self) -> str:
-        raise NotImplementedError("Claude template lands in v1.0.")
+    Returns the base SelfCritiquePrompt because Claude follows the
+    generic schema without dialect-specific adjustments. This class
+    exists so Phase 1B can add Claude-specific tuning here without
+    restructuring callers.
+    """
 
-    def build_prompt(self, skill_path: Path, skill_text: str) -> str:
-        raise NotImplementedError("Claude template lands in v1.0.")
-
-    def validate_response(self, payload: dict[str, Any]) -> dict[str, Any]:
-        raise NotImplementedError("Claude template lands in v1.0.")
+    @staticmethod
+    def prompt_class() -> type[SelfCritiquePrompt]:
+        """Return the prompt class to use for Claude."""
+        return SelfCritiquePrompt
