@@ -42,9 +42,11 @@ def test_semantic_functions_are_callable() -> None:
     )
 
 
-def test_graph_stub_function_raises_not_implemented() -> None:
-    with pytest.raises(NotImplementedError, match="Capability graph extraction lands in v1.0."):
-        graph.extract_capability_graph(FIXTURES_DIR / "valid_basic.md")
+def test_graph_extract_heuristic_is_callable() -> None:
+    # Phase 0 stub replaced in Phase 2A; verify the real extractor is present.
+    assert callable(getattr(graph, "extract_graph_heuristic", None)), (
+        "graph.extract_graph_heuristic must exist"
+    )
 
 
 def test_history_stub_function_raises_not_implemented() -> None:
