@@ -7,9 +7,10 @@ from .graph import (
     Edge,
     Input,
     Output,
+    extract_graph_agent,
     extract_graph_heuristic,
 )
-from .graph_analyzers import run_graph_analyzers
+from .graph_analyzers import run_divergence_analyzers, run_graph_analyzers
 from .graph_render import render_graph_json, render_graph_text
 from .semantic import (
     ingest_critique_response,
@@ -26,7 +27,9 @@ __all__ = [
     "merge_critique_diagnostics",
     "merge_diagnostics",
     "extract_graph_heuristic",
+    "extract_graph_agent",
     "run_graph_analyzers",
+    "run_divergence_analyzers",
     "render_graph_text",
     "render_graph_json",
     "Capability",
