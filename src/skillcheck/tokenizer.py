@@ -49,7 +49,7 @@ def estimate_tokens(text: str) -> int:
     """
     enc = _get_tiktoken_enc()
     if enc is not None:
-        return len(enc.encode(text))
+        return max(1, len(enc.encode(text)))
 
     word_tokens = int(len(_WORD_RE.findall(text)) * 1.3)
     punct_tokens = int(len(_PUNCT_RE.findall(text)) * 1.5)
