@@ -19,29 +19,34 @@ def validate(
     strict_vscode: bool = False,
     target_agent: str = "all",
 ) -> ValidationResult:
-    """Validate a single SKILL.md file and return a ValidationResult.
+    """Validate a single SKILL.md file using deterministic symbolic rules.
 
     Args:
         path: Path to the SKILL.md file to validate.
         max_lines: Override the default line-count threshold.
         max_tokens: Override the default token-count threshold.
-        ignore_prefixes: Suppress any diagnostic whose rule ID starts with one of these prefixes.
-        skip_dirname_check: Skip the directory-name matching check.
+        ignore_prefixes: Suppress diagnostics whose rule IDs match these prefixes.
+        skip_dirname_check: Skip directory-name matching.
         skip_ref_check: Skip file reference validation.
-        min_desc_score: Minimum description quality score (0-100). Below this triggers a warning.
+        min_desc_score: Minimum description quality score.
         strict_vscode: Promote VS Code compatibility issues to errors.
-        target_agent: Scope compatibility checks ('claude', 'vscode', 'all').
+        target_agent: Scope compatibility checks to an agent target.
+
+    Returns:
+        Validation result for the provided path.
     """
     try:
         skill = parse(path)
     except ParseError as exc:
         return ValidationResult(
             path=path,
-            diagnostics=[Diagnostic(
-                rule="parse.error",
-                severity=Severity.ERROR,
-                message=str(exc),
-            )],
+            diagnostics=[
+                Diagnostic(
+                    rule="parse.error",
+                    severity=Severity.ERROR,
+                    message=str(exc),
+                )
+            ],
         )
 
     rules = get_rules(
@@ -54,14 +59,13 @@ def validate(
         target_agent=target_agent,
     )
     diagnostics: list[Diagnostic] = [
-        diagnostic
-        for rule in rules
-        for diagnostic in rule(skill)
+        diagnostic for rule in rules for diagnostic in rule(skill)
     ]
 
     if ignore_prefixes:
         diagnostics = [
-            d for d in diagnostics
+            d
+            for d in diagnostics
             if not any(d.rule.startswith(prefix) for prefix in ignore_prefixes)
         ]
 
