@@ -1,0 +1,55 @@
+{
+  "capabilities": [
+    {
+      "id": "cap_generate_report",
+      "name": "Generate report",
+      "description": "Connects via db_client and writes results to report.json.",
+      "line": 8
+    }
+  ],
+  "inputs": [
+    {
+      "id": "inp_db_client",
+      "name": "db_client",
+      "kind": "tool",
+      "line": 4
+    },
+    {
+      "id": "inp_db_url",
+      "name": "DB_URL",
+      "kind": "env",
+      "line": 5
+    },
+    {
+      "id": "inp_schema_sql",
+      "name": "schema.sql",
+      "kind": "file",
+      "line": 6
+    }
+  ],
+  "outputs": [
+    {
+      "id": "out_report_json",
+      "name": "report.json",
+      "kind": "file",
+      "line": 14
+    },
+    {
+      "id": "out_exec_summary",
+      "name": "execution summary",
+      "kind": "artifact",
+      "line": 15
+    },
+    {
+      "id": "out_record_count",
+      "name": "record_count",
+      "kind": "return",
+      "line": 16
+    }
+  ],
+  "edges": [
+    {"source_id": "cap_generate_report", "target_id": "inp_db_client", "kind": "requires"},
+    {"source_id": "cap_generate_report", "target_id": "out_report_json", "kind": "produces"},
+    {"source_id": "cap_generate_report", "target_id": "out_exec_summary", "kind": "produces"}
+  ]
+}

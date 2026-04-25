@@ -1,0 +1,57 @@
+{
+  "capabilities": [
+    {
+      "id": "cap_generate_report",
+      "name": "Generate report",
+      "description": "Connects via db_client and writes results to report.json.",
+      "line": 8
+    },
+    {
+      "id": "cap_validate_setup",
+      "name": "Validate setup",
+      "description": "Checks that all required inputs are present before execution.",
+      "line": null
+    },
+    {
+      "id": "cap_format_output",
+      "name": "Format output",
+      "description": "Formats the generated report into the requested output layout.",
+      "line": null
+    }
+  ],
+  "inputs": [
+    {
+      "id": "inp_db_client",
+      "name": "db_client",
+      "kind": "tool",
+      "line": 4
+    },
+    {
+      "id": "inp_db_url",
+      "name": "DB_URL",
+      "kind": "env",
+      "line": 5
+    },
+    {
+      "id": "inp_schema_sql",
+      "name": "schema.sql",
+      "kind": "file",
+      "line": 6
+    }
+  ],
+  "outputs": [
+    {
+      "id": "out_report_json",
+      "name": "report.json",
+      "kind": "file",
+      "line": 14
+    }
+  ],
+  "edges": [
+    {"source_id": "cap_generate_report", "target_id": "inp_db_client", "kind": "requires"},
+    {"source_id": "cap_generate_report", "target_id": "out_report_json", "kind": "produces"},
+    {"source_id": "cap_validate_setup", "target_id": "inp_db_url", "kind": "requires"},
+    {"source_id": "cap_validate_setup", "target_id": "inp_schema_sql", "kind": "requires"},
+    {"source_id": "cap_format_output", "target_id": "out_report_json", "kind": "produces"}
+  ]
+}

@@ -176,6 +176,9 @@ Checked 2 files: 1 passed, 1 failed, 1 warning
 | `--critique-agent NAME` | Prompt template variant: `claude`, `codex`, or `cursor` (default: `claude`). Requires `--emit-critique-prompt` or `--ingest-critique` |
 | `--emit-graph` | Print the extracted capability graph to stdout and exit 0. Use `--format json` for machine-readable output. Mutually exclusive with `--analyze-graph`, `--emit-critique-prompt`, and `--ingest-critique` |
 | `--analyze-graph` | Extract the capability graph, run graph analyzers, and merge diagnostics into the validation report (augment mode). Compatible with `--ingest-critique` |
+| `--emit-graph-prompt` | Print the graph extraction prompt to stdout and exit 0. Combines with `--graph-agent` to select variant |
+| `--ingest-graph PATH` | Read an agent graph response from PATH (or `-` for stdin), merge with heuristic graph, run divergence analyzers, and include results in the report |
+| `--graph-agent NAME` | Prompt template variant for graph extraction: `claude`, `codex`, or `cursor` (default: `claude`). Requires `--emit-graph-prompt` or `--ingest-graph` |
 
 ### Examples
 
@@ -222,6 +225,23 @@ skillcheck path/to/SKILL.md --analyze-graph --ingest-critique response.json
 
 Graph analyzers detect structural intent mismatches: capabilities with no declared I/O, inputs that no capability references, outputs that no capability produces, and tools declared in `allowed-tools` but never backtick-referenced in the body. All graph diagnostics are WARNING severity; they augment the report without blocking CI.
 
+### Graph Extraction with an Agent
+
+The heuristic parser misses capabilities expressed in prose rather than headings. For richer extraction, emit the prompt, run it through an agent, and ingest the response:
+
+```bash
+# Step 1: emit the graph extraction prompt
+skillcheck path/to/SKILL.md --emit-graph-prompt > graph_prompt.txt
+
+# Step 2: hand prompt.txt to your agent; agent returns JSON
+# Step 3: ingest the response and run both graph analyzers and divergence detection
+skillcheck path/to/SKILL.md --ingest-graph graph_response.json
+```
+
+When an agent response is ingested, skillcheck also runs the heuristic extractor and compares the two graphs. If the agent claims an edge between two nodes that both appear in the heuristic graph but no such edge exists heuristically, it fires `graph.contradiction.heuristic_disagreement` at ERROR severity. This catches over-claimed capabilities before they propagate to downstream consumers.
+
+Pass `--graph-agent codex` or `--graph-agent cursor` to select a prompt variant. Like critique prompts, the schema and exit codes are identical across variants; only the framing changes.
+
 ## Agent Self-Critique
 
 skillcheck does not call any LLM API. It emits a prompt, and the calling agent executes it. The JSON response comes back to skillcheck for validation and reporting.
@@ -247,7 +267,7 @@ The unified report includes symbolic results and semantic diagnostics from the c
 
 ## Rules
 
-Rules marked **spec** are derived from the [agentskills.io specification](https://agentskills.io/specification) or agent-specific documentation. Rules marked **advisory** are best-practice recommendations enforced by skillcheck.
+Rules marked **spec** are derived from the [agentskills.io specification](https://agentskills.io/specification) or agent-specific documentation. Rules marked **advisory** are best-practice recommendations enforced by skillcheck. Rules marked **heuristic** come from structural analysis of the skill body. Rules marked **agent** fire only when an agent response is ingested and the agent's claim is compared against the heuristic baseline.
 
 | Rule ID | Severity | Source | What it checks |
 |---|---|---|---|
@@ -285,6 +305,7 @@ Rules marked **spec** are derived from the [agentskills.io specification](https:
 | `graph.output.unproduced` | warning | advisory | Declared output not produced by any capability |
 | `graph.capability.empty_description` | warning | advisory | Capability heading has no description body |
 | `graph.tool.unreferenced` | warning | advisory | `allowed-tools` entry not backtick-referenced in the body |
+| `graph.contradiction.heuristic_disagreement` | error | agent | Agent claims an edge between two heuristically-known nodes that the heuristic does not confirm; possible over-claim |
 
 ## Case Study
 

@@ -1,0 +1,6 @@
+{
+  "capabilities": "this should be a list, not a string",
+  "inputs": [],
+  "outputs": [],
+  "edges": []
+}

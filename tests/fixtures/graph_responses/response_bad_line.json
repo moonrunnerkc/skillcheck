@@ -1,0 +1,13 @@
+{
+  "capabilities": [
+    {
+      "id": "cap_generate_report",
+      "name": "Generate report",
+      "description": "Connects via db_client and writes results to report.json.",
+      "line": 99
+    }
+  ],
+  "inputs": [],
+  "outputs": [],
+  "edges": []
+}

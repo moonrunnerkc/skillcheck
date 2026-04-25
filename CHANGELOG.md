@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--emit-critique-prompt`: print the agent self-critique prompt to stdout and exit 0. Use `--format json` to wrap in `{"prompt": "..."}`. In directory mode, prompts are separated by a delimiter line so downstream tools can split per-skill.
 - `--ingest-critique PATH`: read an agent self-critique JSON response from PATH (use `-` for stdin), convert to diagnostics, merge with symbolic results, and emit a unified report.
 - Exit code 3: symbolic validation passed but the ingested critique contains semantic errors (contradictions or findings with ERROR severity). Exit code 1 takes priority when symbolic errors exist.
+- `--emit-graph-prompt`: print the capability graph extraction prompt to stdout and exit 0. Use `--graph-agent` to select the vendor variant. In directory mode, prompts are separated by the same per-skill delimiter used by `--emit-critique-prompt`.
+- `--ingest-graph PATH`: read an agent graph extraction JSON response from PATH (use `-` for stdin), parse it into a `CapabilityGraph` with `source="agent"`, run standard graph analyzers, run divergence analyzers against the heuristic baseline, and merge all diagnostics into the validation report.
+- `--graph-agent {claude,codex,cursor}`: select the prompt template variant for graph extraction. Framing is tuned per vendor; the schema, parser, and exit codes are identical across all agents. Requires `--emit-graph-prompt` or `--ingest-graph`. Default: `claude`. Records the agent name as `graph_source` in JSON output and as a header line in text output.
+- `graph.contradiction.heuristic_disagreement` (ERROR, source: `agent`): fires when an ingested agent graph claims an edge between two nodes that both appear in the heuristic graph but that edge is absent heuristically. Indicates a possible over-claimed capability. Only active when `--ingest-graph` is used.
+- Graph extraction prompt module (`agents.graph_base`, `agents.graph_claude`, `agents.graph_codex`, `agents.graph_cursor`): parallel to the critique prompt module. Claude variant uses XML tags and a full worked example; Codex uses markdown headers and a full worked example; Cursor uses a compact type signature only.
 
 ## [0.2.0] - 2026-03-11
 

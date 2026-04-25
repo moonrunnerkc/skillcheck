@@ -581,13 +581,17 @@ def main() -> None:
         for p in paths
     ]
 
+    # Track symbolic-only validity BEFORE any ingest merges. Ingest parse
+    # failures and symbolic errors both exit 1; semantic-only drift exits 3.
+    symbolic_errors_before_ingest = any(not r.valid for r in results)
+
     critique_source: str | None = None
     graph_source_text: str | None = None
     graph_source_json: dict | None = None
+    any_ingest_failed = False
 
     if args.ingest_critique is not None:
         raw = _read_ingest_raw(args.ingest_critique)
-        ingest_failed = False
 
         try:
             first_skill = _parse_skill(paths[0])
@@ -600,23 +604,13 @@ def main() -> None:
                     message=str(exc),
                 )
             ]
-            ingest_failed = True
+            any_ingest_failed = True
 
         results = [merge_critique_diagnostics(r, critique_diags) for r in results]
         critique_source = agent_id
 
-        if ingest_failed:
-            if not args.quiet:
-                if args.format == "json":
-                    print(_format_json(results, __version__, critique_source=critique_source))
-                else:
-                    use_color = not args.no_color and sys.stdout.isatty()
-                    print(_format_text(results, color=use_color, critique_source=critique_source))
-            sys.exit(1)
-
     if args.ingest_graph is not None:
         raw_graph = _read_ingest_raw(args.ingest_graph)
-        graph_ingest_failed = False
 
         try:
             first_skill = _parse_skill(paths[0])
@@ -625,6 +619,8 @@ def main() -> None:
             agent_graph_diags = run_graph_analyzers(agent_graph)
             divergence_diags = run_divergence_analyzers(agent_graph, heuristic_graph)
             all_graph_diags = agent_graph_diags + divergence_diags
+            graph_source_text = f"agent ({graph_agent_id})"
+            graph_source_json = {"mode": "agent", "agent": graph_agent_id}
         except GraphParseError as exc:
             all_graph_diags = [
                 Diagnostic(
@@ -633,23 +629,10 @@ def main() -> None:
                     message=str(exc),
                 )
             ]
-            graph_ingest_failed = True
+            any_ingest_failed = True
 
         for i, result in enumerate(results):
             results[i] = merge_diagnostics(result, all_graph_diags)
-
-        if not graph_ingest_failed:
-            graph_source_text = f"agent ({graph_agent_id})"
-            graph_source_json = {"mode": "agent", "agent": graph_agent_id}
-
-        if graph_ingest_failed:
-            if not args.quiet:
-                if args.format == "json":
-                    print(_format_json(results, __version__, critique_source=critique_source))
-                else:
-                    use_color = not args.no_color and sys.stdout.isatty()
-                    print(_format_text(results, color=use_color, critique_source=critique_source))
-            sys.exit(1)
 
     elif args.analyze_graph:
         for i, (path, result) in enumerate(zip(paths, results)):
@@ -659,8 +642,6 @@ def main() -> None:
             results[i] = merge_diagnostics(result, graph_diags)
         graph_source_text = "heuristic"
         graph_source_json = {"mode": "heuristic"}
-
-    symbolic_errors = any(not r.valid for r in results)
 
     if not args.quiet:
         if args.format == "json":
@@ -679,10 +660,12 @@ def main() -> None:
                 graph_source=graph_source_text,
             ))
 
-    if symbolic_errors:
+    # Exit 1: symbolic rules failed before any ingest, or an ingest parse failed.
+    if symbolic_errors_before_ingest or any_ingest_failed:
         sys.exit(1)
 
-    # Exit code 3: symbolic passed but semantic drift detected
+    # Exit 3: symbolic passed, all parses succeeded, but a critique ingest added a
+    # semantic-namespace contradiction (semantic.*). Check before general invalidity.
     if any(
         d.severity == Severity.ERROR
         for r in results
@@ -690,5 +673,9 @@ def main() -> None:
         if d.rule.startswith("semantic.")
     ):
         sys.exit(3)
+
+    # Exit 1: any remaining errors (e.g. graph.contradiction from agent ingest).
+    if any(not r.valid for r in results):
+        sys.exit(1)
 
     sys.exit(0)

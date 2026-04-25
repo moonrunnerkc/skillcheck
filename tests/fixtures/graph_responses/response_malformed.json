@@ -1,0 +1,3 @@
+This is not JSON. The agent failed to respond with valid JSON and instead wrote this prose explanation.
+
+{ this would parse except it's never reached
