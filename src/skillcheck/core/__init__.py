@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from . import graph, graph_analyzers, graph_render, history, reporter, semantic, symbolic
+from . import activation, activation_render, graph, graph_analyzers, graph_render, history, reporter, semantic, symbolic
+from .activation import ActivationHypothesis, ActivationReport, generate_activation_hypotheses
+from .activation_render import (
+    render_activation_json,
+    render_activation_markdown,
+    render_activation_text,
+)
 from .history import (
     LedgerEntry,
     LedgerError,
@@ -39,6 +45,12 @@ from .symbolic import validate
 
 __all__ = [
     "validate",
+    "ActivationHypothesis",
+    "ActivationReport",
+    "generate_activation_hypotheses",
+    "render_activation_text",
+    "render_activation_markdown",
+    "render_activation_json",
     "render_critique_prompt",
     "ingest_critique_response",
     "merge_critique_diagnostics",
@@ -69,6 +81,8 @@ __all__ = [
     "render_ledger_json",
     "render_ledger_text",
     "save_ledger",
+    "activation",
+    "activation_render",
     "symbolic",
     "semantic",
     "graph",

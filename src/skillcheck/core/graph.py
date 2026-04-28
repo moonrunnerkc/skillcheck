@@ -434,9 +434,9 @@ def extract_graph_heuristic(skill: ParsedSkill) -> CapabilityGraph:
                 name = _extract_list_item_name(item)
                 if not name:
                     continue
-                kind = _infer_input_kind(item)
-                iid = _make_id(kind, name, content_line_num)
-                inputs.append(Input(id=iid, name=name, kind=kind, line=content_line_num))
+                input_kind = _infer_input_kind(item)
+                iid = _make_id(input_kind, name, content_line_num)
+                inputs.append(Input(id=iid, name=name, kind=input_kind, line=content_line_num))
                 input_name_map[name] = iid
 
         elif _is_output_section_heading(heading_text):
@@ -447,9 +447,9 @@ def extract_graph_heuristic(skill: ParsedSkill) -> CapabilityGraph:
                 name = _extract_list_item_name(item)
                 if not name:
                     continue
-                kind = _infer_output_kind(item)
-                oid = _make_id(kind, name, content_line_num)
-                outputs.append(Output(id=oid, name=name, kind=kind, line=content_line_num))
+                output_kind = _infer_output_kind(item)
+                oid = _make_id(output_kind, name, content_line_num)
+                outputs.append(Output(id=oid, name=name, kind=output_kind, line=content_line_num))
                 output_name_map[name] = oid
 
         elif _is_imperative_heading(heading_text):

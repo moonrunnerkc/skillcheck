@@ -6,18 +6,23 @@ import sys
 from pathlib import Path
 
 from skillcheck import __version__
+from skillcheck.config_loader import ConfigError, find_config, load_config
 from skillcheck.core import (
     append_run,
     build_entry,
     check_regression,
     extract_graph_agent,
     extract_graph_heuristic,
+    generate_activation_hypotheses,
     ingest_critique_response,
     ledger_path_for,
     load_ledger,
     merge_critique_diagnostics,
     merge_diagnostics,
     render_critique_prompt,
+    render_activation_json,
+    render_activation_markdown,
+    render_activation_text,
     render_graph_json,
     render_graph_text,
     render_ledger_json,
@@ -25,7 +30,6 @@ from skillcheck.core import (
     run_divergence_analyzers,
     run_graph_analyzers,
     validate,
-    LedgerEntry,
     LedgerError,
     RunAgents,
     ValidationModes,
@@ -155,6 +159,8 @@ def _format_json(
                         "message": d.message,
                         "line": d.line,
                         "context": d.context,
+                        "source": d.source,
+                        "confidence": d.confidence,
                     }
                     for d in r.diagnostics
                 ],
@@ -163,6 +169,95 @@ def _format_json(
         ],
     }
     return json.dumps(payload, indent=2)
+
+
+def _format_markdown(
+    results: list[ValidationResult],
+    *,
+    critique_source: str | None = None,
+    graph_source: str | None = None,
+) -> str:
+    lines: list[str] = ["# skillcheck report", ""]
+    if critique_source is not None:
+        lines.append(f"Critique source: `{critique_source}`")
+        lines.append("")
+    if graph_source is not None:
+        lines.append(f"Graph source: `{graph_source}`")
+        lines.append("")
+
+    total = len(results)
+    passed = sum(1 for r in results if r.valid)
+    failed = total - passed
+    warnings = sum(1 for r in results for d in r.diagnostics if d.severity == Severity.WARNING)
+    lines.extend([
+        f"Checked `{total}` file{'s' if total != 1 else ''}: `{passed}` passed, `{failed}` failed, `{warnings}` warnings.",
+        "",
+    ])
+
+    for result in results:
+        status = "PASS" if result.valid else "FAIL"
+        lines.append(f"## {status}: {result.path}")
+        lines.append("")
+        if not result.diagnostics:
+            lines.append("No diagnostics.")
+            lines.append("")
+            continue
+        lines.extend([
+            "| Line | Severity | Rule | Source | Confidence | Message |",
+            "|---:|---|---|---|---|---|",
+        ])
+        for diagnostic in result.diagnostics:
+            line = "" if diagnostic.line is None else str(diagnostic.line)
+            message = diagnostic.message.replace("|", "\\|")
+            lines.append(
+                f"| {line} | {diagnostic.severity.value} | `{diagnostic.rule}` | "
+                f"{diagnostic.source} | {diagnostic.confidence} | {message} |"
+            )
+        lines.append("")
+    return "\n".join(lines).rstrip()
+
+
+def _format_agent(
+    results: list[ValidationResult],
+    *,
+    critique_source: str | None = None,
+    graph_source: str | None = None,
+) -> str:
+    failing = [result for result in results if not result.valid]
+    warnings = [
+        diagnostic
+        for result in results
+        for diagnostic in result.diagnostics
+        if diagnostic.severity == Severity.WARNING
+    ]
+    lines = [
+        "skillcheck agent report",
+        f"status: {'fail' if failing else 'pass'}",
+        f"files_checked: {len(results)}",
+        f"files_failed: {len(failing)}",
+        f"warnings: {len(warnings)}",
+    ]
+    if critique_source:
+        lines.append(f"critique_source: {critique_source}")
+    if graph_source:
+        lines.append(f"graph_source: {graph_source}")
+    lines.append("")
+    lines.append("next_actions:")
+    actionable = [
+        (result.path, diagnostic)
+        for result in results
+        for diagnostic in result.diagnostics
+        if diagnostic.severity in {Severity.ERROR, Severity.WARNING}
+    ]
+    if not actionable:
+        lines.append("- No blocking or warning diagnostics. Keep the ledger current with --history.")
+    else:
+        for path, diagnostic in actionable[:20]:
+            location = f":{diagnostic.line}" if diagnostic.line else ""
+            lines.append(
+                f"- Fix {diagnostic.rule} in {path}{location}: {diagnostic.message}"
+            )
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -208,7 +303,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--format",
-        choices=["text", "json"],
+        choices=["text", "json", "md", "agent"],
         default="text",
         help="Output format (default: text).",
     )
@@ -281,6 +376,24 @@ def _build_parser() -> argparse.ArgumentParser:
         "--version",
         action="version",
         version=f"%(prog)s {__version__}",
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="Path to skillcheck.toml. Defaults to the nearest skillcheck.toml from the target path upward.",
+    )
+    parser.add_argument(
+        "--semantic",
+        action="store_true",
+        default=False,
+        help="Run semantic-adjacent validation. In standalone mode this enables heuristic graph analysis; with ingested agent responses it merges those diagnostics.",
+    )
+    parser.add_argument(
+        "--agent-reason",
+        action="store_true",
+        default=False,
+        help="Agent-native workflow shortcut. Without ingested responses, emits an agent prompt packet and exits 0.",
     )
     parser.add_argument(
         "--emit-critique-prompt",
@@ -379,6 +492,15 @@ def _build_parser() -> argparse.ArgumentParser:
             "Incompatible with emit modes and with --history."
         ),
     )
+    parser.add_argument(
+        "--activation-hypotheses",
+        action="store_true",
+        default=False,
+        help=(
+            "Experimental emit mode. Generate likely natural-language activation triggers "
+            "for the skill and exit 0."
+        ),
+    )
     return parser
 
 
@@ -424,6 +546,12 @@ def _do_emit_critique_prompts(paths: list[Path], fmt: str, agent_id: str = "clau
             print(_PROMPT_DELIMITER.format(path=path))
         if fmt == "json":
             print(json.dumps({"prompt": prompt}))
+        elif fmt == "md":
+            print(f"# skillcheck critique prompt\n\n```text\n{prompt}\n```")
+        elif fmt == "agent":
+            print("skillcheck critique prompt")
+            print("return_json_only: true")
+            print(prompt)
         else:
             print(prompt)
 
@@ -453,19 +581,137 @@ def _do_emit_graph_prompts(paths: list[Path], fmt: str, agent_id: str = "claude"
             print(_GRAPH_PROMPT_DELIMITER.format(path=path))
         if fmt == "json":
             print(json.dumps({"prompt": prompt}))
+        elif fmt == "md":
+            print(f"# skillcheck graph prompt\n\n```text\n{prompt}\n```")
+        elif fmt == "agent":
+            print("skillcheck graph prompt")
+            print("return_json_only: true")
+            print(prompt)
         else:
             print(prompt)
+
+
+def _do_emit_agent_reason_packet(paths: list[Path], fmt: str, critique_agent: str, graph_agent: str) -> None:
+    """Print a combined critique and graph prompt packet for in-agent execution."""
+    packets: list[dict[str, str]] = []
+    for path in paths:
+        skill = _parse_skill(path)
+        packets.append({
+            "path": str(path),
+            "critique_prompt": render_critique_prompt(skill, agent_id=critique_agent),
+            "graph_prompt": get_graph_prompt(graph_agent).render(skill),
+        })
+
+    if fmt == "json":
+        print(json.dumps({"agent_reason": packets}, indent=2))
+        return
+
+    for index, packet in enumerate(packets, start=1):
+        if len(packets) > 1:
+            print(f"# === skillcheck:agent-reason:{packet['path']} ===")
+        if fmt == "md":
+            print(f"# Agent Reason Packet {index}\n")
+            print(f"Path: `{packet['path']}`\n")
+            print("## Critique prompt\n")
+            print(f"```text\n{packet['critique_prompt']}\n```\n")
+            print("## Graph prompt\n")
+            print(f"```text\n{packet['graph_prompt']}\n```")
+        elif fmt == "agent":
+            print("skillcheck agent-reason packet")
+            print(f"path: {packet['path']}")
+            print("task: run both prompts, save each JSON response, then invoke skillcheck with --ingest-critique and --ingest-graph")
+            print("critique_prompt:")
+            print(packet["critique_prompt"])
+            print("graph_prompt:")
+            print(packet["graph_prompt"])
+        else:
+            print("Critique prompt:")
+            print(packet["critique_prompt"])
+            print("\nGraph prompt:")
+            print(packet["graph_prompt"])
+
+
+def _do_emit_activation(paths: list[Path], fmt: str) -> None:
+    """Print activation hypotheses for each path and exit 0."""
+    multiple = len(paths) > 1
+    reports = [generate_activation_hypotheses(_parse_skill(path)) for path in paths]
+    if fmt == "json":
+        if multiple:
+            payload = [json.loads(render_activation_json(report)) for report in reports]
+            print(json.dumps({"activation_reports": payload}, indent=2))
+        else:
+            print(render_activation_json(reports[0]))
+        return
+
+    for path, report in zip(paths, reports):
+        if multiple:
+            print(f"# === skillcheck:activation:{path} ===")
+        if fmt == "md":
+            print(render_activation_markdown(report))
+        else:
+            print(render_activation_text(report))
+
+
+def _apply_config(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    """Apply skillcheck.toml defaults to parsed args."""
+    config_path = args.config or find_config(args.path)
+    try:
+        config = load_config(config_path)
+    except ConfigError as exc:
+        parser.error(str(exc))
+
+    if config.format is not None and args.format == "text":
+        args.format = config.format
+    if config.max_lines is not None and args.max_lines is None:
+        args.max_lines = config.max_lines
+    if config.max_tokens is not None and args.max_tokens is None:
+        args.max_tokens = config.max_tokens
+    if config.min_desc_score is not None and args.min_desc_score is None:
+        args.min_desc_score = config.min_desc_score
+    if config.target_agent is not None and args.target_agent == "all":
+        args.target_agent = config.target_agent
+    if config.strict_vscode is True:
+        args.strict_vscode = True
+    if config.skip_dirname_check is True:
+        args.skip_dirname_check = True
+    if config.skip_ref_check is True:
+        args.skip_ref_check = True
+    if config.ignore and not args.ignore_prefixes:
+        args.ignore_prefixes = list(config.ignore)
+    if config.analyze_graph is True:
+        args.analyze_graph = True
+    if config.semantic is True:
+        args.semantic = True
+    if config.history is True:
+        args.history = True
+    if config.critique_agent is not None and args.critique_agent is None:
+        args.critique_agent = config.critique_agent
+    if config.graph_agent is not None and args.graph_agent is None:
+        args.graph_agent = config.graph_agent
 
 
 def main() -> None:
     # Ensure UTF-8 output on Windows where the default encoding may be cp1252.
     if sys.stdout.encoding and sys.stdout.encoding.lower().replace("-", "") != "utf8":
-        sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+        sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
     if sys.stderr.encoding and sys.stderr.encoding.lower().replace("-", "") != "utf8":
-        sys.stderr.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+        sys.stderr.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
 
     parser = _build_parser()
     args = parser.parse_args()
+    _apply_config(args, parser)
+
+    if args.format not in {"text", "json", "md", "agent"}:
+        parser.error("format must be one of: text, json, md, agent")
+    if args.target_agent not in {"claude", "vscode", "all"}:
+        parser.error("target-agent must be one of: claude, vscode, all")
+    if args.critique_agent is not None and args.critique_agent not in {"claude", "codex", "cursor"}:
+        parser.error("critique-agent must be one of: claude, codex, cursor")
+    if args.graph_agent is not None and args.graph_agent not in {"claude", "codex", "cursor"}:
+        parser.error("graph-agent must be one of: claude, codex, cursor")
+
+    if args.semantic and args.ingest_graph is None:
+        args.analyze_graph = True
 
     # -----------------------------------------------------------------------
     # Mutual exclusion checks
@@ -569,11 +815,26 @@ def main() -> None:
         )
         sys.exit(2)
 
+    if args.agent_reason and (
+        args.emit_critique_prompt
+        or args.emit_graph
+        or args.emit_graph_prompt
+        or args.activation_hypotheses
+    ):
+        print(
+            "Cannot use --agent-reason with another emit mode. "
+            "Use --agent-reason alone to emit the combined agent prompt packet.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
     # Emit modes incompatible with --history (emit modes skip validation entirely).
     _EMIT_FLAGS = {
         "--emit-critique-prompt": args.emit_critique_prompt,
         "--emit-graph": args.emit_graph,
         "--emit-graph-prompt": args.emit_graph_prompt,
+        "--agent-reason": args.agent_reason and args.ingest_critique is None and args.ingest_graph is None,
+        "--activation-hypotheses": args.activation_hypotheses,
     }
     for emit_flag, emit_active in _EMIT_FLAGS.items():
         if emit_active and args.history:
@@ -602,10 +863,10 @@ def main() -> None:
     agent_id = args.critique_agent or "claude"
     graph_agent_id = args.graph_agent or "claude"
 
-    if args.critique_agent is not None and not args.emit_critique_prompt and args.ingest_critique is None:
+    if args.critique_agent is not None and not args.emit_critique_prompt and not args.agent_reason and args.ingest_critique is None:
         parser.error("--critique-agent requires --emit-critique-prompt or --ingest-critique")
 
-    if args.graph_agent is not None and not args.emit_graph_prompt and args.ingest_graph is None:
+    if args.graph_agent is not None and not args.emit_graph_prompt and not args.agent_reason and args.ingest_graph is None:
         parser.error("--graph-agent requires --emit-graph-prompt or --ingest-graph")
 
     paths = _resolve_paths(args)
@@ -628,6 +889,9 @@ def main() -> None:
         except LedgerError as exc:
             print(f"Error: {exc}", file=sys.stderr)
             sys.exit(1)
+        if ledger is None:
+            print(f"No history ledger found for {target_path}.", file=sys.stderr)
+            sys.exit(2)
         if not args.quiet:
             if args.format == "json":
                 print(render_ledger_json(ledger))
@@ -648,6 +912,14 @@ def main() -> None:
     # --emit-graph-prompt: render and print the graph-extraction prompt, then exit
     if args.emit_graph_prompt:
         _do_emit_graph_prompts(paths, fmt=args.format, agent_id=graph_agent_id)
+        sys.exit(0)
+
+    if args.agent_reason and args.ingest_critique is None and args.ingest_graph is None:
+        _do_emit_agent_reason_packet(paths, args.format, agent_id, graph_agent_id)
+        sys.exit(0)
+
+    if args.activation_hypotheses:
+        _do_emit_activation(paths, args.format)
         sys.exit(0)
 
     # Run symbolic validation (always, including when ingesting)
@@ -744,6 +1016,12 @@ def main() -> None:
     elif any(not r.valid for r in results):
         # Exit 1: any remaining errors (e.g. graph.contradiction from agent ingest).
         final_exit_code = 1
+    elif any(
+        d.severity == Severity.WARNING
+        for r in results
+        for d in r.diagnostics
+    ):
+        final_exit_code = 2
     else:
         final_exit_code = 0
 
@@ -815,6 +1093,18 @@ def main() -> None:
                 __version__,
                 critique_source=critique_source,
                 graph_source=graph_source_json,
+            ))
+        elif args.format == "md":
+            print(_format_markdown(
+                results,
+                critique_source=critique_source,
+                graph_source=graph_source_text,
+            ))
+        elif args.format == "agent":
+            print(_format_agent(
+                results,
+                critique_source=critique_source,
+                graph_source=graph_source_text,
             ))
         else:
             use_color = not args.no_color and sys.stdout.isatty()

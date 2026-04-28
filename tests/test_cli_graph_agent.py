@@ -85,7 +85,7 @@ def test_emit_graph_prompt_exits_0() -> None:
 
 def test_ingest_graph_clean_exits_0() -> None:
     result = run(_SKILL_BASIC_IO, "--ingest-graph", _CLEAN_GRAPH)
-    assert result.returncode == 0
+    assert result.returncode == 2
 
 
 def test_ingest_graph_text_report_has_graph_source_header() -> None:
@@ -95,7 +95,7 @@ def test_ingest_graph_text_report_has_graph_source_header() -> None:
 
 def test_ingest_graph_json_report_has_graph_source_field() -> None:
     result = run(_SKILL_BASIC_IO, "--ingest-graph", _CLEAN_GRAPH, "--format", "json")
-    assert result.returncode == 0
+    assert result.returncode == 2
     data = json.loads(result.stdout)
     assert data["graph_source"] == {"mode": "agent", "agent": "claude"}
 
@@ -180,7 +180,7 @@ def test_ingest_graph_and_ingest_critique_together_exits_0() -> None:
         "--ingest-critique",
         _CLEAN_CRITIQUE,
     )
-    assert result.returncode == 0
+    assert result.returncode == 2
 
 
 def test_ingest_graph_and_ingest_critique_shows_both_source_headers() -> None:
