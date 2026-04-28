@@ -71,7 +71,7 @@ End-to-end verification against `anthropics/skills` surfaced documentation drift
 ## [0.2.0] - 2026-03-11
 
 ### Added
-- **GitHub Action**: composite action (`moonrunnerkc/skillcheck@v0`) with PR annotations, job summary table, and JSON output. All CLI flags exposed as action inputs. Three lines of YAML to add to any CI pipeline.
+- **GitHub Action**: composite action (`moonrunnerkc/skillcheck@v0.2.0`) with PR annotations, job summary table, and JSON output. All CLI flags exposed as action inputs. Three lines of YAML to add to any CI pipeline.
 - **`__main__.py` entry point**: `python -m skillcheck` now works as an alternative to the console script.
 - **File reference validation**: parses markdown body for `[text](path)`, `![alt](path)`, and `source:`/`file:`/`include:` directives; verifies referenced files exist on disk; warns when references exceed one directory level from SKILL.md.
 - **Progressive disclosure budget**: three-tier token budgeting: metadata/frontmatter at ~100 tokens, body at <5,000 tokens, resources loaded on demand. Flags oversized code blocks (>50 lines), large tables (>20 rows), and embedded base64.

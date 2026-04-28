@@ -69,7 +69,7 @@ skillcheck skills/            # recursive scan; finds every file named SKILL.md
 skillcheck SKILL.md --format json
 ```
 
-From the field test on Anthropic's official skills repository (18 skills, `runs/anthropics-corpus/01-symbolic-all.txt`, snapshot taken during v1.0 release prep in April 2026): four of eighteen files failed. `claude-api/SKILL.md` failed with `frontmatter.name.reserved-word` because the name contains the reserved word "claude". `template/SKILL.md` failed with `frontmatter.name.directory-mismatch` (name `template-skill`, directory `template`). Both files look correct on casual inspection.
+From the field test on Anthropic's official skills repository (18 skills, snapshot taken during v1.0 release prep in April 2026): four of eighteen files failed. `claude-api/SKILL.md` failed with `frontmatter.name.reserved-word` because the name contains the reserved word "claude". `template/SKILL.md` failed with `frontmatter.name.directory-mismatch` (name `template-skill`, directory `template`). Both files look correct on casual inspection. Reproduce: clone `anthropics/skills` and run `skillcheck skills/ --format text`.
 
 ### Heuristic Graph
 
@@ -83,7 +83,7 @@ skillcheck SKILL.md --emit-graph --format json
 
 Graph nodes: `Capability` (section headings), `Input` (backtick references required by capabilities), `Output` (backtick references produced by capabilities). Analyzers fire on orphaned capabilities with no declared I/O, unused inputs, unproduced outputs, capabilities with no description body, and `allowed-tools` entries not backtick-referenced in the body.
 
-From the field test on `mcp-builder/SKILL.md` (`runs/anthropics-mcp-builder/02-graph-analyze.txt`):
+From the field test on `mcp-builder/SKILL.md` (reproduce: `skillcheck skills/mcp-builder/SKILL.md --analyze-graph`):
 
 ```
    line 18  ⚠ warning  graph.capability.orphaned  Capability 'Understand Modern MCP Design'
@@ -109,7 +109,7 @@ skillcheck SKILL.md --agent-reason --format agent         # critique + graph pro
 
 `--critique-agent` selects a framing variant tuned for each platform (claude, codex, cursor). The schema and exit codes are identical across all variants.
 
-From the field test (`runs/anthropics-mcp-builder/04-critique-report.txt`): the symbolic run on `mcp-builder/SKILL.md` passed (exit 0), but the ingested critique returned exit 3 with three `semantic.contradiction.detected` errors. One:
+From the field test on `mcp-builder/SKILL.md`: the symbolic run passed (exit 0), but the ingested critique returned exit 3 with three `semantic.contradiction.detected` errors. One:
 
 ```
 ✗ error  semantic.contradiction.detected  Contradiction between 'Frontmatter
@@ -149,7 +149,7 @@ skillcheck SKILL.md --show-history --format json
 
 When `--history` is active and the current run fails on content that matched a prior passing run, skillcheck emits `history.skill.regressed` (WARNING). This surfaces rule tightening or new agent findings without requiring manual output comparison.
 
-From the field test (`runs/anthropics-mcp-builder/08-history.txt`):
+From the field test (reproduce: `skillcheck skills/mcp-builder/SKILL.md --history && skillcheck skills/mcp-builder/SKILL.md --show-history`):
 
 ```
 History ledger: SKILL.md
@@ -172,7 +172,7 @@ Three lines to add skillcheck to any CI pipeline:
     path: skills/
 ```
 
-Pin to `@v1` for the latest patch within the v1.0 major-version line, or `@v1.0.0` for an immutable release. The `@v0` tag remains in place for existing CI configurations.
+Pin to `@v1` for the latest patch within the v1.0 major-version line, or `@v1.0.0` for an immutable release.
 
 Failures block the PR. Errors and warnings appear as inline diff annotations on the changed files. The workflow run page gets a Markdown summary table. For the complete list of action inputs and outputs, see [`action.yml`](action.yml).
 
@@ -188,7 +188,7 @@ The v1.0 graph and critique modes are available as action inputs. Example with s
 
 ## Output
 
-Text output (default), excerpt from `runs/anthropics-corpus/01-symbolic-all.txt`:
+Text output (default), excerpt from a run against the Anthropic skills corpus:
 
 ```
 ✗ FAIL  skills/claude-api/SKILL.md
@@ -320,7 +320,7 @@ Source tags: `spec` rules derive from the agentskills.io specification or agent-
 
 ## Case Study
 
-We ran skillcheck against three corpora during v1.0 release prep (April 2026 snapshots): Anthropic's official skills repository (18 skills), the `mcp-builder` skill through the full v1.0 pipeline, and five skills from the uxuiprinciples/agent-skills collection. Full run artifacts: `runs/anthropics-corpus/`, `runs/anthropics-mcp-builder/`, `runs/uxuiprinciples-corpus/`.
+We ran skillcheck against three corpora during v1.0 release prep (April 2026 snapshots): Anthropic's official skills repository (18 skills), the `mcp-builder` skill through the full v1.0 pipeline, and five skills from the uxuiprinciples/agent-skills collection. To reproduce, clone each upstream repo and run `skillcheck <path>` (the case study below records the exact invocations).
 
 The symbolic run of the Anthropic corpus returned four failures from eighteen files (exit 1). All four files look correct on review: two had second-person voice in the description, one used "claude" as part of the name (reserved word per spec), and the template skill had a name/directory mismatch. The deeper finding came from running `mcp-builder` through the critique pipeline: the symbolic run passed (exit 0), but the ingested agent critique returned exit 3 with three `semantic.contradiction.detected` errors. The skill's frontmatter offers Python and TypeScript as equal options; its body unconditionally recommends TypeScript in Phase 1.3. That inconsistency means any agent following the Python path hits an unresolved decision point. No static linter catches it. See [docs/case-study-v1-real-world-runs.md](docs/case-study-v1-real-world-runs.md) for the full breakdown.
 
