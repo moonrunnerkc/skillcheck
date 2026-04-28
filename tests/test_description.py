@@ -129,3 +129,35 @@ def test_min_score_rule_skips_missing_description(tmp_path):
     f.write_text("---\nname: no-desc\n---\nBody.\n")
     skill = parse(f)
     assert rule(skill) == []
+
+
+# ---------------------------------------------------------------------------
+# Regression: vague-word rubric (audit claim 8)
+# ---------------------------------------------------------------------------
+
+def test_comprehensive_alone_does_not_penalize():
+    """`comprehensive` is context-dependent, not vague filler. A description
+    that uses it once should score the same as the same description without it.
+    """
+    with_word = (
+        "Generates comprehensive Python type stubs from runtime introspection. "
+        "Use this skill when the user asks for stub generation."
+    )
+    without_word = (
+        "Generates Python type stubs from runtime introspection. "
+        "Use this skill when the user asks for stub generation."
+    )
+    score_with, _ = score_description(with_word)
+    score_without, _ = score_description(without_word)
+    assert score_with == score_without, (
+        f"'comprehensive' incurred a penalty: {score_with} vs {score_without}"
+    )
+
+
+def test_third_person_verb_forms_count_via_stem_normalization():
+    """3rd-person singular ('analyzes', 'identifies', 'classifies') should
+    count as action verbs without being explicitly enumerated.
+    """
+    base = "Identifies cyclic dependencies in plan graphs."
+    score, _ = score_description(base)
+    assert score >= 30, f"Expected leading verb to register, got {score}"

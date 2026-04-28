@@ -19,17 +19,10 @@ from collections.abc import Callable
 from skillcheck.parser import ParsedSkill
 from skillcheck.result import Diagnostic, Severity
 
-# Common third-person / imperative action verbs that signal clear skill intent.
+# Action-verb base forms. 3rd-person singular ("generates", "identifies") is
+# matched via stem normalization in `_is_action_verb`, so we only store one
+# canonical form per verb here.
 _ACTION_VERBS = frozenset({
-    "generates", "analyzes", "validates", "deploys", "processes",
-    "creates", "builds", "converts", "extracts", "formats",
-    "monitors", "scans", "parses", "transforms", "compiles",
-    "tests", "checks", "lints", "runs", "executes",
-    "fetches", "sends", "uploads", "downloads",
-    "configures", "sets", "updates", "installs", "removes",
-    "detects", "identifies", "classifies", "scores", "ranks",
-    "summarizes", "translates", "encrypts", "decrypts",
-    "automates", "scaffolds", "provisions", "migrates", "syncs",
     "generate", "analyze", "validate", "deploy", "process",
     "create", "build", "convert", "extract", "format",
     "monitor", "scan", "parse", "transform", "compile",
@@ -40,6 +33,25 @@ _ACTION_VERBS = frozenset({
     "summarize", "translate", "encrypt", "decrypt",
     "automate", "scaffold", "provision", "migrate", "sync",
 })
+
+
+def _is_action_verb(word: str) -> bool:
+    """Match `word` against `_ACTION_VERBS`, normalizing 3rd-person singular forms.
+
+    Handles three patterns: bare base ("generate"), -s ("scans"), and -ies → -y
+    ("identifies" → "identify"). The cheaper -s strip is tried first so most
+    third-person verbs resolve in one extra lookup.
+    """
+    w = word.lower()
+    if w in _ACTION_VERBS:
+        return True
+    if w.endswith("ies") and (w[:-3] + "y") in _ACTION_VERBS:
+        return True
+    if w.endswith("es") and w[:-2] in _ACTION_VERBS:
+        return True
+    if w.endswith("s") and w[:-1] in _ACTION_VERBS:
+        return True
+    return False
 
 # Trigger phrases that signal when a skill should activate.
 _TRIGGER_PATTERNS = [
@@ -53,12 +65,19 @@ _TRIGGER_PATTERNS = [
 ]
 
 # Generic filler words that reduce specificity.
+#
+# Rubric for inclusion: a word qualifies as vague filler only if it adds
+# little or no domain signal in the contexts where it typically appears in
+# SKILL.md descriptions. Words that *can* describe a concrete attribute when
+# qualified ("comprehensive coverage of N file formats", "robust against
+# malformed input", "flexible CLI grammar") are deliberately excluded, even
+# if they often appear as marketing fluff. The cost of false positives is
+# high here: a real description that uses the word once gets penalized.
 _VAGUE_WORDS = frozenset({
     "tool", "helper", "utility", "stuff", "things", "various",
     "general", "generic", "simple", "basic", "easy", "nice",
     "good", "great", "awesome", "cool", "helpful", "useful",
-    "important", "powerful", "flexible", "robust", "comprehensive",
-    "efficient", "effective", "handles",
+    "important", "powerful", "efficient", "effective", "handles",
 })
 
 # Common stop words excluded from keyword density calculation.
@@ -83,9 +102,8 @@ def _score_action_verbs(desc: str) -> tuple[int, str | None]:
     if not words:
         return 0, "Description has no words."
 
-    first_word = words[0].lower()
-    has_leading_verb = first_word in _ACTION_VERBS
-    verb_count = sum(1 for w in words if w.lower() in _ACTION_VERBS)
+    has_leading_verb = _is_action_verb(words[0])
+    verb_count = sum(1 for w in words if _is_action_verb(w))
 
     if has_leading_verb and verb_count >= 2:
         return 25, None

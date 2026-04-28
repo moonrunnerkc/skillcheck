@@ -51,7 +51,7 @@ def test_agent_reason_emits_combined_packet() -> None:
 def test_semantic_enables_graph_analysis() -> None:
     graph_fixture = FIXTURES_DIR / "graph" / "skill_orphan_capability.md"
     result = run(str(graph_fixture), "--semantic")
-    assert result.returncode == 2
+    assert result.returncode == 0
     assert "graph.capability.orphaned" in result.stdout
 
 
@@ -76,7 +76,7 @@ def test_skillcheck_toml_applies_defaults(tmp_path: Path) -> None:
         text=True,
         encoding="utf-8",
     )
-    assert result.returncode == 2
+    assert result.returncode == 0
     payload = json.loads(result.stdout)
     rules = [d["rule"] for r in payload["results"] for d in r["diagnostics"]]
     assert "sizing.body.line-count" in rules
@@ -84,7 +84,7 @@ def test_skillcheck_toml_applies_defaults(tmp_path: Path) -> None:
 
 def test_json_diagnostics_include_source_and_confidence() -> None:
     result = run(str(FIXTURES_DIR / "valid_basic.md"), "--max-lines", "1", "--format", "json")
-    assert result.returncode == 2
+    assert result.returncode == 0
     payload = json.loads(result.stdout)
     diagnostic = payload["results"][0]["diagnostics"][0]
     assert "source" in diagnostic

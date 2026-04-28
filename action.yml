@@ -108,7 +108,7 @@ runs:
         if [ -n "$INPUT_VERSION" ]; then
           python -m pip install --quiet "skillcheck==$INPUT_VERSION"
         else
-          python -m pip install --quiet skillcheck
+          python -m pip install --quiet "skillcheck>=1.0.1"
         fi
 
     - name: Run skillcheck

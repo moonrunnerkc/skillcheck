@@ -373,6 +373,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Promote VS Code compatibility issues to errors.",
     )
     parser.add_argument(
+        "--warnings-as-errors",
+        action="store_true",
+        default=False,
+        help="Escalate warning-only runs to exit code 1. Default exit for warning-only is 0.",
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version=f"%(prog)s {__version__}",
@@ -1021,7 +1027,10 @@ def main() -> None:
         for r in results
         for d in r.diagnostics
     ):
-        final_exit_code = 2
+        # Warning-only runs are a clean pass by default; --warnings-as-errors
+        # escalates them to exit 1 for stricter CI gates. Exit 2 stays
+        # reserved for tool-misuse / input errors so CI can distinguish them.
+        final_exit_code = 1 if args.warnings_as_errors else 0
     else:
         final_exit_code = 0
 

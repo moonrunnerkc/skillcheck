@@ -7,12 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-04-28
+
+External audit against v1.0.1 surfaced eight repo defects ranging from documentation drift to a CI-confusing exit-code conflation. v1.1.0 ships fixes for all eight, reverses one v1.0.1 behavior change that turned out wrong, and tightens the description scorer's vague-word rubric. The minor bump is driven by the exit-code semantics change (now distinguishes warning-only from input error) and the new `--warnings-as-errors` flag.
+
+### Behavior change
+
+- Warning-only CLI reports now return exit code 0 by default, reversing v1.0.1's "warnings exit 2" decision. Exit code 2 is now reserved for tool-misuse / input errors (missing path, conflicting flags, empty directory) so CI consumers can distinguish them. Pass `--warnings-as-errors` to escalate warning-only runs to exit code 1 for stricter gates. Errors remain 1; semantic drift remains 3.
+
 ### Added
+
+- `--warnings-as-errors` flag: escalate warning-only runs to exit 1 for CI configurations that want warnings to block.
 - `scripts/summarize_batch.py` and `tests/test_batch15_summarize.py`: maintainer-facing tool that consumes a directory of skillcheck batch-run artifacts (one directory per repo, one subdirectory per skill, paired `*.json` / `*.txt` reports per phase) and writes `summary.csv` plus `findings.md`. Invoked as `python scripts/summarize_batch.py <batch_dir>`. Not exposed as a console script, not wired into the GitHub Action; the action runs skillcheck against one path, this consumes outputs across many. Documented under Maintainer Notes in the README.
 - `tests/test_readme_test_count_claim.py`: parses the README's "N tests cover ..." sentence and asserts it matches `pytest --collect-only`. The next time the suite grows without bumping the README number, CI fails. Closes the recurring drift pattern that v1.0.1 had to correct twice.
 
 ### Changed
-- README test count bumped from 663 to 664 to include the new drift-guard test.
+
+- `action.yml` install step pins `skillcheck>=1.0.1` so consumers fail loudly on unpublished v1 features instead of silently running v0.2.0.
+- Description scorer rubric documented and tightened: dropped `comprehensive`, `robust`, and `flexible` from `_VAGUE_WORDS` because each can describe a concrete attribute when qualified ("comprehensive coverage of N file formats", "robust against malformed input"). The inclusion rubric is now documented inline. Verified against `anthropics/skills` (17 SKILL.md files): zero score changes, because none of those skills use the dropped words. The rubric edit is a no-op against the current corpus; the new regression tests are forward-looking guards against scoring drift if the list is ever re-expanded.
+- Description scorer verb matching: collapsed `_ACTION_VERBS` from 86 entries (base + 3rd-person duplicates) to 42 base forms. Added `_is_action_verb()` to handle stem normalization across `-s`, `-es`, and `-ies` endings. Adding a new verb now only requires the base form.
+- README test count bumped from 663 to 667 to include the drift-guard test, two description-scorer regression tests, and the `--warnings-as-errors` test.
+- README field-test citations: replaced seven gitignored `runs/...` path references with the exact `skillcheck` commands needed to reproduce each finding. Readers can now verify the claims without access to private artifacts.
+- README exit-code table reflects the new semantics; flag table documents `--warnings-as-errors`.
+
+### Removed
+
+- Top-level `git-commit-crafter` SKILL.md from the repo root. It was unrelated to skillcheck and confused first-time readers; the canonical example lives at `skills/skillcheck/SKILL.md`.
+- False `@v0` tag claim from the README. Only `@v0.2.0` was ever pushed; the action-install snippet no longer suggests a tag that does not exist. CHANGELOG entries that referenced `@v0` corrected to `@v0.2.0`.
 
 ## [1.0.1] - 2026-04-28
 
@@ -71,7 +92,7 @@ End-to-end verification against `anthropics/skills` surfaced documentation drift
 ## [0.2.0] - 2026-03-11
 
 ### Added
-- **GitHub Action**: composite action (`moonrunnerkc/skillcheck@v0`) with PR annotations, job summary table, and JSON output. All CLI flags exposed as action inputs. Three lines of YAML to add to any CI pipeline.
+- **GitHub Action**: composite action (`moonrunnerkc/skillcheck@v0.2.0`) with PR annotations, job summary table, and JSON output. All CLI flags exposed as action inputs. Three lines of YAML to add to any CI pipeline.
 - **`__main__.py` entry point**: `python -m skillcheck` now works as an alternative to the console script.
 - **File reference validation**: parses markdown body for `[text](path)`, `![alt](path)`, and `source:`/`file:`/`include:` directives; verifies referenced files exist on disk; warns when references exceed one directory level from SKILL.md.
 - **Progressive disclosure budget**: three-tier token budgeting: metadata/frontmatter at ~100 tokens, body at <5,000 tokens, resources loaded on demand. Flags oversized code blocks (>50 lines), large tables (>20 rows), and embedded base64.
