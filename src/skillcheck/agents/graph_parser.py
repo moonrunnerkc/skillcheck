@@ -219,6 +219,7 @@ def _parse_capability(raw: object, index: int) -> Capability:
     name = str(_require_field(raw, "name", str, ctx))
     description = str(_require_field(raw, "description", str, ctx))
     line_raw = _require_field(raw, "line", (int, type(None)), ctx)
+    assert isinstance(line_raw, int | type(None))
     line = int(line_raw) if line_raw is not None else None
     return Capability(id=node_id, name=name, description=description, line=line)
 
@@ -234,6 +235,7 @@ def _parse_input(raw: object, index: int) -> Input:
     name = str(_require_field(raw, "name", str, ctx))
     kind_raw = str(_require_field(raw, "kind", str, ctx))
     line_raw = _require_field(raw, "line", (int, type(None)), ctx)
+    assert isinstance(line_raw, int | type(None))
     line = int(line_raw) if line_raw is not None else None
     if kind_raw not in _VALID_INPUT_KINDS:
         raise GraphSchemaError(
@@ -255,6 +257,7 @@ def _parse_output(raw: object, index: int) -> Output:
     name = str(_require_field(raw, "name", str, ctx))
     kind_raw = str(_require_field(raw, "kind", str, ctx))
     line_raw = _require_field(raw, "line", (int, type(None)), ctx)
+    assert isinstance(line_raw, int | type(None))
     line = int(line_raw) if line_raw is not None else None
     if kind_raw not in _VALID_OUTPUT_KINDS:
         raise GraphSchemaError(

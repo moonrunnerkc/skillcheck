@@ -258,9 +258,15 @@ def parse_critique_response(raw: str) -> SemanticCritique:
             f"Response has unexpected top-level fields: {sorted(extra_top)}"
         )
 
-    clarity = int(_require_field(payload, "clarity_score", int))
-    completeness = int(_require_field(payload, "completeness_score", int))
-    executability = int(_require_field(payload, "executability_score", int))
+    clarity_raw = _require_field(payload, "clarity_score", int)
+    completeness_raw = _require_field(payload, "completeness_score", int)
+    executability_raw = _require_field(payload, "executability_score", int)
+    assert isinstance(clarity_raw, int)
+    assert isinstance(completeness_raw, int)
+    assert isinstance(executability_raw, int)
+    clarity = clarity_raw
+    completeness = completeness_raw
+    executability = executability_raw
 
     for name, value in [
         ("clarity_score", clarity),

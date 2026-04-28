@@ -58,6 +58,13 @@ Edge integrity: source_id must reference a capability id; for kind="requires" th
 target_id must reference an input id; for kind="produces" the target_id must reference
 an output id. Dangling references will cause the response to be rejected.
 
+The "requires" edge declares a capability's dependency on an item in the inputs
+collection only. It cannot point at an output id. Capability-to-capability data
+flow (capability B consuming capability A's output) is not modeled by edges in
+this schema; describe such relationships in the capability description fields
+instead. An edge with kind="requires" whose target_id is an output id is a
+dangling reference and will cause the entire response to be rejected.
+
 Empty lists are valid for any collection.\
 """
 
