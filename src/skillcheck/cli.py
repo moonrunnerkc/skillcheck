@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from skillcheck import __version__
+from skillcheck import config as runtime_config
 from skillcheck.config_loader import ConfigError, find_config, load_config
 from skillcheck.core import (
     append_run,
@@ -662,38 +663,40 @@ def _apply_config(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
     """Apply skillcheck.toml defaults to parsed args."""
     config_path = args.config or find_config(args.path)
     try:
-        config = load_config(config_path)
+        loaded_config = load_config(config_path)
     except ConfigError as exc:
         parser.error(str(exc))
 
-    if config.format is not None and args.format == "text":
-        args.format = config.format
-    if config.max_lines is not None and args.max_lines is None:
-        args.max_lines = config.max_lines
-    if config.max_tokens is not None and args.max_tokens is None:
-        args.max_tokens = config.max_tokens
-    if config.min_desc_score is not None and args.min_desc_score is None:
-        args.min_desc_score = config.min_desc_score
-    if config.target_agent is not None and args.target_agent == "all":
-        args.target_agent = config.target_agent
-    if config.strict_vscode is True:
+    runtime_config.set_extension_fields(loaded_config.extension_fields)
+
+    if loaded_config.format is not None and args.format == "text":
+        args.format = loaded_config.format
+    if loaded_config.max_lines is not None and args.max_lines is None:
+        args.max_lines = loaded_config.max_lines
+    if loaded_config.max_tokens is not None and args.max_tokens is None:
+        args.max_tokens = loaded_config.max_tokens
+    if loaded_config.min_desc_score is not None and args.min_desc_score is None:
+        args.min_desc_score = loaded_config.min_desc_score
+    if loaded_config.target_agent is not None and args.target_agent == "all":
+        args.target_agent = loaded_config.target_agent
+    if loaded_config.strict_vscode is True:
         args.strict_vscode = True
-    if config.skip_dirname_check is True:
+    if loaded_config.skip_dirname_check is True:
         args.skip_dirname_check = True
-    if config.skip_ref_check is True:
+    if loaded_config.skip_ref_check is True:
         args.skip_ref_check = True
-    if config.ignore and not args.ignore_prefixes:
-        args.ignore_prefixes = list(config.ignore)
-    if config.analyze_graph is True:
+    if loaded_config.ignore and not args.ignore_prefixes:
+        args.ignore_prefixes = list(loaded_config.ignore)
+    if loaded_config.analyze_graph is True:
         args.analyze_graph = True
-    if config.semantic is True:
+    if loaded_config.semantic is True:
         args.semantic = True
-    if config.history is True:
+    if loaded_config.history is True:
         args.history = True
-    if config.critique_agent is not None and args.critique_agent is None:
-        args.critique_agent = config.critique_agent
-    if config.graph_agent is not None and args.graph_agent is None:
-        args.graph_agent = config.graph_agent
+    if loaded_config.critique_agent is not None and args.critique_agent is None:
+        args.critique_agent = loaded_config.critique_agent
+    if loaded_config.graph_agent is not None and args.graph_agent is None:
+        args.graph_agent = loaded_config.graph_agent
 
 
 def main() -> None:

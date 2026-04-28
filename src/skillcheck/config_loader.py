@@ -33,6 +33,7 @@ class SkillcheckConfig:
     history: bool | None = None
     critique_agent: str | None = None
     graph_agent: str | None = None
+    extension_fields: frozenset[str] = frozenset()
 
 
 class ConfigError(Exception):
@@ -92,24 +93,35 @@ def _parse_without_tomllib(raw: str) -> dict[str, Any]:
     """Parse a minimal TOML subset for Python 3.10 fallback.
 
     Supports top-level key/value pairs with strings, booleans, integers, and
-    string arrays. That covers skillcheck's configuration surface.
+    string arrays, plus [frontmatter] for extension fields. That covers
+    skillcheck's configuration surface.
     """
     parsed: dict[str, Any] = {}
+    current = parsed
     for line_no, raw_line in enumerate(raw.splitlines(), start=1):
         line = raw_line.split("#", 1)[0].strip()
         if not line:
             continue
         if line.startswith("["):
-            raise ConfigError(
-                f"skillcheck.toml line {line_no} uses TOML sections; keep skillcheck options at the top level."
-            )
+            if not line.endswith("]"):
+                raise ConfigError(f"skillcheck.toml line {line_no} has an invalid section header.")
+            section = line[1:-1].strip()
+            if section != "frontmatter":
+                raise ConfigError(
+                    f"skillcheck.toml line {line_no} uses unsupported section '[{section}]'."
+                )
+            frontmatter = parsed.setdefault("frontmatter", {})
+            if not isinstance(frontmatter, dict):
+                raise ConfigError("Config section 'frontmatter' must be a table.")
+            current = frontmatter
+            continue
         if "=" not in line:
             raise ConfigError(f"skillcheck.toml line {line_no} is missing '='.")
         key, value_raw = [part.strip() for part in line.split("=", 1)]
         if value_raw in {"true", "false"}:
-            parsed[key] = value_raw == "true"
+            current[key] = value_raw == "true"
         elif value_raw.startswith('"') and value_raw.endswith('"'):
-            parsed[key] = value_raw[1:-1]
+            current[key] = value_raw[1:-1]
         elif value_raw.startswith("[") and value_raw.endswith("]"):
             items = []
             inner = value_raw[1:-1].strip()
@@ -121,10 +133,10 @@ def _parse_without_tomllib(raw: str) -> dict[str, Any]:
                             f"skillcheck.toml line {line_no} array values must be quoted strings."
                         )
                     items.append(item[1:-1])
-            parsed[key] = items
+            current[key] = items
         else:
             try:
-                parsed[key] = int(value_raw)
+                current[key] = int(value_raw)
             except ValueError as exc:
                 raise ConfigError(
                     f"skillcheck.toml line {line_no} value for '{key}' must be a string, integer, boolean, or string array."
@@ -159,6 +171,16 @@ def load_config(path: Path | None) -> SkillcheckConfig:
         raise ConfigError(f"Cannot parse {path}: {exc}. Fix the TOML syntax and retry.") from exc
 
     values: dict[str, Any] = {}
+    frontmatter = data.pop("frontmatter", {})
+    if not isinstance(frontmatter, dict):
+        raise ConfigError("Config section 'frontmatter' must be a table.")
+    for raw_key, value in frontmatter.items():
+        if raw_key != "extension_fields":
+            raise ConfigError(f"Unknown config key 'frontmatter.{raw_key}' in {path}.")
+        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+            raise ConfigError("Config key 'frontmatter.extension_fields' must be an array of strings.")
+        values["extension_fields"] = frozenset(value)
+
     for raw_key, value in data.items():
         field = _KEY_MAP.get(raw_key)
         if field is None:

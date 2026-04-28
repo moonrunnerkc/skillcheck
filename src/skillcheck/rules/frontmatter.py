@@ -335,17 +335,34 @@ def check_description_person_voice(skill: ParsedSkill) -> list[Diagnostic]:
 def check_unknown_fields(skill: ParsedSkill) -> list[Diagnostic]:
     diagnostics = []
     for field in skill.frontmatter:
-        if field not in config.SPEC_FIELDS:
+        field_name = str(field)
+        if field_name in config.SPEC_FIELDS or field_name in config.extension_fields:
+            continue
+        if field_name in config.ECOSYSTEM_FIELDS:
             diagnostics.append(Diagnostic(
-                rule="frontmatter.field.unknown",
-                severity=Severity.WARNING,
+                rule="frontmatter.field.ecosystem",
+                severity=Severity.INFO,
                 message=(
-                    f"Unknown frontmatter field '{field}'. "
-                    f"Known fields: {', '.join(sorted(config.SPEC_FIELDS))}."
+                    f"Field '{field_name}' is ecosystem-common but not in the "
+                    f"agentskills.io spec. Add it to skillcheck.toml under "
+                    f"[frontmatter] extension_fields if intentional."
                 ),
-                line=_field_line(skill.raw_text, str(field)),
-                context=f"{field}: ...",
+                line=_field_line(skill.raw_text, field_name),
+                context=f"{field_name}: ...",
+                source="advisory",
+                confidence="medium",
             ))
+            continue
+        diagnostics.append(Diagnostic(
+            rule="frontmatter.field.unknown",
+            severity=Severity.WARNING,
+            message=(
+                f"Unknown frontmatter field '{field_name}'. "
+                f"Known fields: {', '.join(sorted(config.SPEC_FIELDS))}."
+            ),
+            line=_field_line(skill.raw_text, field_name),
+            context=f"{field_name}: ...",
+        ))
     return diagnostics
 
 

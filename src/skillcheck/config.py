@@ -1,3 +1,5 @@
+from collections.abc import Iterable
+
 MAX_BODY_LINES: int = 500
 MAX_TOKENS: int = 8000
 
@@ -31,6 +33,20 @@ SPEC_FIELDS: frozenset[str] = frozenset({
     "skills",
     "mode",
 })
+
+ECOSYSTEM_FIELDS: frozenset[str] = frozenset({
+    "license",
+    "repository",
+    "homepage",
+})
+
+extension_fields: frozenset[str] = frozenset()
+
+
+def set_extension_fields(fields: Iterable[str]) -> None:
+    global extension_fields
+    extension_fields = frozenset(fields)
+
 
 # Cross-agent compatibility matrix.
 # Each field maps to a dict of agent -> support status.
