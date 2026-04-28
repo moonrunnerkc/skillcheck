@@ -317,10 +317,11 @@ def check_description_person_voice(skill: ParsedSkill) -> list[Diagnostic]:
     if first_match:
         return [Diagnostic(
             rule="frontmatter.description.person-voice",
-            severity=Severity.ERROR,
+            severity=Severity.WARNING,
             message=(
-                f"Description uses first-person voice ('{first_match.group().strip()}'). "
-                f"Use third person, e.g., 'Generates...' or 'Analyzes...'"
+                f"Description appears to use first-person voice "
+                f"('{first_match.group().strip()}'); the spec recommends "
+                f"third-person for routing clarity."
             ),
             line=_field_line(skill.raw_text, "description"),
             context=f"description: {desc[:80]}{'...' if len(desc) > 80 else ''}",
@@ -330,10 +331,12 @@ def check_description_person_voice(skill: ParsedSkill) -> list[Diagnostic]:
     if second_match:
         return [Diagnostic(
             rule="frontmatter.description.person-voice",
-            severity=Severity.ERROR,
+            severity=Severity.WARNING,
             message=(
-                f"Description uses second-person voice ('{second_match.group()}'). "
-                f"Use third person, e.g., 'Generates...' or 'Analyzes...'"
+                f"Description appears to use second-person voice "
+                f"('{second_match.group()}'); the spec recommends "
+                f"third-person for routing clarity. Verify the phrasing "
+                f"addresses the agent, not the user."
             ),
             line=_field_line(skill.raw_text, "description"),
             context=f"description: {desc[:80]}{'...' if len(desc) > 80 else ''}",

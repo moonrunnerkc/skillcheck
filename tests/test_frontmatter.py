@@ -220,7 +220,7 @@ def test_description_rejects_first_person():
     diagnostics = check_description_person_voice(skill)
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "frontmatter.description.person-voice"
-    assert diagnostics[0].severity == Severity.ERROR
+    assert diagnostics[0].severity == Severity.WARNING
 
 
 def test_description_rejects_second_person(tmp_path):
