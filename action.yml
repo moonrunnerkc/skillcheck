@@ -47,10 +47,46 @@ inputs:
     description: "Override the token-count threshold (default: 8000)."
     required: false
     default: ""
+  format:
+    description: "Accepted but ignored at runtime. The action always invokes skillcheck with --format json so it can parse diagnostics, emit PR annotations, and write the step summary. Use the CLI directly if you need a different format."
+    required: false
+    default: "json"
+  semantic:
+    description: "Enable semantic-adjacent validation. In standalone CI this enables heuristic graph analysis."
+    required: false
+    default: "false"
+  analyze-graph:
+    description: "Run heuristic capability graph analyzers and merge diagnostics into the report."
+    required: false
+    default: "false"
+  ingest-critique:
+    description: "Path to an agent self-critique JSON response to ingest."
+    required: false
+    default: ""
+  critique-agent:
+    description: "Critique prompt/source agent: claude, codex, or cursor."
+    required: false
+    default: ""
+  ingest-graph:
+    description: "Path to an agent graph-extraction JSON response to ingest."
+    required: false
+    default: ""
+  graph-agent:
+    description: "Graph prompt/source agent: claude, codex, or cursor."
+    required: false
+    default: ""
+  history:
+    description: "Append a validation record to .skillcheck-history.json."
+    required: false
+    default: "false"
+  activation-hypotheses:
+    description: "Generate activation hypotheses. This is an emit mode and does not produce PR annotations."
+    required: false
+    default: "false"
 
 outputs:
   exit-code:
-    description: "skillcheck exit code (0=pass, 1=errors, 2=input error)."
+    description: "skillcheck exit code (0=pass, 1=errors, 2=warnings or input error, 3=semantic drift)."
     value: ${{ steps.run.outputs.exit-code }}
   json:
     description: "Full JSON output from skillcheck."
@@ -88,4 +124,13 @@ runs:
         INPUT_IGNORE: ${{ inputs.ignore }}
         INPUT_MAX_LINES: ${{ inputs.max-lines }}
         INPUT_MAX_TOKENS: ${{ inputs.max-tokens }}
+        INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_SEMANTIC: ${{ inputs.semantic }}
+        INPUT_ANALYZE_GRAPH: ${{ inputs.analyze-graph }}
+        INPUT_INGEST_CRITIQUE: ${{ inputs.ingest-critique }}
+        INPUT_CRITIQUE_AGENT: ${{ inputs.critique-agent }}
+        INPUT_INGEST_GRAPH: ${{ inputs.ingest-graph }}
+        INPUT_GRAPH_AGENT: ${{ inputs.graph-agent }}
+        INPUT_HISTORY: ${{ inputs.history }}
+        INPUT_ACTIVATION_HYPOTHESES: ${{ inputs.activation-hypotheses }}
       run: python "${{ github.action_path }}/action/entrypoint.py"
