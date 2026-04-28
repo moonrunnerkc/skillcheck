@@ -11,3 +11,6 @@ CLAUDE.md
 .copilot-instructions.md
 # Field test artifacts (kept locally, not in git)
 runs/
+
+# Launch post drafts (kept locally, never push)
+launch-post/

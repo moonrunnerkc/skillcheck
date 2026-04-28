@@ -7,17 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-04-28
+
+End-to-end verification against `anthropics/skills` surfaced documentation drift in the published v1.0.0 README and a batch of post-tag implementation work that had not been committed. v1.0.1 commits that work, ships the docs corrections, and adds guide-parity flags. Behavior change: warning-only runs now return exit code 2 (was 0).
+
+### Changed
+- Warning-only CLI reports now return exit code 2. Exit code 1 remains errors; exit code 3 remains semantic drift. README Exit Codes table row 0 updated to "no errors and no warnings".
+- README test count corrected from 653 to 663.
+- README JSON-stability promise updated from "0.x series" to "v1.x series".
+- README field-test numbers reframed as April 2026 snapshots against `anthropics/skills`, with a note that they will drift as upstream evolves.
+- `action.yml` `format` input description clarified: accepted but ignored at runtime; the action always invokes skillcheck with `--format json`.
+- Development extras now include `ruff>=0.6`, `mypy>=1.10`, and `types-PyYAML>=6.0`.
+
+### Added
+- `--semantic`: guide-compatible shortcut that enables semantic-adjacent validation. In standalone mode it runs heuristic graph analysis; with ingested agent responses it merges those diagnostics.
+- `--agent-reason`: guide-compatible agent-workflow shortcut. Emits a combined critique and graph prompt packet so the calling agent can run both reasoning steps and feed JSON back through `--ingest-critique` and `--ingest-graph`.
+- `--format md` and `--format agent`: Markdown report output and agent-oriented next-action output.
+- `skillcheck.toml` config loading: top-level defaults for format, thresholds, target agent, strict VS Code mode, skip flags, ignored rule prefixes, graph analysis, semantic mode, history, and agent variants.
+- Experimental `--activation-hypotheses`: generates likely natural-language routing triggers plus a discoverability entropy score. Routing caveat included in every report.
+- Machine-readable diagnostic metadata: JSON diagnostics now include `source` and `confidence` fields.
+- GitHub Action inputs for the v1.0 modes: `semantic`, `analyze-graph`, `ingest-critique`, `critique-agent`, `ingest-graph`, `graph-agent`, `history`, `activation-hypotheses`. The action still always emits JSON internally for PR annotations.
+- `tests/test_v1_completion.py`: covers `--format md`, `--format agent`, `--agent-reason`, `--semantic` graph enabling, `--activation-hypotheses` JSON, `skillcheck.toml` loading, and source/confidence in JSON output.
+
 ## [1.0.0] - 2026-04-25
 
 ### Changed
-- Warning-only CLI reports now return exit code 2. Exit code 1 remains errors; exit code 3 remains semantic drift. The Exit Codes table in the README reflects this; row 0 reads "no errors and no warnings".
-- Development extras now include `ruff` and `mypy`.
 - Rewrote README end-to-end for v1.0 launch audience. New sections: "Why This Exists", "Modes" (five subsections: Symbolic, Heuristic Graph, Agent Critique, Agent Graph, History), "Maintainer Notes". Removed v0.2.0-era feature bullet list and duplicated section prose. Restructured Quick Start to lead with the agent-native workflow. Rebuilt Options table from live `argparse` audit; every flag matches its actual help text and default. Rebuilt Rules table from live rule module audit; added source-tag legend paragraph. Added inline v1.0 case study paragraph (full detail at `docs/case-study-v1-real-world-runs.md`). All cited diagnostics and output excerpts trace verbatim to field-test artifacts in `runs/`.
 - Added `docs/case-study-v1-real-world-runs.md`: full breakdown of the pre-3B field test covering 18 Anthropic skills (symbolic), `mcp-builder` through the full v1.0 pipeline (symbolic + heuristic graph + agent critique + agent graph), and 5 uxuiprinciples skills (strict VS Code mode). Documents three `semantic.contradiction.detected` errors on a skill that passed all symbolic checks, five `graph.capability.orphaned` patterns, and the recurring unknown-field pattern (`license`, `homepage`, `env`) across official catalogs.
 
 ### Added
 - Release prep artifacts: `RELEASE_NOTES_v1.0.0.md`, `LAUNCH_POST_v1.0.md`, `LAUNCH_CHECKLIST.md`.
-- Guide parity additions: `--semantic`, `--agent-reason`, `--format md`, `--format agent`, `skillcheck.toml` loading, experimental `--activation-hypotheses`, diagnostic `source` and `confidence` metadata, and v1 GitHub Action inputs for graph, critique, semantic, history, and activation modes.
 - `skills/skillcheck/SKILL.md`: skillcheck's own SKILL.md, validating the tool against itself. Passes symbolic, graph, critique, and history validation with zero errors and zero warnings. Serves as the worked example for the Rules table in the README.
 - Self-host integration test suite (`tests/test_self_host.py`): confirms the bundled SKILL.md passes symbolic validation, all five graph analyzers, critique ingestion, agent graph ingestion with divergence analysis, full CLI pipeline, history round-trip, and description scoring threshold.
 - `scripts/regen_self_host_fixtures.py`: regenerates `tests/fixtures/self_host/graph_clean.json` from the live heuristic graph after skill edits.
