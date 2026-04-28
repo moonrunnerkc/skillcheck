@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `scripts/summarize_batch.py` and `tests/test_batch15_summarize.py`: maintainer-facing tool that consumes a directory of skillcheck batch-run artifacts (one directory per repo, one subdirectory per skill, paired `*.json` / `*.txt` reports per phase) and writes `summary.csv` plus `findings.md`. Invoked as `python scripts/summarize_batch.py <batch_dir>`. Not exposed as a console script, not wired into the GitHub Action; the action runs skillcheck against one path, this consumes outputs across many. Documented under Maintainer Notes in the README.
+- `tests/test_readme_test_count_claim.py`: parses the README's "N tests cover ..." sentence and asserts it matches `pytest --collect-only`. The next time the suite grows without bumping the README number, CI fails. Closes the recurring drift pattern that v1.0.1 had to correct twice.
+
+### Changed
+- README test count bumped from 663 to 664 to include the new drift-guard test.
+
 ## [1.0.1] - 2026-04-28
 
 End-to-end verification against `anthropics/skills` surfaced documentation drift in the published v1.0.0 README and a batch of post-tag implementation work that had not been committed. v1.0.1 commits that work, ships the docs corrections, and adds guide-parity flags. Behavior change: warning-only runs now return exit code 2 (was 0).

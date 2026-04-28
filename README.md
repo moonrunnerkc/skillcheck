@@ -347,7 +347,7 @@ pip install -e ".[dev]"
 python3 -m pytest tests/ -q
 ```
 
-663 tests cover all rule modules, CLI exit codes, graph analyzers, divergence detection, critique parsing, history round-trips, and the full self-host pipeline against `skills/skillcheck/SKILL.md`. Fixtures are in `tests/fixtures/`; every rule has at least one positive and one negative test case.
+664 tests cover all rule modules, CLI exit codes, graph analyzers, divergence detection, critique parsing, history round-trips, and the full self-host pipeline against `skills/skillcheck/SKILL.md`. Fixtures are in `tests/fixtures/`; every rule has at least one positive and one negative test case. `tests/test_readme_test_count_claim.py` asserts this count matches `pytest --collect-only`, so any future suite change has to update the number in the same commit or CI fails.
 
 ## Maintainer Notes
 
@@ -358,6 +358,14 @@ make regen-self-host-fixtures
 ```
 
 This runs `scripts/regen_self_host_fixtures.py`, which extracts a fresh heuristic graph and writes it to `tests/fixtures/self_host/graph_clean.json`.
+
+To summarize a batch of skillcheck JSON outputs across many repos (the layout the field-test runs use, with one directory per repo, one subdirectory per skill, and `01-symbolic.json` / `02-strict-vscode.json` / `03-graph-analyze.json` / `04-graph-extracted.json` / `08-critique-report.json` / `09-graph-agent-report.json` / `10-full-pipeline.json` per skill), run:
+
+```bash
+python scripts/summarize_batch.py path/to/batch-dir
+```
+
+It writes `summary.csv` and `findings.md` next to the batch directory. The script is intended for benchmark and field-test workflows; it is not part of the CLI surface and is not exposed as a console script.
 
 To add a new rule: implement `def check_something(skill: ParsedSkill) -> list[Diagnostic]` in the appropriate module under `src/skillcheck/rules/`, register it in `src/skillcheck/rules/__init__.py`, add at least one positive and one negative fixture, and add a row to the Rules table above. Full conventions are in [`.github/CLAUDE.md`](.github/CLAUDE.md).
 
