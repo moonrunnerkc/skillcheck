@@ -14,3 +14,10 @@ runs/
 
 # Launch post drafts (kept locally, never push)
 launch-post/
+
+# Verification venvs (created by end-to-end verification runs)
+.venv-verify/
+
+# Agent scratchpads (kept locally; never push)
+.codex
+review.md
