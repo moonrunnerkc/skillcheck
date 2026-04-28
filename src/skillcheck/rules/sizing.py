@@ -17,7 +17,7 @@ def make_line_count_rule(max_lines: int) -> Callable[[ParsedSkill], list[Diagnos
                 rule="sizing.body.line-count",
                 severity=Severity.WARNING,
                 message=(
-                    f"File exceeds the recommended {max_lines}-line limit "
+                    f"File exceeds the recommended line limit of {max_lines} "
                     f"(got {total_lines} lines). Consider splitting into smaller skills."
                 ),
             )]
@@ -37,8 +37,9 @@ def make_token_estimate_rule(max_tokens: int) -> Callable[[ParsedSkill], list[Di
                 rule="sizing.body.token-estimate",
                 severity=Severity.WARNING,
                 message=(
-                    f"File exceeds the token budget of {max_tokens} "
-                    f"(estimated {token_count} tokens). Consider trimming content."
+                    f"File exceeds the recommended token budget of {max_tokens} "
+                    f"(estimated {token_count} tokens). Consider trimming content "
+                    f"or moving heavy material to referenced files."
                 ),
             )]
         return []
