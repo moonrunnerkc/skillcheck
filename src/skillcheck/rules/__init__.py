@@ -43,8 +43,10 @@ from skillcheck.rules.references import (
     check_reference_depth,
 )
 from skillcheck.rules.sizing import make_line_count_rule, make_token_estimate_rule
+from skillcheck.rules.template import check_template_detected
 
 _FRONTMATTER_RULES: list[Callable[[ParsedSkill], list[Diagnostic]]] = [
+    check_template_detected,
     check_name_required,
     check_name_type,
     check_name_max_length,

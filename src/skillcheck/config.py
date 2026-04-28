@@ -38,6 +38,7 @@ ECOSYSTEM_FIELDS: frozenset[str] = frozenset({
     "license",
     "repository",
     "homepage",
+    "template",
 })
 
 extension_fields: frozenset[str] = frozenset()

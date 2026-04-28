@@ -18,6 +18,7 @@ from collections.abc import Callable
 
 from skillcheck.parser import ParsedSkill
 from skillcheck.result import Diagnostic, Severity
+from skillcheck.template_detection import is_template
 
 # Action-verb base forms. 3rd-person singular ("generates", "identifies") is
 # matched via stem normalization in `_is_action_verb`, so we only store one
@@ -209,6 +210,9 @@ def score_description(desc: str) -> tuple[int, list[str]]:
 
 def check_description_quality(skill: ParsedSkill) -> list[Diagnostic]:
     """Score description quality and return an INFO diagnostic with the result."""
+    # Skip on templates: placeholder files are not meant to deploy.
+    if is_template(skill):
+        return []
     desc = skill.frontmatter.get("description")
     if not desc or not isinstance(desc, str) or not desc.strip():
         return []  # Missing/empty descriptions are handled by frontmatter rules.
@@ -232,6 +236,9 @@ def make_min_score_rule(
     """Return a rule that errors/warns when description score falls below threshold."""
 
     def check_description_min_score(skill: ParsedSkill) -> list[Diagnostic]:
+        # Skip on templates: placeholder files are not meant to deploy.
+        if is_template(skill):
+            return []
         desc = skill.frontmatter.get("description")
         if not desc or not isinstance(desc, str) or not desc.strip():
             return []

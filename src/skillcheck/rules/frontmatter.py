@@ -5,6 +5,7 @@ import re
 from skillcheck import config
 from skillcheck.parser import ParsedSkill
 from skillcheck.result import Diagnostic, Severity
+from skillcheck.template_detection import is_template
 
 _XML_TAG_RE = re.compile(r"<[a-zA-Z/][^>]*>")
 _NAME_VALID_CHARS_RE = re.compile(r"^[a-z0-9-]+$")
@@ -196,6 +197,9 @@ def check_name_consecutive_hyphens(skill: ParsedSkill) -> list[Diagnostic]:
 
 
 def check_name_directory_match(skill: ParsedSkill) -> list[Diagnostic]:
+    # Skip on templates: placeholder files are not meant to deploy.
+    if is_template(skill):
+        return []
     name = skill.frontmatter.get("name")
     if name is None:
         return []
