@@ -226,10 +226,16 @@ def check_name_reserved_words(skill: ParsedSkill) -> list[Diagnostic]:
         if word in name:
             return [Diagnostic(
                 rule="frontmatter.name.reserved-word",
-                severity=Severity.ERROR,
-                message=f"Name contains reserved word '{word}': '{name}'.",
+                severity=Severity.WARNING,
+                message=(
+                    f"Name contains the term '{word}' which may collide with "
+                    f"platform-reserved namespaces. Verify with the target "
+                    f"agent's documentation."
+                ),
                 line=_field_line(skill.raw_text, "name"),
                 context=f"name: {name}",
+                source="advisory",
+                confidence="low",
             )]
     return []
 
