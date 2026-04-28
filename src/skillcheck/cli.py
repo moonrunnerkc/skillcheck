@@ -373,6 +373,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Promote VS Code compatibility issues to errors.",
     )
     parser.add_argument(
+        "--warnings-as-errors",
+        action="store_true",
+        default=False,
+        help="Escalate warning-only runs to exit code 1. Default exit for warning-only is 0.",
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version=f"%(prog)s {__version__}",
@@ -690,17 +696,262 @@ def _apply_config(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
         args.graph_agent = config.graph_agent
 
 
-def main() -> None:
-    # Ensure UTF-8 output on Windows where the default encoding may be cp1252.
+# ---------------------------------------------------------------------------
+# main() helpers
+# ---------------------------------------------------------------------------
+
+
+def _exit_conflict(message: str) -> None:
+    """Print a flag-conflict / input-error message to stderr and exit 2."""
+    print(message, file=sys.stderr)
+    sys.exit(2)
+
+
+def _check_flag_conflicts(args: argparse.Namespace) -> None:
+    """Reject mutually exclusive flag combinations. Calls sys.exit(2) on conflict."""
+    if args.emit_critique_prompt and args.ingest_critique is not None:
+        _exit_conflict(
+            "Cannot use --emit-critique-prompt and --ingest-critique together. "
+            "Pick one: emit a prompt for your agent to execute, or ingest the agent's response."
+        )
+
+    if args.emit_graph and args.analyze_graph:
+        _exit_conflict(
+            "Cannot use --emit-graph with --analyze-graph. "
+            "--emit-graph is an emit mode (replaces the report). "
+            "--analyze-graph is an augment mode (adds to the report)."
+        )
+
+    if args.emit_graph and args.emit_critique_prompt:
+        _exit_conflict(
+            "Cannot use --emit-graph with --emit-critique-prompt. "
+            "Both are emit modes; pick one."
+        )
+
+    if args.emit_graph and args.ingest_critique is not None:
+        _exit_conflict(
+            "Cannot use --emit-graph with --ingest-critique. "
+            "--emit-graph replaces the report; --ingest-critique augments it."
+        )
+
+    if args.emit_graph_prompt and args.emit_graph:
+        _exit_conflict(
+            "Cannot use --emit-graph-prompt with --emit-graph. "
+            "Both are emit modes; pick one."
+        )
+
+    if args.emit_graph_prompt and args.emit_critique_prompt:
+        _exit_conflict(
+            "Cannot use --emit-graph-prompt with --emit-critique-prompt. "
+            "Both are emit modes; pick one."
+        )
+
+    if args.emit_graph_prompt and args.ingest_critique is not None:
+        _exit_conflict(
+            "Cannot use --emit-graph-prompt with --ingest-critique. "
+            "--emit-graph-prompt is an emit mode; --ingest-critique is an augment mode."
+        )
+
+    if args.emit_graph_prompt and args.analyze_graph:
+        _exit_conflict(
+            "Cannot use --emit-graph-prompt with --analyze-graph. "
+            "--emit-graph-prompt is an emit mode; --analyze-graph is an augment mode."
+        )
+
+    if args.emit_graph_prompt and args.ingest_graph is not None:
+        _exit_conflict(
+            "Cannot use --emit-graph-prompt with --ingest-graph. "
+            "--emit-graph-prompt emits a prompt; --ingest-graph ingests the agent's response. "
+            "Use them in separate invocations."
+        )
+
+    if args.ingest_graph is not None and args.emit_graph:
+        _exit_conflict(
+            "Cannot use --ingest-graph with --emit-graph. "
+            "--emit-graph replaces the report; --ingest-graph augments it."
+        )
+
+    if args.ingest_graph is not None and args.emit_critique_prompt:
+        _exit_conflict(
+            "Cannot use --ingest-graph with --emit-critique-prompt. "
+            "--emit-critique-prompt is an emit mode; --ingest-graph is an augment mode."
+        )
+
+    if args.ingest_graph is not None and args.analyze_graph:
+        _exit_conflict(
+            "Cannot use --ingest-graph with --analyze-graph. "
+            "--ingest-graph supersedes heuristic-only graph analysis."
+        )
+
+    if args.agent_reason and (
+        args.emit_critique_prompt
+        or args.emit_graph
+        or args.emit_graph_prompt
+        or args.activation_hypotheses
+    ):
+        _exit_conflict(
+            "Cannot use --agent-reason with another emit mode. "
+            "Use --agent-reason alone to emit the combined agent prompt packet."
+        )
+
+    # Emit modes incompatible with --history (emit modes skip validation entirely).
+    emit_flags = {
+        "--emit-critique-prompt": args.emit_critique_prompt,
+        "--emit-graph": args.emit_graph,
+        "--emit-graph-prompt": args.emit_graph_prompt,
+        "--agent-reason": args.agent_reason and args.ingest_critique is None and args.ingest_graph is None,
+        "--activation-hypotheses": args.activation_hypotheses,
+    }
+    for emit_flag, emit_active in emit_flags.items():
+        if emit_active and args.history:
+            _exit_conflict(
+                f"Cannot use --history with {emit_flag}. "
+                f"--history records validation runs; emit modes skip validation."
+            )
+        if emit_active and args.show_history:
+            _exit_conflict(
+                f"Cannot use --show-history with {emit_flag}. "
+                f"--show-history reads the ledger; {emit_flag} emits a prompt."
+            )
+
+    if args.show_history and args.history:
+        _exit_conflict(
+            "Cannot use --show-history with --history. "
+            "--show-history reads the ledger; --history writes to it. Pick one."
+        )
+
+
+def _handle_show_history(paths: list[Path], args: argparse.Namespace) -> None:
+    """Print the ledger for `paths[0]` and exit. Each skill has its own ledger,
+    so directory mode is unsupported; run per-skill instead."""
+    target_path = paths[0]
+    lp = ledger_path_for(target_path)
+    if not lp.exists():
+        _exit_conflict(
+            f"No history ledger found for {target_path}. "
+            f"Run 'skillcheck {target_path} --history' to start tracking."
+        )
+    try:
+        ledger = load_ledger(lp)
+    except LedgerError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+    if ledger is None:
+        print(f"No history ledger found for {target_path}.", file=sys.stderr)
+        sys.exit(2)
+    if not args.quiet:
+        if args.format == "json":
+            print(render_ledger_json(ledger))
+        else:
+            print(render_ledger_text(ledger))
+    sys.exit(0)
+
+
+def _compute_exit_code(
+    results: list[ValidationResult],
+    symbolic_errors_before_ingest: bool,
+    any_ingest_failed: bool,
+    warnings_as_errors: bool,
+) -> int:
+    """Map the validation outcome to a CLI exit code.
+
+    Codes: 1 for symbolic/ingest errors, 3 for semantic-only drift, 1 for any
+    remaining errors (graph contradictions etc.), 0 for clean or warning-only,
+    1 for warning-only when `warnings_as_errors` is set. Code 2 is reserved
+    for tool-misuse (missing path, conflicting flags) and is never returned here.
+    """
+    if symbolic_errors_before_ingest or any_ingest_failed:
+        return 1
+    if any(
+        d.severity == Severity.ERROR
+        for r in results
+        for d in r.diagnostics
+        if d.rule.startswith("semantic.")
+    ):
+        return 3
+    if any(not r.valid for r in results):
+        return 1
+    if any(d.severity == Severity.WARNING for r in results for d in r.diagnostics):
+        return 1 if warnings_as_errors else 0
+    return 0
+
+
+def _record_history(
+    paths: list[Path],
+    args: argparse.Namespace,
+    results: list[ValidationResult],
+    agent_id: str,
+    graph_agent_id: str,
+    final_exit_code: int,
+) -> None:
+    """Append the current run to the per-skill ledger and merge any
+    regression / I/O diagnostics into `results[0]`."""
+    skill_for_history = _parse_skill(paths[0])
+    modes = ValidationModes(
+        symbolic=True,
+        critique=args.ingest_critique is not None,
+        graph=args.ingest_graph is not None or args.analyze_graph,
+    )
+    run_agents = RunAgents(
+        critique_agent=agent_id if args.ingest_critique is not None else None,
+        graph_agent=graph_agent_id if args.ingest_graph is not None else None,
+    )
+    preliminary_entry = build_entry(
+        skill_for_history,
+        results[0],
+        modes,
+        run_agents,
+        final_exit_code,
+        __version__,
+    )
+    lp = ledger_path_for(paths[0])
+    try:
+        prior_ledger = load_ledger(lp)
+        prior_runs = prior_ledger.runs if prior_ledger is not None else ()
+        regression_diags = check_regression(prior_runs, preliminary_entry)
+    except LedgerError as exc:
+        regression_diags = [
+            Diagnostic(
+                rule="history.read.failed",
+                severity=Severity.WARNING,
+                message=f"Could not read history ledger: {exc}",
+            )
+        ]
+    if regression_diags:
+        results[0] = merge_diagnostics(results[0], regression_diags)
+
+    final_entry = build_entry(
+        skill_for_history,
+        results[0],
+        modes,
+        run_agents,
+        final_exit_code,
+        __version__,
+    )
+    try:
+        append_run(lp, skill_for_history, final_entry)
+    except LedgerError as exc:
+        results[0] = merge_diagnostics(results[0], [
+            Diagnostic(
+                rule="history.write.failed",
+                severity=Severity.WARNING,
+                message=f"Could not write history ledger to {lp}: {exc}",
+            )
+        ])
+
+
+def _setup_io_encoding() -> None:
+    """Force UTF-8 on stdout/stderr where the default is something narrower
+    (Windows cp1252, etc.). Required for emoji symbols and non-ASCII rule output."""
     if sys.stdout.encoding and sys.stdout.encoding.lower().replace("-", "") != "utf8":
         sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
     if sys.stderr.encoding and sys.stderr.encoding.lower().replace("-", "") != "utf8":
         sys.stderr.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
 
-    parser = _build_parser()
-    args = parser.parse_args()
-    _apply_config(args, parser)
 
+def _validate_arg_choices(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    """Reject invalid enum values that argparse `choices=` cannot enforce
+    once `--config` overrides have been applied."""
     if args.format not in {"text", "json", "md", "agent"}:
         parser.error("format must be one of: text, json, md, agent")
     if args.target_agent not in {"claude", "vscode", "all"}:
@@ -710,219 +961,42 @@ def main() -> None:
     if args.graph_agent is not None and args.graph_agent not in {"claude", "codex", "cursor"}:
         parser.error("graph-agent must be one of: claude, codex, cursor")
 
-    if args.semantic and args.ingest_graph is None:
-        args.analyze_graph = True
 
-    # -----------------------------------------------------------------------
-    # Mutual exclusion checks
-    # -----------------------------------------------------------------------
-
-    if args.emit_critique_prompt and args.ingest_critique is not None:
-        print(
-            "Cannot use --emit-critique-prompt and --ingest-critique together. "
-            "Pick one: emit a prompt for your agent to execute, or ingest the agent's response.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    if args.emit_graph and args.analyze_graph:
-        print(
-            "Cannot use --emit-graph with --analyze-graph. "
-            "--emit-graph is an emit mode (replaces the report). "
-            "--analyze-graph is an augment mode (adds to the report).",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    if args.emit_graph and args.emit_critique_prompt:
-        print(
-            "Cannot use --emit-graph with --emit-critique-prompt. "
-            "Both are emit modes; pick one.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    if args.emit_graph and args.ingest_critique is not None:
-        print(
-            "Cannot use --emit-graph with --ingest-critique. "
-            "--emit-graph replaces the report; --ingest-critique augments it.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    if args.emit_graph_prompt and args.emit_graph:
-        print(
-            "Cannot use --emit-graph-prompt with --emit-graph. "
-            "Both are emit modes; pick one.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    if args.emit_graph_prompt and args.emit_critique_prompt:
-        print(
-            "Cannot use --emit-graph-prompt with --emit-critique-prompt. "
-            "Both are emit modes; pick one.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    if args.emit_graph_prompt and args.ingest_critique is not None:
-        print(
-            "Cannot use --emit-graph-prompt with --ingest-critique. "
-            "--emit-graph-prompt is an emit mode; --ingest-critique is an augment mode.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    if args.emit_graph_prompt and args.analyze_graph:
-        print(
-            "Cannot use --emit-graph-prompt with --analyze-graph. "
-            "--emit-graph-prompt is an emit mode; --analyze-graph is an augment mode.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    if args.emit_graph_prompt and args.ingest_graph is not None:
-        print(
-            "Cannot use --emit-graph-prompt with --ingest-graph. "
-            "--emit-graph-prompt emits a prompt; --ingest-graph ingests the agent's response. "
-            "Use them in separate invocations.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    if args.ingest_graph is not None and args.emit_graph:
-        print(
-            "Cannot use --ingest-graph with --emit-graph. "
-            "--emit-graph replaces the report; --ingest-graph augments it.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    if args.ingest_graph is not None and args.emit_critique_prompt:
-        print(
-            "Cannot use --ingest-graph with --emit-critique-prompt. "
-            "--emit-critique-prompt is an emit mode; --ingest-graph is an augment mode.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    if args.ingest_graph is not None and args.analyze_graph:
-        print(
-            "Cannot use --ingest-graph with --analyze-graph. "
-            "--ingest-graph supersedes heuristic-only graph analysis.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    if args.agent_reason and (
-        args.emit_critique_prompt
-        or args.emit_graph
-        or args.emit_graph_prompt
-        or args.activation_hypotheses
-    ):
-        print(
-            "Cannot use --agent-reason with another emit mode. "
-            "Use --agent-reason alone to emit the combined agent prompt packet.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    # Emit modes incompatible with --history (emit modes skip validation entirely).
-    _EMIT_FLAGS = {
-        "--emit-critique-prompt": args.emit_critique_prompt,
-        "--emit-graph": args.emit_graph,
-        "--emit-graph-prompt": args.emit_graph_prompt,
-        "--agent-reason": args.agent_reason and args.ingest_critique is None and args.ingest_graph is None,
-        "--activation-hypotheses": args.activation_hypotheses,
-    }
-    for emit_flag, emit_active in _EMIT_FLAGS.items():
-        if emit_active and args.history:
-            print(
-                f"Cannot use --history with {emit_flag}. "
-                f"--history records validation runs; emit modes skip validation.",
-                file=sys.stderr,
-            )
-            sys.exit(2)
-        if emit_active and args.show_history:
-            print(
-                f"Cannot use --show-history with {emit_flag}. "
-                f"--show-history reads the ledger; {emit_flag} emits a prompt.",
-                file=sys.stderr,
-            )
-            sys.exit(2)
-
-    if args.show_history and args.history:
-        print(
-            "Cannot use --show-history with --history. "
-            "--show-history reads the ledger; --history writes to it. Pick one.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    agent_id = args.critique_agent or "claude"
-    graph_agent_id = args.graph_agent or "claude"
-
-    if args.critique_agent is not None and not args.emit_critique_prompt and not args.agent_reason and args.ingest_critique is None:
-        parser.error("--critique-agent requires --emit-critique-prompt or --ingest-critique")
-
-    if args.graph_agent is not None and not args.emit_graph_prompt and not args.agent_reason and args.ingest_graph is None:
-        parser.error("--graph-agent requires --emit-graph-prompt or --ingest-graph")
-
-    paths = _resolve_paths(args)
-
-    # --show-history: read the ledger for the first path, print it, and exit.
-    # Directory mode is not supported for show-history because each skill has
-    # its own ledger; run per-skill instead.
-    if args.show_history:
-        target_path = paths[0]
-        lp = ledger_path_for(target_path)
-        if not lp.exists():
-            print(
-                f"No history ledger found for {target_path}. "
-                f"Run 'skillcheck {target_path} --history' to start tracking.",
-                file=sys.stderr,
-            )
-            sys.exit(2)
-        try:
-            ledger = load_ledger(lp)
-        except LedgerError as exc:
-            print(f"Error: {exc}", file=sys.stderr)
-            sys.exit(1)
-        if ledger is None:
-            print(f"No history ledger found for {target_path}.", file=sys.stderr)
-            sys.exit(2)
-        if not args.quiet:
-            if args.format == "json":
-                print(render_ledger_json(ledger))
-            else:
-                print(render_ledger_text(ledger))
-        sys.exit(0)
-
-    # --emit-graph: emit the heuristic graph and skip symbolic validation entirely
+def _dispatch_emit_mode(
+    paths: list[Path],
+    args: argparse.Namespace,
+    agent_id: str,
+    graph_agent_id: str,
+) -> None:
+    """If any emit mode is active, run it and exit. No-op otherwise."""
     if args.emit_graph:
         _do_emit_graph(paths, fmt=args.format)
         sys.exit(0)
-
-    # --emit-critique-prompt: skip symbolic validation entirely
     if args.emit_critique_prompt:
         _do_emit_critique_prompts(paths, fmt=args.format, agent_id=agent_id)
         sys.exit(0)
-
-    # --emit-graph-prompt: render and print the graph-extraction prompt, then exit
     if args.emit_graph_prompt:
         _do_emit_graph_prompts(paths, fmt=args.format, agent_id=graph_agent_id)
         sys.exit(0)
-
     if args.agent_reason and args.ingest_critique is None and args.ingest_graph is None:
         _do_emit_agent_reason_packet(paths, args.format, agent_id, graph_agent_id)
         sys.exit(0)
-
     if args.activation_hypotheses:
         _do_emit_activation(paths, args.format)
         sys.exit(0)
 
-    # Run symbolic validation (always, including when ingesting)
+
+def _run_validation(
+    paths: list[Path],
+    args: argparse.Namespace,
+    agent_id: str,
+    graph_agent_id: str,
+) -> tuple[list[ValidationResult], bool, bool, str | None, str | None, dict | None]:
+    """Run symbolic validation and merge in any requested ingest/analyze passes.
+
+    Returns ``(results, symbolic_errors_before_ingest, any_ingest_failed,
+    critique_source, graph_source_text, graph_source_json)``.
+    """
     results = [
         validate(
             p,
@@ -938,8 +1012,8 @@ def main() -> None:
         for p in paths
     ]
 
-    # Track symbolic-only validity BEFORE any ingest merges. Ingest parse
-    # failures and symbolic errors both exit 1; semantic-only drift exits 3.
+    # Capture symbolic-only validity before any ingest merges so we can keep
+    # symbolic failures (exit 1) distinct from semantic-only drift (exit 3).
     symbolic_errors_before_ingest = any(not r.valid for r in results)
 
     critique_source: str | None = None
@@ -949,7 +1023,6 @@ def main() -> None:
 
     if args.ingest_critique is not None:
         raw = _read_ingest_raw(args.ingest_critique)
-
         try:
             first_skill = _parse_skill(paths[0])
             critique_diags = ingest_critique_response(first_skill, raw)
@@ -962,13 +1035,11 @@ def main() -> None:
                 )
             ]
             any_ingest_failed = True
-
         results = [merge_critique_diagnostics(r, critique_diags) for r in results]
         critique_source = agent_id
 
     if args.ingest_graph is not None:
         raw_graph = _read_ingest_raw(args.ingest_graph)
-
         try:
             first_skill = _parse_skill(paths[0])
             agent_graph = extract_graph_agent(first_skill, raw_graph)
@@ -987,10 +1058,8 @@ def main() -> None:
                 )
             ]
             any_ingest_failed = True
-
         for i, result in enumerate(results):
             results[i] = merge_diagnostics(result, all_graph_diags)
-
     elif args.analyze_graph:
         for i, (path, result) in enumerate(zip(paths, results)):
             skill = _parse_skill(path)
@@ -1000,119 +1069,104 @@ def main() -> None:
         graph_source_text = "heuristic"
         graph_source_json = {"mode": "heuristic"}
 
-    # Determine exit code based on current results (before history processing).
-    # Exit 1: symbolic rules failed before any ingest, or an ingest parse failed.
-    if symbolic_errors_before_ingest or any_ingest_failed:
-        final_exit_code = 1
-    elif any(
-        d.severity == Severity.ERROR
-        for r in results
-        for d in r.diagnostics
-        if d.rule.startswith("semantic.")
-    ):
-        # Exit 3: symbolic passed, all parses succeeded, but a critique ingest added a
-        # semantic-namespace contradiction (semantic.*).
-        final_exit_code = 3
-    elif any(not r.valid for r in results):
-        # Exit 1: any remaining errors (e.g. graph.contradiction from agent ingest).
-        final_exit_code = 1
-    elif any(
-        d.severity == Severity.WARNING
-        for r in results
-        for d in r.diagnostics
-    ):
-        final_exit_code = 2
+    return (
+        results,
+        symbolic_errors_before_ingest,
+        any_ingest_failed,
+        critique_source,
+        graph_source_text,
+        graph_source_json,
+    )
+
+
+def _print_report(
+    results: list[ValidationResult],
+    args: argparse.Namespace,
+    critique_source: str | None,
+    graph_source_text: str | None,
+    graph_source_json: dict | None,
+) -> None:
+    """Render `results` to stdout in the requested format unless `--quiet`."""
+    if args.quiet:
+        return
+    if args.format == "json":
+        print(_format_json(
+            results,
+            __version__,
+            critique_source=critique_source,
+            graph_source=graph_source_json,
+        ))
+    elif args.format == "md":
+        print(_format_markdown(
+            results,
+            critique_source=critique_source,
+            graph_source=graph_source_text,
+        ))
+    elif args.format == "agent":
+        print(_format_agent(
+            results,
+            critique_source=critique_source,
+            graph_source=graph_source_text,
+        ))
     else:
-        final_exit_code = 0
+        use_color = not args.no_color and sys.stdout.isatty()
+        print(_format_text(
+            results,
+            color=use_color,
+            critique_source=critique_source,
+            graph_source=graph_source_text,
+        ))
 
-    # --history: run regression check against prior runs, then append the ledger entry.
-    # This must happen BEFORE the final print so regression diagnostics appear in output.
+
+def main() -> None:
+    _setup_io_encoding()
+
+    parser = _build_parser()
+    args = parser.parse_args()
+    _apply_config(args, parser)
+    _validate_arg_choices(args, parser)
+
+    if args.semantic and args.ingest_graph is None:
+        args.analyze_graph = True
+
+    _check_flag_conflicts(args)
+
+    agent_id = args.critique_agent or "claude"
+    graph_agent_id = args.graph_agent or "claude"
+
+    if args.critique_agent is not None and not args.emit_critique_prompt and not args.agent_reason and args.ingest_critique is None:
+        parser.error("--critique-agent requires --emit-critique-prompt or --ingest-critique")
+    if args.graph_agent is not None and not args.emit_graph_prompt and not args.agent_reason and args.ingest_graph is None:
+        parser.error("--graph-agent requires --emit-graph-prompt or --ingest-graph")
+
+    paths = _resolve_paths(args)
+
+    if args.show_history:
+        _handle_show_history(paths, args)
+
+    _dispatch_emit_mode(paths, args, agent_id, graph_agent_id)
+
+    (
+        results,
+        symbolic_errors_before_ingest,
+        any_ingest_failed,
+        critique_source,
+        graph_source_text,
+        graph_source_json,
+    ) = _run_validation(paths, args, agent_id, graph_agent_id)
+
+    final_exit_code = _compute_exit_code(
+        results,
+        symbolic_errors_before_ingest,
+        any_ingest_failed,
+        warnings_as_errors=args.warnings_as_errors,
+    )
+
+    # Record history before printing so any regression / I/O diagnostics
+    # produced by `_record_history` appear in the rendered report.
     if args.history and len(paths) == 1:
-        skill_for_history = _parse_skill(paths[0])
-        modes = ValidationModes(
-            symbolic=True,
-            critique=args.ingest_critique is not None,
-            graph=args.ingest_graph is not None or args.analyze_graph,
-        )
-        run_agents = RunAgents(
-            critique_agent=agent_id if args.ingest_critique is not None else None,
-            graph_agent=graph_agent_id if args.ingest_graph is not None else None,
-        )
-        # Preliminary entry: used only to evaluate regression against prior runs.
-        preliminary_entry = build_entry(
-            skill_for_history,
-            results[0],
-            modes,
-            run_agents,
-            final_exit_code,
-            __version__,
-        )
-        lp = ledger_path_for(paths[0])
-        try:
-            prior_ledger = load_ledger(lp)
-            prior_runs = prior_ledger.runs if prior_ledger is not None else ()
-            regression_diags = check_regression(prior_runs, preliminary_entry)
-        except LedgerError as exc:
-            regression_diags = [
-                Diagnostic(
-                    rule="history.read.failed",
-                    severity=Severity.WARNING,
-                    message=f"Could not read history ledger: {exc}",
-                )
-            ]
-        if regression_diags:
-            results[0] = merge_diagnostics(results[0], regression_diags)
-            # Regression is WARNING; does not raise or change the exit code.
+        _record_history(paths, args, results, agent_id, graph_agent_id, final_exit_code)
 
-        # Build final entry with all diagnostics included (regression if any).
-        final_entry = build_entry(
-            skill_for_history,
-            results[0],
-            modes,
-            run_agents,
-            final_exit_code,
-            __version__,
-        )
-        try:
-            append_run(lp, skill_for_history, final_entry)
-        except LedgerError as exc:
-            results[0] = merge_diagnostics(results[0], [
-                Diagnostic(
-                    rule="history.write.failed",
-                    severity=Severity.WARNING,
-                    message=f"Could not write history ledger to {lp}: {exc}",
-                )
-            ])
-            # Write failure is a warning; validation exit code stands.
-
-    # Print report (after history processing so regression/write-fail diagnostics appear).
-    if not args.quiet:
-        if args.format == "json":
-            print(_format_json(
-                results,
-                __version__,
-                critique_source=critique_source,
-                graph_source=graph_source_json,
-            ))
-        elif args.format == "md":
-            print(_format_markdown(
-                results,
-                critique_source=critique_source,
-                graph_source=graph_source_text,
-            ))
-        elif args.format == "agent":
-            print(_format_agent(
-                results,
-                critique_source=critique_source,
-                graph_source=graph_source_text,
-            ))
-        else:
-            use_color = not args.no_color and sys.stdout.isatty()
-            print(_format_text(
-                results,
-                color=use_color,
-                critique_source=critique_source,
-                graph_source=graph_source_text,
-            ))
+    _print_report(results, args, critique_source, graph_source_text, graph_source_json)
 
     sys.exit(final_exit_code)

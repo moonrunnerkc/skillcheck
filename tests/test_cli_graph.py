@@ -134,9 +134,8 @@ def test_analyze_graph_exits_zero_for_clean_file() -> None:
 
 
 def test_analyze_graph_exits_zero_when_only_warnings() -> None:
-    # Warning-only reports use exit code 2 in the v1 guide.
     result = _run(str(GRAPH_FIXTURES / "skill_orphan_capability.md"), "--analyze-graph")
-    assert result.returncode == 2
+    assert result.returncode == 0
 
 
 def test_analyze_graph_includes_graph_rule_in_output() -> None:

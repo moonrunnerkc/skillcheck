@@ -245,6 +245,7 @@ The JSON schema is stable. It will not change in a backward-incompatible way wit
 | `--min-desc-score N` | | Minimum description quality score (0-100); below this triggers a warning |
 | `--target-agent {claude,vscode,all}` | `all` | Scope compatibility checks to a specific agent |
 | `--strict-vscode` | `false` | Promote VS Code compatibility issues to errors |
+| `--warnings-as-errors` | `false` | Escalate warning-only runs to exit code 1 (default for warning-only is 0) |
 | `--semantic` | `false` | Enable semantic-adjacent validation; standalone mode runs heuristic graph analysis |
 | `--agent-reason` | `false` | Emit a combined critique + graph prompt packet for the calling agent |
 | `--emit-critique-prompt` | `false` | Print agent self-critique prompt to stdout and exit 0 |
@@ -264,12 +265,12 @@ The JSON schema is stable. It will not change in a backward-incompatible way wit
 
 | Code | Meaning | Example invocation |
 |---|---|---|
-| `0` | No errors and no warnings | `skillcheck skills/skillcheck/SKILL.md` |
-| `1` | One or more errors found | `skillcheck SKILL.md` when the name is invalid |
-| `2` | Warning-only report or input error | `skillcheck SKILL.md --max-lines 1` |
+| `0` | No errors (warning-only counts as a clean pass by default) | `skillcheck skills/skillcheck/SKILL.md` |
+| `1` | One or more errors found, or warnings with `--warnings-as-errors` | `skillcheck SKILL.md` when the name is invalid |
+| `2` | Input error: missing path, empty directory, conflicting flags, malformed argument | `skillcheck nonexistent.md` |
 | `3` | Symbolic passed but ingested critique found semantic errors | `skillcheck SKILL.md --ingest-critique response.json` when the agent reported contradictions |
 
-Exit code 1 takes priority over 3 when symbolic errors also exist.
+Pass `--warnings-as-errors` to escalate warning-only runs to exit 1 for stricter CI gates. Exit code 1 takes priority over 3 when symbolic errors also exist; code 2 is reserved for tool-misuse cases so CI can distinguish them from skill-content findings.
 
 ## Rules
 
@@ -347,7 +348,7 @@ pip install -e ".[dev]"
 python3 -m pytest tests/ -q
 ```
 
-666 tests cover all rule modules, CLI exit codes, graph analyzers, divergence detection, critique parsing, history round-trips, and the full self-host pipeline against `skills/skillcheck/SKILL.md`. Fixtures are in `tests/fixtures/`; every rule has at least one positive and one negative test case. `tests/test_readme_test_count_claim.py` asserts this count matches `pytest --collect-only`, so any future suite change has to update the number in the same commit or CI fails.
+667 tests cover all rule modules, CLI exit codes, graph analyzers, divergence detection, critique parsing, history round-trips, and the full self-host pipeline against `skills/skillcheck/SKILL.md`. Fixtures are in `tests/fixtures/`; every rule has at least one positive and one negative test case. `tests/test_readme_test_count_claim.py` asserts this count matches `pytest --collect-only`, so any future suite change has to update the number in the same commit or CI fails.
 
 ## Maintainer Notes
 

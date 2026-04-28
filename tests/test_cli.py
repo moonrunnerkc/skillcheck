@@ -153,13 +153,23 @@ def test_max_lines_override_triggers_warning():
     # valid_basic.md is short; override threshold to 1 so it always warns.
     result = run_fixture(str(FIXTURES_DIR / "valid_basic.md"), "--max-lines", "1")
     assert "sizing.body.line-count" in result.stdout
-    assert result.returncode == 2
+    assert result.returncode == 0
+
+
+def test_max_lines_override_with_warnings_as_errors_exits_one():
+    result = run_fixture(
+        str(FIXTURES_DIR / "valid_basic.md"),
+        "--max-lines", "1",
+        "--warnings-as-errors",
+    )
+    assert "sizing.body.line-count" in result.stdout
+    assert result.returncode == 1
 
 
 def test_max_tokens_override_triggers_warning():
     result = run_fixture(str(FIXTURES_DIR / "valid_basic.md"), "--max-tokens", "1")
     assert "sizing.body.token-estimate" in result.stdout
-    assert result.returncode == 2
+    assert result.returncode == 0
 
 
 # ---------------------------------------------------------------------------
