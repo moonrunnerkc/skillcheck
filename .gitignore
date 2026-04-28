@@ -14,6 +14,8 @@ runs/
 
 # Launch post drafts (kept locally, never push)
 launch-post/
+LAUNCH_CHECKLIST.md
+LAUNCH_POST_*.md
 
 # Verification venvs (created by end-to-end verification runs)
 .venv-verify/
