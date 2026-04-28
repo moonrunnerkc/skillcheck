@@ -30,6 +30,14 @@ def _build_command() -> list[str]:
         cmd.append("--skip-dirname-check")
     if os.environ.get("INPUT_SKIP_REF_CHECK", "false") == "true":
         cmd.append("--skip-ref-check")
+    if os.environ.get("INPUT_SEMANTIC", "false") == "true":
+        cmd.append("--semantic")
+    if os.environ.get("INPUT_ANALYZE_GRAPH", "false") == "true":
+        cmd.append("--analyze-graph")
+    if os.environ.get("INPUT_HISTORY", "false") == "true":
+        cmd.append("--history")
+    if os.environ.get("INPUT_ACTIVATION_HYPOTHESES", "false") == "true":
+        cmd.append("--activation-hypotheses")
 
     min_score = os.environ.get("INPUT_MIN_DESC_SCORE", "")
     if min_score:
@@ -53,6 +61,22 @@ def _build_command() -> list[str]:
     max_tokens = os.environ.get("INPUT_MAX_TOKENS", "")
     if max_tokens:
         cmd.extend(["--max-tokens", max_tokens])
+
+    ingest_critique = os.environ.get("INPUT_INGEST_CRITIQUE", "")
+    if ingest_critique:
+        cmd.extend(["--ingest-critique", ingest_critique])
+
+    critique_agent = os.environ.get("INPUT_CRITIQUE_AGENT", "")
+    if critique_agent:
+        cmd.extend(["--critique-agent", critique_agent])
+
+    ingest_graph = os.environ.get("INPUT_INGEST_GRAPH", "")
+    if ingest_graph:
+        cmd.extend(["--ingest-graph", ingest_graph])
+
+    graph_agent = os.environ.get("INPUT_GRAPH_AGENT", "")
+    if graph_agent:
+        cmd.extend(["--graph-agent", graph_agent])
 
     return cmd
 
@@ -202,21 +226,24 @@ def main() -> None:
     cmd = _build_command()
     result = subprocess.run(cmd, capture_output=True, text=True)
 
-    # Input errors (exit 2) - no JSON to parse
-    if result.returncode == 2:
-        msg = result.stderr.strip() or "unknown input error"
-        print(f"::error::skillcheck: {msg}")
-        sys.exit(2)
-
     try:
         data = json.loads(result.stdout)
     except (json.JSONDecodeError, ValueError):
+        if result.returncode == 2:
+            msg = result.stderr.strip() or "unknown input error"
+            print(f"::error::skillcheck: {msg}")
+            sys.exit(2)
         print("::error::skillcheck produced unexpected output")
         if result.stdout:
             print(result.stdout)
         if result.stderr:
             print(result.stderr, file=sys.stderr)
         sys.exit(2)
+
+    if "results" not in data:
+        print(json.dumps(data, indent=2))
+        _set_outputs(data, result.returncode)
+        sys.exit(result.returncode)
 
     _emit_annotations(data)
     _print_log(data)

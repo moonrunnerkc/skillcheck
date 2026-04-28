@@ -49,6 +49,12 @@ skillcheck path/to/SKILL.md --analyze-graph
 skillcheck path/to/SKILL.md --emit-critique-prompt > prompt.txt
 # Run prompt.txt through your agent. Agent returns JSON. Then:
 skillcheck path/to/SKILL.md --ingest-critique response.json
+
+# Agent shortcut: emit critique and graph prompts in one packet
+skillcheck path/to/SKILL.md --agent-reason --format agent
+
+# Experimental activation estimates
+skillcheck path/to/SKILL.md --activation-hypotheses --format json
 ```
 
 ## Modes
@@ -63,7 +69,7 @@ skillcheck skills/            # recursive scan; finds every file named SKILL.md
 skillcheck SKILL.md --format json
 ```
 
-From the field test on Anthropic's official skills repository (18 skills, `runs/anthropics-corpus/01-symbolic-all.txt`): four of eighteen files failed. `claude-api/SKILL.md` failed with `frontmatter.name.reserved-word` because the name contains the reserved word "claude". `template/SKILL.md` failed with `frontmatter.name.directory-mismatch` (name `template-skill`, directory `template`). Both files look correct on casual inspection.
+From the field test on Anthropic's official skills repository (18 skills, `runs/anthropics-corpus/01-symbolic-all.txt`, snapshot taken during v1.0 release prep in April 2026): four of eighteen files failed. `claude-api/SKILL.md` failed with `frontmatter.name.reserved-word` because the name contains the reserved word "claude". `template/SKILL.md` failed with `frontmatter.name.directory-mismatch` (name `template-skill`, directory `template`). Both files look correct on casual inspection.
 
 ### Heuristic Graph
 
@@ -86,7 +92,7 @@ From the field test on `mcp-builder/SKILL.md` (`runs/anthropics-mcp-builder/02-g
                         has no declared inputs or outputs.
 ```
 
-Thirteen of fourteen capability headings in that skill had no declared I/O. That is a signal the skill relies entirely on implicit context rather than declared contracts.
+Thirteen of fourteen capability headings in that skill had no declared I/O at the time of the field test. That is a signal the skill relies entirely on implicit context rather than declared contracts. Numbers reflect a snapshot of `anthropics/skills` from April 2026 and will drift as upstream evolves; rerun against the current repo to see fresh counts.
 
 ### Agent Critique
 
@@ -98,6 +104,7 @@ skillcheck SKILL.md --emit-critique-prompt > prompt.txt
 skillcheck SKILL.md --ingest-critique response.json
 skillcheck SKILL.md --ingest-critique -                   # read from stdin
 skillcheck SKILL.md --emit-critique-prompt --critique-agent codex > prompt.txt
+skillcheck SKILL.md --agent-reason --format agent         # critique + graph prompt packet
 ```
 
 `--critique-agent` selects a framing variant tuned for each platform (claude, codex, cursor). The schema and exit codes are identical across all variants.
@@ -218,13 +225,16 @@ JSON output (`--format json`):
 }
 ```
 
-The JSON schema is stable. It will not change in a backward-incompatible way within the 0.x series.
+Each diagnostic includes `source` and `confidence` fields in JSON output. `source` is one of `spec`, `advisory`, `heuristic`, `agent`, or `history`; `confidence` is `high`, `medium`, or `low`.
+
+The JSON schema is stable. It will not change in a backward-incompatible way within the v1.x series.
 
 ## Options
 
 | Flag | Default | Description |
 |---|---|---|
-| `--format {text,json}` | `text` | Output format |
+| `--format {text,json,md,agent}` | `text` | Output format |
+| `--config PATH` | nearest `skillcheck.toml` | Load config defaults from TOML |
 | `--max-lines N` | `500` | Override the line-count threshold |
 | `--max-tokens N` | `8000` | Override the token-count threshold |
 | `--ignore PREFIX` | | Suppress rules matching this prefix; can be repeated |
@@ -235,6 +245,8 @@ The JSON schema is stable. It will not change in a backward-incompatible way wit
 | `--min-desc-score N` | | Minimum description quality score (0-100); below this triggers a warning |
 | `--target-agent {claude,vscode,all}` | `all` | Scope compatibility checks to a specific agent |
 | `--strict-vscode` | `false` | Promote VS Code compatibility issues to errors |
+| `--semantic` | `false` | Enable semantic-adjacent validation; standalone mode runs heuristic graph analysis |
+| `--agent-reason` | `false` | Emit a combined critique + graph prompt packet for the calling agent |
 | `--emit-critique-prompt` | `false` | Print agent self-critique prompt to stdout and exit 0 |
 | `--ingest-critique PATH` | | Read agent critique JSON from PATH or `-` for stdin; merge with symbolic results |
 | `--critique-agent NAME` | `claude` | Prompt variant: `claude`, `codex`, or `cursor`. Requires `--emit-critique-prompt` or `--ingest-critique` |
@@ -245,15 +257,16 @@ The JSON schema is stable. It will not change in a backward-incompatible way wit
 | `--graph-agent NAME` | `claude` | Prompt variant for graph extraction: `claude`, `codex`, or `cursor`. Requires `--emit-graph-prompt` or `--ingest-graph` |
 | `--history` | `false` | Append a validation record to `.skillcheck-history.json` next to the skill |
 | `--show-history` | `false` | Print the validation ledger and exit 0 |
+| `--activation-hypotheses` | `false` | Experimental emit mode for likely natural-language activation triggers |
 | `--version` | | Show version and exit |
 
 ## Exit Codes
 
 | Code | Meaning | Example invocation |
 |---|---|---|
-| `0` | No errors; warnings and info are allowed | `skillcheck skills/skillcheck/SKILL.md` |
+| `0` | No errors and no warnings | `skillcheck skills/skillcheck/SKILL.md` |
 | `1` | One or more errors found | `skillcheck SKILL.md` when the name is invalid |
-| `2` | Input error: missing file or empty directory | `skillcheck path/that/does/not/exist` |
+| `2` | Warning-only report or input error | `skillcheck SKILL.md --max-lines 1` |
 | `3` | Symbolic passed but ingested critique found semantic errors | `skillcheck SKILL.md --ingest-critique response.json` when the agent reported contradictions |
 
 Exit code 1 takes priority over 3 when symbolic errors also exist.
@@ -307,7 +320,7 @@ Source tags: `spec` rules derive from the agentskills.io specification or agent-
 
 ## Case Study
 
-We ran skillcheck against three corpora: Anthropic's official skills repository (18 skills), the `mcp-builder` skill through the full v1.0 pipeline, and five skills from the uxuiprinciples/agent-skills collection. Full run artifacts: `runs/anthropics-corpus/`, `runs/anthropics-mcp-builder/`, `runs/uxuiprinciples-corpus/`.
+We ran skillcheck against three corpora during v1.0 release prep (April 2026 snapshots): Anthropic's official skills repository (18 skills), the `mcp-builder` skill through the full v1.0 pipeline, and five skills from the uxuiprinciples/agent-skills collection. Full run artifacts: `runs/anthropics-corpus/`, `runs/anthropics-mcp-builder/`, `runs/uxuiprinciples-corpus/`.
 
 The symbolic run of the Anthropic corpus returned four failures from eighteen files (exit 1). All four files look correct on review: two had second-person voice in the description, one used "claude" as part of the name (reserved word per spec), and the template skill had a name/directory mismatch. The deeper finding came from running `mcp-builder` through the critique pipeline: the symbolic run passed (exit 0), but the ingested agent critique returned exit 3 with three `semantic.contradiction.detected` errors. The skill's frontmatter offers Python and TypeScript as equal options; its body unconditionally recommends TypeScript in Phase 1.3. That inconsistency means any agent following the Python path hits an unresolved decision point. No static linter catches it. See [docs/case-study-v1-real-world-runs.md](docs/case-study-v1-real-world-runs.md) for the full breakdown.
 
@@ -334,7 +347,7 @@ pip install -e ".[dev]"
 python3 -m pytest tests/ -q
 ```
 
-653 tests cover all rule modules, CLI exit codes, graph analyzers, divergence detection, critique parsing, history round-trips, and the full self-host pipeline against `skills/skillcheck/SKILL.md`. Fixtures are in `tests/fixtures/`; every rule has at least one positive and one negative test case.
+664 tests cover all rule modules, CLI exit codes, graph analyzers, divergence detection, critique parsing, history round-trips, and the full self-host pipeline against `skills/skillcheck/SKILL.md`. Fixtures are in `tests/fixtures/`; every rule has at least one positive and one negative test case. `tests/test_readme_test_count_claim.py` asserts this count matches `pytest --collect-only`, so any future suite change has to update the number in the same commit or CI fails.
 
 ## Maintainer Notes
 
@@ -345,6 +358,14 @@ make regen-self-host-fixtures
 ```
 
 This runs `scripts/regen_self_host_fixtures.py`, which extracts a fresh heuristic graph and writes it to `tests/fixtures/self_host/graph_clean.json`.
+
+To summarize a batch of skillcheck JSON outputs across many repos (the layout the field-test runs use, with one directory per repo, one subdirectory per skill, and `01-symbolic.json` / `02-strict-vscode.json` / `03-graph-analyze.json` / `04-graph-extracted.json` / `08-critique-report.json` / `09-graph-agent-report.json` / `10-full-pipeline.json` per skill), run:
+
+```bash
+python scripts/summarize_batch.py path/to/batch-dir
+```
+
+It writes `summary.csv` and `findings.md` next to the batch directory. The script is intended for benchmark and field-test workflows; it is not part of the CLI surface and is not exposed as a console script.
 
 To add a new rule: implement `def check_something(skill: ParsedSkill) -> list[Diagnostic]` in the appropriate module under `src/skillcheck/rules/`, register it in `src/skillcheck/rules/__init__.py`, add at least one positive and one negative fixture, and add a row to the Rules table above. Full conventions are in [`.github/CLAUDE.md`](.github/CLAUDE.md).
 

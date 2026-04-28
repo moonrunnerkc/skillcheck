@@ -13,7 +13,6 @@ tasks. All four techniques are applied in the base class render().
 from __future__ import annotations
 
 from skillcheck.agents.base import SelfCritiquePrompt
-from skillcheck.parser import ParsedSkill
 
 
 class ClaudePrompt(SelfCritiquePrompt):

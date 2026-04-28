@@ -133,8 +133,8 @@ def check_body_bloat(skill: ParsedSkill) -> list[Diagnostic]:
         ))
 
     # Check for base64 content (two-step: candidate match + mixed-case validation)
-    match = _BASE64_CANDIDATE_RE.search(skill.body)
-    if match and _is_real_base64(match.group()):
+    base64_match = _BASE64_CANDIDATE_RE.search(skill.body)
+    if base64_match and _is_real_base64(base64_match.group()):
         diagnostics.append(Diagnostic(
             rule="disclosure.body-bloat",
             severity=Severity.INFO,

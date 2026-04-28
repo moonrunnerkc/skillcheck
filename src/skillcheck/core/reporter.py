@@ -28,7 +28,7 @@ def render_markdown_report(result: ValidationResult) -> str:
     status = "PASS" if result.valid else "FAIL"
     lines: list[str] = [
         f"## skillcheck report: {status}",
-        f"",
+        "",
         f"**File:** `{result.path}`",
     ]
 
