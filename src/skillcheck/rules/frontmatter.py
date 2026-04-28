@@ -335,13 +335,13 @@ def check_description_person_voice(skill: ParsedSkill) -> list[Diagnostic]:
 def check_unknown_fields(skill: ParsedSkill) -> list[Diagnostic]:
     diagnostics = []
     for field in skill.frontmatter:
-        if field not in config.KNOWN_FRONTMATTER_FIELDS:
+        if field not in config.SPEC_FIELDS:
             diagnostics.append(Diagnostic(
                 rule="frontmatter.field.unknown",
                 severity=Severity.WARNING,
                 message=(
                     f"Unknown frontmatter field '{field}'. "
-                    f"Known fields: {', '.join(sorted(config.KNOWN_FRONTMATTER_FIELDS))}."
+                    f"Known fields: {', '.join(sorted(config.SPEC_FIELDS))}."
                 ),
                 line=_field_line(skill.raw_text, str(field)),
                 context=f"{field}: ...",

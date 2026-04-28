@@ -15,7 +15,7 @@ DEFAULT_MIN_DESC_SCORE: int = 0  # no enforcement by default
 BLOAT_CODE_BLOCK_LINES: int = 50
 BLOAT_TABLE_ROWS: int = 20
 
-KNOWN_FRONTMATTER_FIELDS: frozenset[str] = frozenset({
+SPEC_FIELDS: frozenset[str] = frozenset({
     "name",
     "description",
     "version",
