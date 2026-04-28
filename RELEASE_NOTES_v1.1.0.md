@@ -16,7 +16,7 @@ If your CI relied on v1.0.1's "warnings exit 2" behavior, add `--warnings-as-err
 ## Changed
 
 - `action.yml` install step pins `skillcheck>=1.0.1`. Until v1.1.0 is uploaded to PyPI, this fails loudly on unpublished v1 features rather than silently resolving to v0.2.0.
-- Description scorer no longer penalizes `comprehensive`, `robust`, or `flexible` in descriptions. Each can describe a concrete attribute when qualified; the false-positive rate was higher than the catch rate. Verified against `anthropics/skills`: zero score changes across 17 files, because none of those skills use the dropped words in their descriptions. The change is safe; the test suite gates future regressions.
+- Description scorer no longer penalizes `comprehensive`, `robust`, or `flexible` in descriptions. Each can describe a concrete attribute when qualified ("comprehensive coverage of N file formats", "robust against malformed input"). The inclusion rubric is now documented inline. Verified against `anthropics/skills`: zero score changes across 17 files, because none of those skills use the dropped words. The rubric edit is a no-op against the current corpus; the two new regression tests are forward-looking guards, not regression evidence.
 - Description scorer verb matching collapsed from 86 entries (base + 3rd-person duplicates) to 42 base forms with stem normalization. Adding a new verb now only requires the base form.
 - README field-test citations replaced gitignored `runs/...` paths with reproducible commands.
 - README exit-code table documents the new semantics; flag table documents `--warnings-as-errors`.
