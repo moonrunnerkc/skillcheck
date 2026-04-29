@@ -26,6 +26,7 @@ from skillcheck.rules.frontmatter import (
     check_description_non_empty,
     check_description_person_voice,
     check_description_required,
+    check_description_type,
     check_name_charset,
     check_name_consecutive_hyphens,
     check_name_directory_match,
@@ -34,7 +35,6 @@ from skillcheck.rules.frontmatter import (
     check_name_required,
     check_name_reserved_words,
     check_name_type,
-    check_description_type,
     check_unknown_fields,
     check_yaml_anchors,
 )
