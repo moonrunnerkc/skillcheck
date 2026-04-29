@@ -15,6 +15,7 @@ from collections.abc import Callable
 from skillcheck import config
 from skillcheck.parser import ParsedSkill
 from skillcheck.result import Diagnostic, Severity
+from skillcheck.template_detection import is_template
 
 
 def check_claude_only_fields(skill: ParsedSkill) -> list[Diagnostic]:
@@ -55,6 +56,9 @@ def check_vscode_dirname(skill: ParsedSkill) -> list[Diagnostic]:
     skipped via --skip-dirname-check). This compat rule always runs as INFO
     unless --strict-vscode promotes it.
     """
+    # Skip on templates: placeholder files are not meant to deploy.
+    if is_template(skill):
+        return []
     pair = _dirname_mismatch(skill)
     if pair is None:
         return []
@@ -97,6 +101,9 @@ def make_strict_vscode_rule() -> Callable[[ParsedSkill], list[Diagnostic]]:
     """Return a rule that promotes VS Code compat issues to ERROR severity."""
 
     def check_strict_vscode(skill: ParsedSkill) -> list[Diagnostic]:
+        # Skip on templates: placeholder files are not meant to deploy.
+        if is_template(skill):
+            return []
         pair = _dirname_mismatch(skill)
         if pair is None:
             return []

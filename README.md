@@ -69,7 +69,7 @@ skillcheck skills/            # recursive scan; finds every file named SKILL.md
 skillcheck SKILL.md --format json
 ```
 
-From the field test on Anthropic's official skills repository (18 skills, snapshot taken during v1.0 release prep in April 2026): four of eighteen files failed. `claude-api/SKILL.md` failed with `frontmatter.name.reserved-word` because the name contains the reserved word "claude". `template/SKILL.md` failed with `frontmatter.name.directory-mismatch` (name `template-skill`, directory `template`). Both files look correct on casual inspection. Reproduce: clone `anthropics/skills` and run `skillcheck skills/ --format text`.
+From the field test on Anthropic's official skills repository (18 skills, April 2026 snapshot): v1.1.0 produced four failures from advisory checks. v1.2.0 demotes the `claude-api` reserved-name and person-voice findings to warnings, treats `license` as ecosystem-common metadata, and detects `template/SKILL.md` as a placeholder file. Reproduce: clone `anthropics/skills` and run `skillcheck skills/ --format text`.
 
 ### Heuristic Graph
 
@@ -191,22 +191,22 @@ The v1.0 graph and critique modes are available as action inputs. Example with s
 Text output (default), excerpt from a run against the Anthropic skills corpus:
 
 ```
-✗ FAIL  skills/claude-api/SKILL.md
-  line 2  ✗ error    frontmatter.name.reserved-word  Name contains reserved word 'claude': 'claude-api'.
+✔ PASS  skills/claude-api/SKILL.md
+  line 2  ⚠ warning  frontmatter.name.reserved-word  Name contains the term 'claude' which may collide with platform-reserved namespaces. Verify with the target agent's documentation.
             name: claude-api
-  line 4  ⚠ warning  frontmatter.field.unknown       Unknown frontmatter field 'license'.
+  line 4  · info     frontmatter.field.ecosystem      Field 'license' is ecosystem-common but not in the agentskills.io spec. Add it to skillcheck.toml under [frontmatter] extension_fields if intentional.
 
-Checked 18 files: 14 passed, 4 failed, 24 warnings
+Checked 18 files: 18 passed, 0 failed, 29 warnings
 ```
 
 JSON output (`--format json`):
 
 ```json
 {
-  "version": "1.0.0",
+  "version": "1.2.0",
   "files_checked": 18,
-  "files_passed": 14,
-  "files_failed": 4,
+  "files_passed": 18,
+  "files_failed": 0,
   "results": [
     {
       "path": "skills/claude-api/SKILL.md",
@@ -214,8 +214,8 @@ JSON output (`--format json`):
       "diagnostics": [
         {
           "rule": "frontmatter.name.reserved-word",
-          "severity": "error",
-          "message": "Name contains reserved word 'claude': 'claude-api'.",
+          "severity": "warning",
+          "message": "Name contains the term 'claude' which may collide with platform-reserved namespaces. Verify with the target agent's documentation.",
           "line": 2,
           "context": "name: claude-api"
         }
@@ -286,14 +286,15 @@ Source tags: `spec` rules derive from the agentskills.io specification or agent-
 | `frontmatter.name.invalid-chars` | error | spec | Lowercase, numbers, hyphens only |
 | `frontmatter.name.leading-trailing-hyphen` | error | spec | No leading or trailing hyphens |
 | `frontmatter.name.consecutive-hyphens` | error | spec | No consecutive hyphens |
-| `frontmatter.name.reserved-word` | error | advisory | Not a reserved word (`claude`, `anthropic`) |
+| `frontmatter.name.reserved-word` | warning | advisory | Name contains a term that may collide with platform-reserved namespaces |
 | `frontmatter.name.directory-mismatch` | error | spec | Name must match parent directory (VS Code requirement) |
 | `frontmatter.description.required` | error | spec | `description` field must exist |
 | `frontmatter.description.type` | error | advisory | `description` must be a string (catches YAML coercion) |
 | `frontmatter.description.empty` | error | spec | Description must not be blank |
 | `frontmatter.description.max-length` | error | spec | 1024 character maximum |
 | `frontmatter.description.xml-tags` | error | advisory | No XML or HTML tags in description |
-| `frontmatter.description.person-voice` | error | advisory | No first or second-person pronouns |
+| `frontmatter.description.person-voice` | warning | advisory | First or second-person voice may reduce routing clarity |
+| `frontmatter.field.ecosystem` | info | advisory | Field is ecosystem-common but not in the agentskills.io spec |
 | `frontmatter.field.unknown` | warning | advisory | Field not in the known spec list |
 | `frontmatter.yaml-anchors` | warning | advisory | YAML anchors and aliases can silently copy values |
 | `description.quality-score` | info | advisory | Scores description 0-100 for agent discoverability |
@@ -309,6 +310,7 @@ Source tags: `spec` rules derive from the agentskills.io specification or agent-
 | `compat.claude-only` | info | spec | Field only works in Claude Code |
 | `compat.vscode-dirname` | info / error | spec | Name does not match parent directory (VS Code); promotes to error with `--strict-vscode` |
 | `compat.unverified` | info | advisory | Field behavior unverified in Codex or Cursor |
+| `template.detected` | info | advisory | Placeholder file detected; deployment-blocking checks are skipped |
 | `graph.capability.orphaned` | warning | heuristic | Capability heading has no declared inputs or outputs |
 | `graph.input.unused` | warning | heuristic | Body-declared input not required by any capability |
 | `graph.output.unproduced` | warning | heuristic | Declared output not produced by any capability |
@@ -319,11 +321,24 @@ Source tags: `spec` rules derive from the agentskills.io specification or agent-
 | `history.write.failed` | warning | history | Could not write the ledger file; validation exit code unaffected |
 | `history.read.failed` | warning | history | Could not read the ledger file; validation continues without regression check |
 
+## Templates
+
+Template files are detected by `template: true` frontmatter, placeholder-like descriptions, or a parent directory named `template` or `templates`. When detected, skillcheck emits `template.detected` and skips deployment-blocking checks that do not apply before copy-and-fill use: directory-name match, VS Code dirname, and description quality scoring. Sizing, disclosure, references, and other content checks still run.
+
+## Extension fields
+
+Use `[frontmatter] extension_fields` in `skillcheck.toml` for organization-specific metadata that should be accepted without diagnostics.
+
+```toml
+[frontmatter]
+extension_fields = ["my-org-tag", "internal-id"]
+```
+
 ## Case Study
 
 We ran skillcheck against three corpora during v1.0 release prep (April 2026 snapshots): Anthropic's official skills repository (18 skills), the `mcp-builder` skill through the full v1.0 pipeline, and five skills from the uxuiprinciples/agent-skills collection. To reproduce, clone each upstream repo and run `skillcheck <path>` (the case study below records the exact invocations).
 
-The symbolic run of the Anthropic corpus returned four failures from eighteen files (exit 1). All four files look correct on review: two had second-person voice in the description, one used "claude" as part of the name (reserved word per spec), and the template skill had a name/directory mismatch. The deeper finding came from running `mcp-builder` through the critique pipeline: the symbolic run passed (exit 0), but the ingested agent critique returned exit 3 with three `semantic.contradiction.detected` errors. The skill's frontmatter offers Python and TypeScript as equal options; its body unconditionally recommends TypeScript in Phase 1.3. That inconsistency means any agent following the Python path hits an unresolved decision point. No static linter catches it. See [docs/case-study-v1-real-world-runs.md](docs/case-study-v1-real-world-runs.md) for the full breakdown.
+The v1.1.0 symbolic run of the Anthropic corpus returned four failures from eighteen files (exit 1). v1.2.0 reclassifies those findings: `canvas-design` and `theme-factory` now warn for person-voice wording, `claude-api` warns for a possible reserved namespace collision, and `template/SKILL.md` is detected as a placeholder. The deeper finding came from running `mcp-builder` through the critique pipeline: the symbolic run passed (exit 0), but the ingested agent critique returned exit 3 with three `semantic.contradiction.detected` errors. The skill's frontmatter offers Python and TypeScript as equal options; its body unconditionally recommends TypeScript in Phase 1.3. That inconsistency means any agent following the Python path hits an unresolved decision point. No static linter catches it. See [docs/case-study-v1-real-world-runs.md](docs/case-study-v1-real-world-runs.md) for the full breakdown.
 
 See also: [docs/case-study-silent-skill-failure.md](docs/case-study-silent-skill-failure.md) (the v0.2.0 case study: a deploy skill that silently disappeared in VS Code due to a name/directory mismatch).
 
@@ -334,6 +349,8 @@ Token counts are estimates. The heuristic fallback has roughly 15% error; instal
 Cross-agent compatibility data for Codex and Cursor comes from available documentation as of early 2026. Fields marked "unverified" may work, may be silently ignored, or may cause issues depending on agent version. File a bug if you find a discrepancy.
 
 Description quality scoring uses heuristics, not an LLM. It catches structural problems (missing action verbs, no trigger phrases, vague words) but cannot evaluate whether instructions are semantically coherent. Agent critique mode addresses that gap.
+
+Template detection favors recall over precision. A real skill with placeholder-like description text may be flagged as `template.detected`; rename the description or add enough concrete routing context before deployment.
 
 The heuristic graph extractor uses heading structure and backtick references as proxies for capability declarations. Skills that express capabilities entirely in prose will produce sparse graphs with many `graph.capability.orphaned` warnings. Agent graph mode (`--emit-graph-prompt` / `--ingest-graph`) addresses this but requires a calling agent.
 
@@ -348,7 +365,7 @@ pip install -e ".[dev]"
 python3 -m pytest tests/ -q
 ```
 
-667 tests cover all rule modules, CLI exit codes, graph analyzers, divergence detection, critique parsing, history round-trips, and the full self-host pipeline against `skills/skillcheck/SKILL.md`. Fixtures are in `tests/fixtures/`; every rule has at least one positive and one negative test case. `tests/test_readme_test_count_claim.py` asserts this count matches `pytest --collect-only`, so any future suite change has to update the number in the same commit or CI fails.
+683 tests cover all rule modules, CLI exit codes, graph analyzers, divergence detection, critique parsing, history round-trips, and the full self-host pipeline against `skills/skillcheck/SKILL.md`. Fixtures are in `tests/fixtures/`; every rule has at least one positive and one negative test case. `tests/test_readme_test_count_claim.py` asserts this count matches `pytest --collect-only`, so any future suite change has to update the number in the same commit or CI fails.
 
 ## Maintainer Notes
 

@@ -18,6 +18,7 @@ from collections.abc import Callable
 
 from skillcheck.parser import ParsedSkill
 from skillcheck.result import Diagnostic, Severity
+from skillcheck.template_detection import is_template
 
 # Action-verb base forms. 3rd-person singular ("generates", "identifies") is
 # matched via stem normalization in `_is_action_verb`, so we only store one
@@ -69,8 +70,8 @@ _TRIGGER_PATTERNS = [
 # Rubric for inclusion: a word qualifies as vague filler only if it adds
 # little or no domain signal in the contexts where it typically appears in
 # SKILL.md descriptions. Words that *can* describe a concrete attribute when
-# qualified ("comprehensive coverage of N file formats", "robust against
-# malformed input", "flexible CLI grammar") are deliberately excluded, even
+# qualified ("comprehensive coverage of N file formats", "handles malformed
+# input", "flexible CLI grammar") are deliberately excluded, even
 # if they often appear as marketing fluff. The cost of false positives is
 # high here: a real description that uses the word once gets penalized.
 _VAGUE_WORDS = frozenset({
@@ -209,6 +210,9 @@ def score_description(desc: str) -> tuple[int, list[str]]:
 
 def check_description_quality(skill: ParsedSkill) -> list[Diagnostic]:
     """Score description quality and return an INFO diagnostic with the result."""
+    # Skip on templates: placeholder files are not meant to deploy.
+    if is_template(skill):
+        return []
     desc = skill.frontmatter.get("description")
     if not desc or not isinstance(desc, str) or not desc.strip():
         return []  # Missing/empty descriptions are handled by frontmatter rules.
@@ -232,6 +236,9 @@ def make_min_score_rule(
     """Return a rule that errors/warns when description score falls below threshold."""
 
     def check_description_min_score(skill: ParsedSkill) -> list[Diagnostic]:
+        # Skip on templates: placeholder files are not meant to deploy.
+        if is_template(skill):
+            return []
         desc = skill.frontmatter.get("description")
         if not desc or not isinstance(desc, str) or not desc.strip():
             return []

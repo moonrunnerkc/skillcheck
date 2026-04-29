@@ -1,7 +1,7 @@
 ---
 name: skillcheck
 description: Validates and scores SKILL.md files against the agentskills.io specification; use when linting skills for cross-agent compatibility, description quality, or capability graph structure.
-version: "1.1.0"
+version: "1.2.0"
 author: brad
 ---
 

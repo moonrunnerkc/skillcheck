@@ -26,6 +26,7 @@ from skillcheck.rules.frontmatter import (
     check_description_non_empty,
     check_description_person_voice,
     check_description_required,
+    check_description_type,
     check_name_charset,
     check_name_consecutive_hyphens,
     check_name_directory_match,
@@ -34,7 +35,6 @@ from skillcheck.rules.frontmatter import (
     check_name_required,
     check_name_reserved_words,
     check_name_type,
-    check_description_type,
     check_unknown_fields,
     check_yaml_anchors,
 )
@@ -43,8 +43,10 @@ from skillcheck.rules.references import (
     check_reference_depth,
 )
 from skillcheck.rules.sizing import make_line_count_rule, make_token_estimate_rule
+from skillcheck.rules.template import check_template_detected
 
 _FRONTMATTER_RULES: list[Callable[[ParsedSkill], list[Diagnostic]]] = [
+    check_template_detected,
     check_name_required,
     check_name_type,
     check_name_max_length,
