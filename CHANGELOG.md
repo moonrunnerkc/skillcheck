@@ -32,6 +32,7 @@ Backward compatibility: previously-passing skills still pass. Some previously-fa
 
 - Renamed `config.KNOWN_FRONTMATTER_FIELDS` to `config.SPEC_FIELDS`.
 - New `template.detected` rule wired into `rules/__init__.py`.
+- Frontmatter rule implementation split into smaller modules while preserving `skillcheck.rules.frontmatter` imports.
 - New fixture set under `tests/fixtures/` covering ecosystem fields, user extensions, template detection, and demoted severities.
 
 ## [1.1.0] - 2026-04-28
