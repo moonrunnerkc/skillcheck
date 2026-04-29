@@ -8,7 +8,7 @@ import pytest
 _WINDOWS = sys.platform == "win32"
 _skip_symlink = pytest.mark.skipif(
     _WINDOWS,
-    reason="os.symlink requires developer mode / elevated privileges on Windows",
+    reason="os.symlink requires developer mode or admin privileges on Windows",
 )
 
 from skillcheck.parser import parse

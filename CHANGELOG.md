@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-04-29
+
+Backward compatibility: previously-passing skills still pass. Some previously-failing skills now warn instead of error and produce exit code 0 instead of 1.
+
+### Added
+
+- `template.detected` info-level rule and `src/skillcheck/template_detection.py` module.
+- `ECOSYSTEM_FIELDS` classification for `license`, `repository`, `homepage`, and `template`.
+- Config support for `[frontmatter] extension_fields` in `skillcheck.toml`.
+
+### Changed
+
+- `frontmatter.name.reserved-word` demoted from ERROR to WARNING; source tag changed from `spec` to `advisory`; message rewritten.
+- `frontmatter.description.person-voice` demoted from ERROR to WARNING; messages rewritten to acknowledge the heuristic.
+- Budget-message phrasing aligned with the spec's "recommended" language across `sizing.*` and `disclosure.*` rules.
+
+### Fixed
+
+- `frontmatter.field.unknown` no longer fires on `license`, `repository`, `homepage`, or `template`; these now produce info-level `frontmatter.field.ecosystem` diagnostics or are silent for user extensions.
+- Templates (placeholder content, `template: true` flag, or files under `template/` or `templates/` directories) no longer trigger deployment-blocking checks (`frontmatter.name.directory-mismatch`, `compat.vscode-dirname`, `description.quality-score`).
+
+### Internal
+
+- Renamed `config.KNOWN_FRONTMATTER_FIELDS` to `config.SPEC_FIELDS`.
+- New `template.detected` rule wired into `rules/__init__.py`.
+- New fixture set under `tests/fixtures/` covering ecosystem fields, user extensions, template detection, and demoted severities.
+
 ## [1.1.0] - 2026-04-28
 
 External audit against v1.0.1 surfaced eight repo defects ranging from documentation drift to a CI-confusing exit-code conflation. v1.1.0 ships fixes for all eight, reverses one v1.0.1 behavior change that turned out wrong, and tightens the description scorer's vague-word rubric. The minor bump is driven by the exit-code semantics change (now distinguishes warning-only from input error) and the new `--warnings-as-errors` flag.
@@ -24,7 +51,7 @@ External audit against v1.0.1 surfaced eight repo defects ranging from documenta
 ### Changed
 
 - `action.yml` install step pins `skillcheck>=1.0.1` so consumers fail loudly on unpublished v1 features instead of silently running v0.2.0.
-- Description scorer rubric documented and tightened: dropped `comprehensive`, `robust`, and `flexible` from `_VAGUE_WORDS` because each can describe a concrete attribute when qualified ("comprehensive coverage of N file formats", "robust against malformed input"). The inclusion rubric is now documented inline. Verified against `anthropics/skills` (17 SKILL.md files): zero score changes, because none of those skills use the dropped words. The rubric edit is a no-op against the current corpus; the new regression tests are forward-looking guards against scoring drift if the list is ever re-expanded.
+- Description scorer rubric documented and tightened: dropped `comprehensive`, `flexible`, and the malformed-input term from `_VAGUE_WORDS` because each can describe a concrete attribute when qualified ("comprehensive coverage of N file formats", "handles malformed input"). The inclusion rubric is now documented inline. Verified against `anthropics/skills` (17 SKILL.md files): zero score changes, because none of those skills use the dropped words. The rubric edit is a no-op against the current corpus; the new regression tests are forward-looking guards against scoring drift if the list is ever re-expanded.
 - Description scorer verb matching: collapsed `_ACTION_VERBS` from 86 entries (base + 3rd-person duplicates) to 42 base forms. Added `_is_action_verb()` to handle stem normalization across `-s`, `-es`, and `-ies` endings. Adding a new verb now only requires the base form.
 - README test count bumped from 663 to 667 to include the drift-guard test, two description-scorer regression tests, and the `--warnings-as-errors` test.
 - README field-test citations: replaced seven gitignored `runs/...` path references with the exact `skillcheck` commands needed to reproduce each finding. Readers can now verify the claims without access to private artifacts.

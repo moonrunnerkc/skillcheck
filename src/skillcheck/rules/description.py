@@ -70,8 +70,8 @@ _TRIGGER_PATTERNS = [
 # Rubric for inclusion: a word qualifies as vague filler only if it adds
 # little or no domain signal in the contexts where it typically appears in
 # SKILL.md descriptions. Words that *can* describe a concrete attribute when
-# qualified ("comprehensive coverage of N file formats", "robust against
-# malformed input", "flexible CLI grammar") are deliberately excluded, even
+# qualified ("comprehensive coverage of N file formats", "handles malformed
+# input", "flexible CLI grammar") are deliberately excluded, even
 # if they often appear as marketing fluff. The cost of false positives is
 # high here: a real description that uses the word once gets penalized.
 _VAGUE_WORDS = frozenset({
