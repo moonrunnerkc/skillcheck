@@ -23,24 +23,40 @@ from skillcheck.template_detection import is_template
 # Action-verb base forms. 3rd-person singular ("generates", "identifies") is
 # matched via stem normalization in `_is_action_verb`, so we only store one
 # canonical form per verb here.
+#
+# Excluded: "handle"/"handles" (already in _VAGUE_WORDS), "trigger"/"triggers"
+# (would double-count against the trigger-phrase scorer).
 _ACTION_VERBS = frozenset({
-    "generate", "analyze", "validate", "deploy", "process",
-    "create", "build", "convert", "extract", "format",
-    "monitor", "scan", "parse", "transform", "compile",
-    "test", "check", "lint", "run", "execute",
-    "fetch", "send", "upload", "download",
-    "configure", "set", "update", "install", "remove",
-    "detect", "identify", "classify", "score", "rank",
-    "summarize", "translate", "encrypt", "decrypt",
-    "automate", "scaffold", "provision", "migrate", "sync",
+         "analyze", "apply", "assemble", "audit", "automate", "benchmark", "bind", "build", 
+         "capture", "catalog", "check", "classify", "clean", "cleanse", "clone", "cluster", 
+         "compare", "compile", "compose", "compute", "configure", "connect", "construct", "containerize", 
+         "convert", "copy", "correlate", "count", "cover", "create", "crop", "curate", 
+         "decode", "decrypt", "deduplicate", "delegate", "deliver", "demonstrate", "deploy", "derive", 
+         "describe", "detach", "detect", "develop", "diagnose", "diff", "digest", "direct", 
+         "disable", "discover", "distribute", "document", "download", "edit", "enable", "encrypt", 
+         "enrich", "enumerate", "evaluate", "evolve", "examine", "execute", "expand", "export", 
+         "extend", "extract", "facilitate", "fetch", "filter", "finalize", "find", "flatten", 
+         "format", "forward", "freeze", "gauge", "generate", "guard", "identify", "import", 
+         "initialize", "inject", "inspect", "install", "investigate", "iterate", "join", "label", 
+         "link", "lint", "log", "maintain", "measure", "merge", "migrate", "monitor", 
+         "navigate", "normalize", "optimize", "orchestrate", "pair", "parse", "populate", "predict", 
+         "present", "print", "probe", "process", "project", "protect", "provision", "publish", 
+         "push", "query", "rank", "read", "rebuild", "refactor", "register", "release", 
+         "remove", "render", "replace", "report", "request", "resolve", "restore", "retrieve", 
+         "rewrite", "route", "run", "sanitize", "save", "scaffold", "scan", "score", 
+         "screen", "search", "select", "send", "serialize", "set", "share", "shield", 
+         "sign", "signal", "simplify", "snapshot", "sort", "stage", "store", "stream", 
+         "structure", "summarize", "sync", "synchronize", "tag", "target", "test", "transform", 
+         "translate", "transport", "treat", "triage", "troubleshoot", "update", "upload", "validate", 
+         "visualize", "wrap", 
 })
 
 
 def _is_action_verb(word: str) -> bool:
     """Match `word` against `_ACTION_VERBS`, normalizing 3rd-person singular forms.
 
-    Handles three patterns: bare base ("generate"), -s ("scans"), and -ies → -y
-    ("identifies" → "identify"). The cheaper -s strip is tried first so most
+    Handles three patterns: bare base ("generate"), -s ("scans"), and -ies -> -y
+    ("identifies" -> "identify"). The cheaper -s strip is tried first so most
     third-person verbs resolve in one extra lookup.
     """
     w = word.lower()
@@ -75,25 +91,25 @@ _TRIGGER_PATTERNS = [
 # if they often appear as marketing fluff. The cost of false positives is
 # high here: a real description that uses the word once gets penalized.
 _VAGUE_WORDS = frozenset({
-    "tool", "helper", "utility", "stuff", "things", "various",
-    "general", "generic", "simple", "basic", "easy", "nice",
-    "good", "great", "awesome", "cool", "helpful", "useful",
-    "important", "powerful", "efficient", "effective", "handles",
+     "tool", "helper", "utility", "stuff", "things", "various",
+     "general", "generic", "simple", "basic", "easy", "nice",
+     "good", "great", "awesome", "cool", "helpful", "useful",
+     "important", "powerful", "efficient", "effective", "handles",
 })
 
 # Common stop words excluded from keyword density calculation.
 _STOP_WORDS = frozenset({
-    "a", "an", "the", "is", "are", "was", "were", "be", "been",
-    "being", "have", "has", "had", "do", "does", "did", "will",
-    "would", "shall", "should", "may", "might", "must", "can",
-    "could", "of", "in", "to", "for", "with", "on", "at", "from",
-    "by", "about", "as", "into", "through", "during", "before",
-    "after", "above", "below", "between", "under", "again",
-    "further", "then", "once", "and", "but", "or", "nor", "not",
-    "so", "yet", "both", "each", "few", "more", "most", "other",
-    "some", "such", "no", "only", "own", "same", "than", "too",
-    "very", "just", "because", "if", "when", "where", "how",
-    "all", "any", "this", "that", "these", "those", "it", "its",
+     "a", "an", "the", "is", "are", "was", "were", "be", "been",
+     "being", "have", "has", "had", "do", "does", "did", "will",
+     "would", "shall", "should", "may", "might", "must", "can",
+     "could", "of", "in", "to", "for", "with", "on", "at", "from",
+     "by", "about", "as", "into", "through", "during", "before",
+     "after", "above", "below", "between", "under", "again",
+     "further", "then", "once", "and", "but", "or", "nor", "not",
+     "so", "yet", "both", "each", "few", "more", "most", "other",
+     "some", "such", "no", "only", "own", "same", "than", "too",
+     "very", "just", "because", "if", "when", "where", "how",
+     "all", "any", "this", "that", "these", "those", "it", "its",
 })
 
 
@@ -215,7 +231,7 @@ def check_description_quality(skill: ParsedSkill) -> list[Diagnostic]:
         return []
     desc = skill.frontmatter.get("description")
     if not desc or not isinstance(desc, str) or not desc.strip():
-        return []  # Missing/empty descriptions are handled by frontmatter rules.
+        return []   # Missing/empty descriptions are handled by frontmatter rules.
 
     score, suggestions = score_description(desc)
 
