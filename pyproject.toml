@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "skillcheck"
-version = "1.0.2"
+version = "1.2.1"
 description = "Cross-agent skill quality gate for SKILL.md files conforming to the agentskills.io specification"
 readme = "README.md"
 license = { text = "MIT" }
