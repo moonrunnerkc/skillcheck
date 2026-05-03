@@ -387,6 +387,10 @@ It writes `summary.csv` and `findings.md` next to the batch directory. The scrip
 
 To add a new rule: implement `def check_something(skill: ParsedSkill) -> list[Diagnostic]` in the appropriate module under `src/skillcheck/rules/`, register it in `src/skillcheck/rules/__init__.py`, add at least one positive and one negative fixture, and add a row to the Rules table above. Full conventions are in [`.github/CLAUDE.md`](.github/CLAUDE.md).
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for testing, maintainer workflows, and rule-authoring conventions.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
