@@ -270,3 +270,33 @@ def test_quiet_flag_with_json_format():
     result = run_fixture(str(FIXTURES_DIR / "valid_basic.md"), "--quiet", "--format", "json")
     assert result.returncode == 0
     assert result.stdout == ""
+
+
+# ---------------------------------------------------------------------------
+# Issue #1: --strict-cursor exit code and target-agent acceptance
+# ---------------------------------------------------------------------------
+
+def test_strict_cursor_fails_on_folded_keep():
+    result = run_fixture(
+        str(FIXTURES_DIR / "cursor_desc_folded_keep.md"),
+        "--strict-cursor",
+    )
+    assert result.returncode == 1
+    assert "compat.cursor-description-block-scalar" in result.stdout
+
+
+def test_strict_cursor_passes_on_folded_strip():
+    result = run_fixture(
+        str(FIXTURES_DIR / "cursor_desc_folded_strip.md"),
+        "--strict-cursor",
+    )
+    assert result.returncode == 0
+
+
+def test_target_agent_cursor_accepted():
+    result = run_fixture(
+        str(FIXTURES_DIR / "cursor_desc_folded_keep.md"),
+        "--target-agent", "cursor",
+    )
+    assert "invalid choice" not in (result.stderr or "")
+    assert "compat.cursor-description-block-scalar" in result.stdout

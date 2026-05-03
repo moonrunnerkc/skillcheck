@@ -26,6 +26,8 @@ def _build_command() -> list[str]:
 
     if os.environ.get("INPUT_STRICT_VSCODE", "false") == "true":
         cmd.append("--strict-vscode")
+    if os.environ.get("INPUT_STRICT_CURSOR", "false") == "true":
+        cmd.append("--strict-cursor")
     if os.environ.get("INPUT_SKIP_DIRNAME_CHECK", "false") == "true":
         cmd.append("--skip-dirname-check")
     if os.environ.get("INPUT_SKIP_REF_CHECK", "false") == "true":

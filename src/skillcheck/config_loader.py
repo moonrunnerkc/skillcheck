@@ -25,6 +25,7 @@ class SkillcheckConfig:
     min_desc_score: int | None = None
     target_agent: str | None = None
     strict_vscode: bool | None = None
+    strict_cursor: bool | None = None
     skip_dirname_check: bool | None = None
     skip_ref_check: bool | None = None
     ignore: tuple[str, ...] = ()
@@ -52,6 +53,8 @@ _KEY_MAP = {
     "target_agent": "target_agent",
     "strict-vscode": "strict_vscode",
     "strict_vscode": "strict_vscode",
+    "strict-cursor": "strict_cursor",
+    "strict_cursor": "strict_cursor",
     "skip-dirname-check": "skip_dirname_check",
     "skip_dirname_check": "skip_dirname_check",
     "skip-ref-check": "skip_ref_check",
@@ -68,7 +71,7 @@ _KEY_MAP = {
 }
 
 _INT_FIELDS = {"max_lines", "max_tokens", "min_desc_score"}
-_BOOL_FIELDS = {"strict_vscode", "skip_dirname_check", "skip_ref_check", "analyze_graph", "semantic", "history"}
+_BOOL_FIELDS = {"strict_vscode", "strict_cursor", "skip_dirname_check", "skip_ref_check", "analyze_graph", "semantic", "history"}
 _STR_FIELDS = {"format", "target_agent", "critique_agent", "graph_agent"}
 
 

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-05-03
+
+### Added
+
+- `compat.cursor-description-block-scalar` rule (INFO by default). Flags `description: >`, `description: >+`, `description: |`, and `description: |+` because Cursor's skills UI renders these as empty. The Cursor-safe form is `description: >-` (folded strip). Closes #1.
+- `--strict-cursor` flag promotes the new rule to ERROR and fails the run. Mirrors `--strict-vscode`.
+- `cursor` is now a valid `--target-agent` choice; promotes the rule to WARNING when set without `--strict-cursor`.
+- `strict-cursor` action input (`action.yml`) and `INPUT_STRICT_CURSOR` wiring (`action/entrypoint.py`).
+- TOML config: `strict-cursor = true` is now accepted in `skillcheck.toml`.
+
+### Changed
+
+- `frontmatter.name.required` and `frontmatter.description.required` now append a hint when the missing field appears as a `## name:` or `## description:` markdown heading inside the frontmatter block. Frontmatter keys are YAML, not markdown; the hint nudges authors to drop the `##` prefix. Closes #1.
+
 ## [1.2.1] - 2026-05-03
 
 ### Fixed

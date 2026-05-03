@@ -5,7 +5,11 @@ import re
 from skillcheck import config
 from skillcheck.parser import ParsedSkill
 from skillcheck.result import Diagnostic, Severity
-from skillcheck.rules.frontmatter_common import _field_line
+from skillcheck.rules.frontmatter_common import (
+    _field_line,
+    _heading_for_field,
+    _markdown_heading_hint,
+)
 
 _XML_TAG_RE = re.compile(r"<[a-zA-Z/][^>]*>")
 _FIRST_PERSON_RE = re.compile(
@@ -40,10 +44,13 @@ def check_description_type(skill: ParsedSkill) -> list[Diagnostic]:
 
 def check_description_required(skill: ParsedSkill) -> list[Diagnostic]:
     if "description" not in skill.frontmatter:
+        message = "Required field 'description' is missing from frontmatter."
+        if _heading_for_field(skill.raw_text, "description"):
+            message += _markdown_heading_hint("description")
         return [Diagnostic(
             rule="frontmatter.description.required",
             severity=Severity.ERROR,
-            message="Required field 'description' is missing from frontmatter.",
+            message=message,
         )]
     return []
 

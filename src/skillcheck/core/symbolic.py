@@ -17,6 +17,7 @@ def validate(
     skip_ref_check: bool = False,
     min_desc_score: int | None = None,
     strict_vscode: bool = False,
+    strict_cursor: bool = False,
     target_agent: str = "all",
 ) -> ValidationResult:
     """Validate a single SKILL.md file using deterministic symbolic rules.
@@ -30,6 +31,7 @@ def validate(
         skip_ref_check: Skip file reference validation.
         min_desc_score: Minimum description quality score.
         strict_vscode: Promote VS Code compatibility issues to errors.
+        strict_cursor: Promote Cursor compatibility issues to errors.
         target_agent: Scope compatibility checks to an agent target.
 
     Returns:
@@ -56,6 +58,7 @@ def validate(
         skip_ref_check=skip_ref_check,
         min_desc_score=min_desc_score,
         strict_vscode=strict_vscode,
+        strict_cursor=strict_cursor,
         target_agent=target_agent,
     )
     diagnostics: list[Diagnostic] = [
