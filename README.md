@@ -1,9 +1,9 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset=".github/banner.svg">
-  <source media="(prefers-color-scheme: light)" srcset=".github/banner.svg">
-  <img alt="skillcheck" src=".github/banner.svg" width="600">
+   <source media="(prefers-color-scheme: dark)" srcset=".github/banner.svg">
+   <source media="(prefers-color-scheme: light)" srcset=".github/banner.svg">
+   <img alt="skillcheck" src=".github/banner.svg" width="600">
 </picture>
 
 <br/>
@@ -65,7 +65,7 @@ The default mode. Validates frontmatter fields, description quality score, body 
 
 ```bash
 skillcheck SKILL.md
-skillcheck skills/            # recursive scan; finds every file named SKILL.md
+skillcheck skills/             # recursive scan; finds every file named SKILL.md
 skillcheck SKILL.md --format json
 ```
 
@@ -77,7 +77,7 @@ Extracts a directed capability graph from heading structure and backtick referen
 
 ```bash
 skillcheck SKILL.md --analyze-graph
-skillcheck SKILL.md --emit-graph              # print graph only, exit 0
+skillcheck SKILL.md --emit-graph               # print graph only, exit 0
 skillcheck SKILL.md --emit-graph --format json
 ```
 
@@ -86,9 +86,9 @@ Graph nodes: `Capability` (section headings), `Input` (backtick references requi
 From the field test on `mcp-builder/SKILL.md` (reproduce: `skillcheck skills/mcp-builder/SKILL.md --analyze-graph`):
 
 ```
-   line 18  ⚠ warning  graph.capability.orphaned  Capability 'Understand Modern MCP Design'
+   line 18   ⚠ warning  graph.capability.orphaned  Capability 'Understand Modern MCP Design'
                         has no declared inputs or outputs.
-   line 32  ⚠ warning  graph.capability.orphaned  Capability 'Study MCP Protocol Documentation'
+   line 32   ⚠ warning  graph.capability.orphaned  Capability 'Study MCP Protocol Documentation'
                         has no declared inputs or outputs.
 ```
 
@@ -102,9 +102,9 @@ skillcheck emits a structured self-critique prompt. The calling agent evaluates 
 skillcheck SKILL.md --emit-critique-prompt > prompt.txt
 # Hand prompt.txt to your agent. Agent returns JSON. Then:
 skillcheck SKILL.md --ingest-critique response.json
-skillcheck SKILL.md --ingest-critique -                   # read from stdin
+skillcheck SKILL.md --ingest-critique -                    # read from stdin
 skillcheck SKILL.md --emit-critique-prompt --critique-agent codex > prompt.txt
-skillcheck SKILL.md --agent-reason --format agent         # critique + graph prompt packet
+skillcheck SKILL.md --agent-reason --format agent          # critique + graph prompt packet
 ```
 
 `--critique-agent` selects a framing variant tuned for each platform (claude, codex, cursor). The schema and exit codes are identical across all variants.
@@ -142,7 +142,7 @@ When an agent graph is ingested alongside a heuristic graph, `graph.contradictio
 The per-skill validation ledger is an append-only `.skillcheck-history.json` file stored next to the SKILL.md. Each `--history` run appends one record: timestamp, skillcheck version, a 16-character content hash, which modes ran, which agents were used, and diagnostic counts. No message text, skill body content, or user identifiers are stored. Committing the ledger to git is safe.
 
 ```bash
-skillcheck SKILL.md --history              # run validation and append a record
+skillcheck SKILL.md --history               # run validation and append a record
 skillcheck SKILL.md --show-history
 skillcheck SKILL.md --show-history --format json
 ```
@@ -156,7 +156,7 @@ History ledger: SKILL.md
 Schema version: 1
 Total runs: 1
 
-Run   1  2026-04-25T04:21:03Z  FAIL  exit=3
+Run    1   2026-04-25T04:21:03Z  FAIL  exit=3
          version=0.2.0  hash=0f4592dcb53cf2b5
          modes=[symbolic, critique(claude), graph(claude)]
          errors=5 warnings=36 info=4
@@ -192,9 +192,9 @@ Text output (default), excerpt from a run against the Anthropic skills corpus:
 
 ```
 ✔ PASS  skills/claude-api/SKILL.md
-  line 2  ⚠ warning  frontmatter.name.reserved-word  Name contains the term 'claude' which may collide with platform-reserved namespaces. Verify with the target agent's documentation.
+  line 2   ⚠ warning  frontmatter.name.reserved-word  Name contains the term 'claude' which may collide with platform-reserved namespaces. Verify with the target agent's documentation.
             name: claude-api
-  line 4  · info     frontmatter.field.ecosystem      Field 'license' is ecosystem-common but not in the agentskills.io spec. Add it to skillcheck.toml under [frontmatter] extension_fields if intentional.
+  line 4   · info     frontmatter.field.ecosystem      Field 'license' is ecosystem-common but not in the agentskills.io spec. Add it to skillcheck.toml under [frontmatter] extension_fields if intentional.
 
 Checked 18 files: 18 passed, 0 failed, 29 warnings
 ```
@@ -203,25 +203,25 @@ JSON output (`--format json`):
 
 ```json
 {
-  "version": "1.2.0",
-  "files_checked": 18,
-  "files_passed": 18,
-  "files_failed": 0,
-  "results": [
-    {
-      "path": "skills/claude-api/SKILL.md",
-      "valid": false,
-      "diagnostics": [
-        {
-          "rule": "frontmatter.name.reserved-word",
-          "severity": "warning",
-          "message": "Name contains the term 'claude' which may collide with platform-reserved namespaces. Verify with the target agent's documentation.",
-          "line": 2,
-          "context": "name: claude-api"
-        }
-      ]
-    }
-  ]
+   "version": "1.2.0",
+   "files_checked": 18,
+   "files_passed": 18,
+   "files_failed": 0,
+   "results": [
+     {
+       "path": "skills/claude-api/SKILL.md",
+       "valid": false,
+       "diagnostics": [
+         {
+           "rule": "frontmatter.name.reserved-word",
+           "severity": "warning",
+           "message": "Name contains the term 'claude' which may collide with platform-reserved namespaces. Verify with the target agent's documentation.",
+           "line": 2,
+           "context": "name: claude-api"
+         }
+       ]
+     }
+   ]
 }
 ```
 
@@ -357,35 +357,6 @@ The heuristic graph extractor uses heading structure and backtick references as 
 Agent critique and graph modes validate the agent's JSON response against the expected schema and convert it to diagnostics. skillcheck trusts the agent's reasoning; it does not second-guess findings that pass schema validation. The quality of the output depends on the quality of the calling agent.
 
 Directory-name matching compares against the immediate parent directory. Use `--skip-dirname-check` in CI environments that clone to temp paths.
-
-## Testing
-
-```bash
-pip install -e ".[dev]"
-python3 -m pytest tests/ -q
-```
-
-683 tests cover all rule modules, CLI exit codes, graph analyzers, divergence detection, critique parsing, history round-trips, and the full self-host pipeline against `skills/skillcheck/SKILL.md`. Fixtures are in `tests/fixtures/`; every rule has at least one positive and one negative test case. `tests/test_readme_test_count_claim.py` asserts this count matches `pytest --collect-only`, so any future suite change has to update the number in the same commit or CI fails.
-
-## Maintainer Notes
-
-After editing `skills/skillcheck/SKILL.md`, regenerate the self-host test fixtures so the integration suite stays pinned to the current graph:
-
-```bash
-make regen-self-host-fixtures
-```
-
-This runs `scripts/regen_self_host_fixtures.py`, which extracts a fresh heuristic graph and writes it to `tests/fixtures/self_host/graph_clean.json`.
-
-To summarize a batch of skillcheck JSON outputs across many repos (the layout the field-test runs use, with one directory per repo, one subdirectory per skill, and `01-symbolic.json` / `02-strict-vscode.json` / `03-graph-analyze.json` / `04-graph-extracted.json` / `08-critique-report.json` / `09-graph-agent-report.json` / `10-full-pipeline.json` per skill), run:
-
-```bash
-python scripts/summarize_batch.py path/to/batch-dir
-```
-
-It writes `summary.csv` and `findings.md` next to the batch directory. The script is intended for benchmark and field-test workflows; it is not part of the CLI surface and is not exposed as a console script.
-
-To add a new rule: implement `def check_something(skill: ParsedSkill) -> list[Diagnostic]` in the appropriate module under `src/skillcheck/rules/`, register it in `src/skillcheck/rules/__init__.py`, add at least one positive and one negative fixture, and add a row to the Rules table above. Full conventions are in [`.github/CLAUDE.md`](.github/CLAUDE.md).
 
 ## Contributing
 
