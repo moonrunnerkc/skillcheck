@@ -14,11 +14,11 @@
 
 <img src="https://img.shields.io/pypi/v/skillcheck?style=flat-square" alt="PyPI version"> <img src="https://img.shields.io/pypi/pyversions/skillcheck?style=flat-square" alt="Python"> <img src="https://img.shields.io/github/actions/workflow/status/moonrunnerkc/skillcheck/ci.yml?style=flat-square" alt="CI status"> <img src="https://img.shields.io/github/license/moonrunnerkc/skillcheck?style=flat-square" alt="License">
 
-**v1.2.1 · 687 tests cover all rule modules · production**
+**v1.2.2 · 709 tests cover all rule modules · production**
 
 </div>
 
-687 tests cover all rule modules, 0 known false positives.
+709 tests cover all rule modules, 0 known false positives.
 
 ---
 
@@ -251,8 +251,9 @@ The JSON schema is stable. It will not change in a backward-incompatible way wit
 | `--skip-dirname-check` | `false` | Skip directory-name matching (useful for CI temp paths) |
 | `--skip-ref-check` | `false` | Skip file reference validation |
 | `--min-desc-score N` | | Minimum description quality score (0-100); below this triggers a warning |
-| `--target-agent {claude,vscode,all}` | `all` | Scope compatibility checks to a specific agent |
+| `--target-agent {claude,vscode,cursor,all}` | `all` | Scope compatibility checks to a specific agent |
 | `--strict-vscode` | `false` | Promote VS Code compatibility issues to errors |
+| `--strict-cursor` | `false` | Promote Cursor compatibility issues to errors |
 | `--warnings-as-errors` | `false` | Escalate warning-only runs to exit code 1 (default for warning-only is 0) |
 | `--semantic` | `false` | Enable semantic-adjacent validation; standalone mode runs heuristic graph analysis |
 | `--agent-reason` | `false` | Emit a combined critique + graph prompt packet for the calling agent |
@@ -317,6 +318,7 @@ Source tags: `spec` rules derive from the agentskills.io specification or agent-
 | `references.depth-exceeded` | warning | spec | Reference deeper than one level from SKILL.md |
 | `compat.claude-only` | info | spec | Field only works in Claude Code |
 | `compat.vscode-dirname` | info / error | spec | Name does not match parent directory (VS Code); promotes to error with `--strict-vscode` |
+| `compat.cursor-description-block-scalar` | info / warning / error | spec | `description: >` or `description: \|` renders as empty in Cursor; INFO by default, WARNING with `--target-agent cursor`, ERROR with `--strict-cursor`. Use `description: >-` |
 | `compat.unverified` | info | advisory | Field behavior unverified in Codex or Cursor |
 | `template.detected` | info | advisory | Placeholder file detected; deployment-blocking checks are skipped |
 | `graph.capability.orphaned` | warning | heuristic | Capability heading has no declared inputs or outputs |
