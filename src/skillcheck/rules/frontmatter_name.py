@@ -5,7 +5,11 @@ import re
 from skillcheck import config
 from skillcheck.parser import ParsedSkill
 from skillcheck.result import Diagnostic, Severity
-from skillcheck.rules.frontmatter_common import _field_line
+from skillcheck.rules.frontmatter_common import (
+    _field_line,
+    _heading_for_field,
+    _markdown_heading_hint,
+)
 from skillcheck.template_detection import is_template
 
 _NAME_VALID_CHARS_RE = re.compile(r"^[a-z0-9-]+$")
@@ -13,10 +17,13 @@ _NAME_VALID_CHARS_RE = re.compile(r"^[a-z0-9-]+$")
 
 def check_name_required(skill: ParsedSkill) -> list[Diagnostic]:
     if skill.frontmatter.get("name") is None:
+        message = "Required field 'name' is missing from frontmatter."
+        if _heading_for_field(skill.raw_text, "name"):
+            message += _markdown_heading_hint("name")
         return [Diagnostic(
             rule="frontmatter.name.required",
             severity=Severity.ERROR,
-            message="Required field 'name' is missing from frontmatter.",
+            message=message,
         )]
     return []
 
