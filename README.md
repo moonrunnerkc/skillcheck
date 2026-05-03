@@ -1,14 +1,20 @@
 <div align="center">
 
 <picture>
-   <source media="(prefers-color-scheme: dark)" srcset=".github/banner.svg">
-   <source media="(prefers-color-scheme: light)" srcset=".github/banner.svg">
-   <img alt="skillcheck" src=".github/banner.svg" width="600">
+  <source media="(prefers-color-scheme: dark)" srcset=".github/banner.svg">
+  <source media="(prefers-color-scheme: light)" srcset=".github/banner.svg">
+  <img alt="skillcheck" src=".github/banner.svg" width="600">
 </picture>
 
 <br/>
 
 **Cross-agent skill quality gate for `SKILL.md` files.**
+
+<br/>
+
+<img src="https://img.shields.io/pypi/v/skillcheck?style=flat-square" alt="PyPI version"> <img src="https://img.shields.io/pypi/pyversions/skillcheck?style=flat-square" alt="Python"> <img src="https://img.shields.io/github/actions/workflow/status/moonrunnerkc/skillcheck/ci.yml?style=flat-square" alt="CI status"> <img src="https://img.shields.io/github/license/moonrunnerkc/skillcheck?style=flat-square" alt="License">
+
+**v1.2.0 · 683 tests passing · production**
 
 </div>
 
@@ -65,7 +71,7 @@ The default mode. Validates frontmatter fields, description quality score, body 
 
 ```bash
 skillcheck SKILL.md
-skillcheck skills/             # recursive scan; finds every file named SKILL.md
+skillcheck skills/               # recursive scan; finds every file named SKILL.md
 skillcheck SKILL.md --format json
 ```
 
@@ -77,7 +83,7 @@ Extracts a directed capability graph from heading structure and backtick referen
 
 ```bash
 skillcheck SKILL.md --analyze-graph
-skillcheck SKILL.md --emit-graph               # print graph only, exit 0
+skillcheck SKILL.md --emit-graph                 # print graph only, exit 0
 skillcheck SKILL.md --emit-graph --format json
 ```
 
@@ -102,9 +108,9 @@ skillcheck emits a structured self-critique prompt. The calling agent evaluates 
 skillcheck SKILL.md --emit-critique-prompt > prompt.txt
 # Hand prompt.txt to your agent. Agent returns JSON. Then:
 skillcheck SKILL.md --ingest-critique response.json
-skillcheck SKILL.md --ingest-critique -                    # read from stdin
+skillcheck SKILL.md --ingest-critique -                      # read from stdin
 skillcheck SKILL.md --emit-critique-prompt --critique-agent codex > prompt.txt
-skillcheck SKILL.md --agent-reason --format agent          # critique + graph prompt packet
+skillcheck SKILL.md --agent-reason --format agent            # critique + graph prompt packet
 ```
 
 `--critique-agent` selects a framing variant tuned for each platform (claude, codex, cursor). The schema and exit codes are identical across all variants.
@@ -142,7 +148,7 @@ When an agent graph is ingested alongside a heuristic graph, `graph.contradictio
 The per-skill validation ledger is an append-only `.skillcheck-history.json` file stored next to the SKILL.md. Each `--history` run appends one record: timestamp, skillcheck version, a 16-character content hash, which modes ran, which agents were used, and diagnostic counts. No message text, skill body content, or user identifiers are stored. Committing the ledger to git is safe.
 
 ```bash
-skillcheck SKILL.md --history               # run validation and append a record
+skillcheck SKILL.md --history                 # run validation and append a record
 skillcheck SKILL.md --show-history
 skillcheck SKILL.md --show-history --format json
 ```
@@ -203,25 +209,25 @@ JSON output (`--format json`):
 
 ```json
 {
-   "version": "1.2.0",
-   "files_checked": 18,
-   "files_passed": 18,
-   "files_failed": 0,
-   "results": [
-     {
-       "path": "skills/claude-api/SKILL.md",
-       "valid": false,
-       "diagnostics": [
-         {
-           "rule": "frontmatter.name.reserved-word",
-           "severity": "warning",
-           "message": "Name contains the term 'claude' which may collide with platform-reserved namespaces. Verify with the target agent's documentation.",
-           "line": 2,
-           "context": "name: claude-api"
-         }
-       ]
-     }
-   ]
+     "version": "1.2.0",
+     "files_checked": 18,
+     "files_passed": 18,
+     "files_failed": 0,
+     "results": [
+       {
+         "path": "skills/claude-api/SKILL.md",
+         "valid": false,
+         "diagnostics": [
+           {
+             "rule": "frontmatter.name.reserved-word",
+             "severity": "warning",
+             "message": "Name contains the term 'claude' which may collide with platform-reserved namespaces. Verify with the target agent's documentation.",
+             "line": 2,
+             "context": "name: claude-api"
+           }
+         ]
+       }
+     ]
 }
 ```
 
