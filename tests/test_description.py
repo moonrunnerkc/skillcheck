@@ -161,3 +161,75 @@ def test_third_person_verb_forms_count_via_stem_normalization():
     base = "Identifies cyclic dependencies in plan graphs."
     score, _ = score_description(base)
     assert score >= 30, f"Expected leading verb to register, got {score}"
+
+
+# ---------------------------------------------------------------------------
+# Issue #2: action-verb allowlist expansion (1.0.2)
+# ---------------------------------------------------------------------------
+
+from skillcheck.rules.description import _ACTION_VERBS, _score_action_verbs
+
+
+def test_newly_added_verbs_all_count_as_action_verbs():
+       """Every verb added in the #2 expansion (170 total) must register as an
+    action verb when used as the first word of a description.
+    Regression: issue #2 -- "Investigate..." was falsely flagged.
+       """
+       _ORIGINAL = frozenset({
+             "generate", "analyze", "validate", "deploy", "process",
+             "create", "build", "convert", "extract", "format",
+             "monitor", "scan", "parse", "transform", "compile",
+             "test", "check", "lint", "run", "execute",
+             "fetch", "send", "upload", "download",
+             "configure", "set", "update", "install", "remove",
+             "detect", "identify", "classify", "score", "rank",
+             "summarize", "translate", "encrypt", "decrypt",
+             "automate", "scaffold", "provision", "migrate", "sync",
+       })
+       newly_added = sorted(_ACTION_VERBS - _ORIGINAL)
+       assert len(newly_added) == 127, f"Expected 127 new verbs, got {len(newly_added)}"
+       for verb in newly_added:
+             score, suggestions = _score_action_verbs(f"{verb.title()} something.")
+             assert score >= 20, (
+                 f"Verb '{verb}' should count as action verb at start "
+                 f"(got score={score}, suggestions={suggestions})"
+             )
+             assert not any(
+                 "action verb" in s.lower() for s in (suggestions or [])
+             ), f"Verb '{verb}' triggered false-positive action-verb suggestion"
+
+
+def test_issue_2_regression_investigate_description():
+       """Issue #2: "Investigate failing GitLab CI test jobs..." must NOT trigger
+    the "Start the description with an action verb" suggestion.
+       """
+       desc = (
+             "Investigate failing GitLab CI test jobs by fetching traces, "
+             "mapping failures to local files, and isolating the smallest "
+             "rerun only when needed before proposing a fix. Use when given "
+             "a failing GitLab job URL or job ID, especially for "
+             "dashboard-api-automation test failures."
+       )
+       score, suggestions = score_description(desc)
+       assert not any(
+             "action verb" in s.lower() for s in (suggestions or [])
+       ), f'Issue #2 description should not trigger action-verb suggestion: {suggestions}'
+       assert score >= 90, f"Expected high score for issue #2 description, got {score}"
+
+
+def test_negative_handles_still_excluded():
+       """Handles must NOT count as action verb (deliberate exclusion:
+    already in _VAGUE_WORDS)."""
+       s, _ = _score_action_verbs("Handles X.")
+       assert s != 25 and s != 20, (
+             f"'Handles' should not count as action verb, got score={s}"
+       )
+
+
+def test_negative_triggers_still_excluded():
+       """Triggers must NOT count as action verb (deliberate exclusion:
+    would double-count against trigger-phrase scorer)."""
+       s, _ = _score_action_verbs("Triggers X.")
+       assert s != 25 and s != 20, (
+             f"'Triggers' should not count as action verb, got score={s}"
+       )

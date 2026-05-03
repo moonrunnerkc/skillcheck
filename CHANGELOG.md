@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-05-03
+
+### Fixed
+
+- `description.quality-score` no longer flags verb-led descriptions starting with `investigate`, `diagnose`, `triage`, `troubleshoot`, `examine`, `audit`, `inspect`, `compare`, `capture`, `normalize`, or `refactor`. Expanded `_ACTION_VERBS` from 43 to 170 entries to cover investigation, inspection, search, code-work, output, comparison, logging, and normalization clusters. Closes #2.
+
 ## [1.2.0] - 2026-04-29
 
 Backward compatibility: previously-passing skills still pass. Some previously-failing skills now warn instead of error and produce exit code 0 instead of 1.
