@@ -7,8 +7,11 @@ from skillcheck.result import Severity
 from skillcheck.rules import get_rules
 from skillcheck.rules.compat import (
     check_claude_only_fields,
+    check_cursor_description_block_scalar,
+    check_cursor_description_block_scalar_warning,
     check_unverified_fields,
     check_vscode_dirname,
+    make_strict_cursor_rule,
     make_strict_vscode_rule,
 )
 from tests.conftest import FIXTURES_DIR
@@ -160,4 +163,125 @@ def test_strict_vscode_all_emits_single_dirname_diagnostic(tmp_path):
 def test_invalid_target_agent_raises():
     """An invalid target_agent should raise ValueError, not silently skip rules."""
     with pytest.raises(ValueError, match="Unknown target_agent"):
-        get_rules(target_agent="cursor")
+        get_rules(target_agent="vim")
+
+
+# ---------------------------------------------------------------------------
+# compat.cursor-description-block-scalar (issue #1)
+# ---------------------------------------------------------------------------
+
+_RULE_ID = "compat.cursor-description-block-scalar"
+
+
+def test_cursor_block_scalar_flags_folded_keep():
+    skill = parse(FIXTURES_DIR / "cursor_desc_folded_keep.md")
+    diagnostics = check_cursor_description_block_scalar(skill)
+    assert len(diagnostics) == 1
+    d = diagnostics[0]
+    assert d.rule == _RULE_ID
+    assert d.severity == Severity.INFO
+    assert "'>'" in d.message
+    assert ">-" in d.message
+
+
+def test_cursor_block_scalar_flags_literal():
+    skill = parse(FIXTURES_DIR / "cursor_desc_literal.md")
+    diagnostics = check_cursor_description_block_scalar(skill)
+    assert len(diagnostics) == 1
+    d = diagnostics[0]
+    assert d.rule == _RULE_ID
+    assert d.severity == Severity.INFO
+    assert "'|'" in d.message
+    assert ">-" in d.message
+
+
+def test_cursor_block_scalar_passes_folded_strip():
+    skill = parse(FIXTURES_DIR / "cursor_desc_folded_strip.md")
+    assert check_cursor_description_block_scalar(skill) == []
+
+
+def test_cursor_block_scalar_passes_literal_strip(tmp_path):
+    f = tmp_path / "SKILL.md"
+    f.write_text(
+        "---\nname: a\ndescription: |-\n  Strip variant.\n---\nbody\n"
+    )
+    skill = parse(f)
+    assert check_cursor_description_block_scalar(skill) == []
+
+
+def test_cursor_block_scalar_passes_inline_string(tmp_path):
+    f = tmp_path / "SKILL.md"
+    f.write_text(
+        "---\nname: a\ndescription: A plain inline string.\n---\nbody\n"
+    )
+    skill = parse(f)
+    assert check_cursor_description_block_scalar(skill) == []
+
+
+def test_cursor_block_scalar_passes_folded_keep_explicit(tmp_path):
+    f = tmp_path / "SKILL.md"
+    f.write_text(
+        "---\nname: a\ndescription: >+\n  Plus keep variant.\n---\nbody\n"
+    )
+    skill = parse(f)
+    diagnostics = check_cursor_description_block_scalar(skill)
+    assert len(diagnostics) == 1
+    assert "'>+'" in diagnostics[0].message
+
+
+def test_cursor_block_scalar_target_cursor_promotes_to_warning():
+    skill = parse(FIXTURES_DIR / "cursor_desc_folded_keep.md")
+    diagnostics = check_cursor_description_block_scalar_warning(skill)
+    assert len(diagnostics) == 1
+    assert diagnostics[0].severity == Severity.WARNING
+    assert diagnostics[0].rule == _RULE_ID
+
+
+def test_cursor_block_scalar_strict_cursor_promotes_to_error():
+    skill = parse(FIXTURES_DIR / "cursor_desc_folded_keep.md")
+    rule = make_strict_cursor_rule()
+    diagnostics = rule(skill)
+    assert len(diagnostics) == 1
+    assert diagnostics[0].severity == Severity.ERROR
+    assert diagnostics[0].rule == _RULE_ID
+
+
+def test_cursor_block_scalar_default_severity_is_info():
+    """Default severity (no flag) is INFO."""
+    skill = parse(FIXTURES_DIR / "cursor_desc_folded_keep.md")
+    rules = get_rules(target_agent="all")
+    diagnostics = [d for r in rules for d in r(skill) if d.rule == _RULE_ID]
+    assert len(diagnostics) == 1
+    assert diagnostics[0].severity == Severity.INFO
+
+
+def test_cursor_block_scalar_target_cursor_emits_single_warning():
+    skill = parse(FIXTURES_DIR / "cursor_desc_folded_keep.md")
+    rules = get_rules(target_agent="cursor")
+    diagnostics = [d for r in rules for d in r(skill) if d.rule == _RULE_ID]
+    assert len(diagnostics) == 1
+    assert diagnostics[0].severity == Severity.WARNING
+
+
+def test_cursor_block_scalar_strict_cursor_replaces_info():
+    """strict_cursor + target_agent='all' should emit one ERROR, not duplicates."""
+    skill = parse(FIXTURES_DIR / "cursor_desc_folded_keep.md")
+    rules = get_rules(strict_cursor=True, target_agent="all")
+    diagnostics = [d for r in rules for d in r(skill) if d.rule == _RULE_ID]
+    assert len(diagnostics) == 1
+    assert diagnostics[0].severity == Severity.ERROR
+
+
+def test_cursor_block_scalar_strict_cursor_target_cursor():
+    """strict_cursor with target_agent='cursor' should also produce one ERROR."""
+    skill = parse(FIXTURES_DIR / "cursor_desc_folded_keep.md")
+    rules = get_rules(strict_cursor=True, target_agent="cursor")
+    diagnostics = [d for r in rules for d in r(skill) if d.rule == _RULE_ID]
+    assert len(diagnostics) == 1
+    assert diagnostics[0].severity == Severity.ERROR
+
+
+def test_cursor_target_agent_accepts_cursor():
+    """target_agent='cursor' must not raise."""
+    rules = get_rules(target_agent="cursor")
+    assert len(rules) > 0

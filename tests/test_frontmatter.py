@@ -306,3 +306,67 @@ def test_description_rejects_first_person_possessive(tmp_path):
     diagnostics = check_description_person_voice(skill)
     assert len(diagnostics) == 1
     assert diagnostics[0].rule == "frontmatter.description.person-voice"
+
+
+# ---------------------------------------------------------------------------
+# Issue #1: markdown-heading hint on name/description required
+# ---------------------------------------------------------------------------
+
+def test_name_required_hints_at_markdown_heading():
+    skill = parse(FIXTURES_DIR / "frontmatter_name_as_heading.md")
+    diagnostics = check_name_required(skill)
+    assert len(diagnostics) == 1
+    msg = diagnostics[0].message
+    assert "## name:" in msg
+    assert "markdown" in msg.lower()
+    assert "name: value" in msg
+
+
+def test_description_required_hints_at_markdown_heading():
+    skill = parse(FIXTURES_DIR / "frontmatter_name_as_heading.md")
+    diagnostics = check_description_required(skill)
+    assert len(diagnostics) == 1
+    msg = diagnostics[0].message
+    assert "## description:" in msg
+    assert "markdown" in msg.lower()
+    assert "description: value" in msg
+
+
+def test_name_required_hint_absent_when_heading_only_for_other_field():
+    """Hint must reference name only when the heading is for name."""
+    skill = parse(FIXTURES_DIR / "frontmatter_heading_partial.md")
+    diagnostics = check_name_required(skill)
+    assert len(diagnostics) == 1
+    assert "## name:" in diagnostics[0].message
+    # description was supplied as a real key, so its required check passes.
+    assert check_description_required(skill) == []
+
+
+def test_name_required_no_hint_for_plain_missing(tmp_path):
+    f = tmp_path / "SKILL.md"
+    f.write_text("---\ndescription: Plain missing name.\n---\nbody\n")
+    skill = parse(f)
+    diagnostics = check_name_required(skill)
+    assert len(diagnostics) == 1
+    assert "hint" not in diagnostics[0].message.lower()
+
+
+def test_description_required_no_hint_for_plain_missing(tmp_path):
+    f = tmp_path / "SKILL.md"
+    f.write_text("---\nname: my-skill\n---\nbody\n")
+    skill = parse(f)
+    diagnostics = check_description_required(skill)
+    assert len(diagnostics) == 1
+    assert "hint" not in diagnostics[0].message.lower()
+
+
+def test_heading_hint_does_not_match_body_headings(tmp_path):
+    """Body markdown headings must not produce false-positive hints."""
+    f = tmp_path / "SKILL.md"
+    f.write_text(
+        "---\ndescription: Body has a name heading.\n---\n\n## name: section in body\n"
+    )
+    skill = parse(f)
+    diagnostics = check_name_required(skill)
+    assert len(diagnostics) == 1
+    assert "hint" not in diagnostics[0].message.lower()
