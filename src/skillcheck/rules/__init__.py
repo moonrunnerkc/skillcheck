@@ -7,8 +7,11 @@ from skillcheck.parser import ParsedSkill
 from skillcheck.result import Diagnostic
 from skillcheck.rules.compat import (
     check_claude_only_fields,
+    check_cursor_description_block_scalar,
+    check_cursor_description_block_scalar_warning,
     check_unverified_fields,
     check_vscode_dirname,
+    make_strict_cursor_rule,
     make_strict_vscode_rule,
 )
 from skillcheck.rules.description import (
@@ -83,6 +86,7 @@ _COMPAT_RULES: list[Callable[[ParsedSkill], list[Diagnostic]]] = [
     check_claude_only_fields,
     check_vscode_dirname,
     check_unverified_fields,
+    check_cursor_description_block_scalar,
 ]
 
 
@@ -93,6 +97,7 @@ def get_rules(
     skip_ref_check: bool = False,
     min_desc_score: int | None = None,
     strict_vscode: bool = False,
+    strict_cursor: bool = False,
     target_agent: str = "all",
 ) -> list[Callable[[ParsedSkill], list[Diagnostic]]]:
     """Build the full rule list, optionally overriding thresholds and toggling features."""
@@ -123,7 +128,7 @@ def get_rules(
     rules.extend(_DISCLOSURE_RULES)
 
     # Cross-agent compatibility (Feature 5)
-    _VALID_AGENTS = {"all", "claude", "vscode"}
+    _VALID_AGENTS = {"all", "claude", "vscode", "cursor"}
     if target_agent not in _VALID_AGENTS:
         raise ValueError(
             f"Unknown target_agent '{target_agent}'. "
@@ -137,6 +142,12 @@ def get_rules(
             # so the same mismatch is not reported twice.
             compat_rules = [r for r in compat_rules if r is not check_vscode_dirname]
             compat_rules.append(make_strict_vscode_rule())
+        if strict_cursor:
+            compat_rules = [
+                r for r in compat_rules
+                if r is not check_cursor_description_block_scalar
+            ]
+            compat_rules.append(make_strict_cursor_rule())
         rules.extend(compat_rules)
     elif target_agent == "vscode":
         if strict_vscode:
@@ -145,5 +156,10 @@ def get_rules(
             rules.append(check_vscode_dirname)
     elif target_agent == "claude":
         rules.append(check_claude_only_fields)
+    elif target_agent == "cursor":
+        if strict_cursor:
+            rules.append(make_strict_cursor_rule())
+        else:
+            rules.append(check_cursor_description_block_scalar_warning)
 
     return rules

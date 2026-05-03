@@ -275,6 +275,8 @@ examples:
   skillcheck SKILL.md --min-desc-score 50     require minimum description quality
   skillcheck SKILL.md --target-agent vscode   scope checks to VS Code
   skillcheck SKILL.md --strict-vscode         treat VS Code issues as errors
+  skillcheck SKILL.md --target-agent cursor   scope checks to Cursor
+  skillcheck SKILL.md --strict-cursor         treat Cursor issues as errors
   skillcheck SKILL.md --skip-ref-check        skip file reference validation
   skillcheck SKILL.md --emit-critique-prompt  print prompt for agent self-critique
   skillcheck SKILL.md --ingest-critique r.json  ingest agent response and merge diagnostics
@@ -363,7 +365,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--target-agent",
-        choices=["claude", "vscode", "all"],
+        choices=["claude", "vscode", "cursor", "all"],
         default="all",
         help="Scope compatibility checks to a specific agent (default: all).",
     )
@@ -372,6 +374,12 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         default=False,
         help="Promote VS Code compatibility issues to errors.",
+    )
+    parser.add_argument(
+        "--strict-cursor",
+        action="store_true",
+        default=False,
+        help="Promote Cursor compatibility issues to errors.",
     )
     parser.add_argument(
         "--warnings-as-errors",
@@ -681,6 +689,8 @@ def _apply_config(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
         args.target_agent = loaded_config.target_agent
     if loaded_config.strict_vscode is True:
         args.strict_vscode = True
+    if loaded_config.strict_cursor is True:
+        args.strict_cursor = True
     if loaded_config.skip_dirname_check is True:
         args.skip_dirname_check = True
     if loaded_config.skip_ref_check is True:
@@ -712,8 +722,8 @@ def main() -> None:
 
     if args.format not in {"text", "json", "md", "agent"}:
         parser.error("format must be one of: text, json, md, agent")
-    if args.target_agent not in {"claude", "vscode", "all"}:
-        parser.error("target-agent must be one of: claude, vscode, all")
+    if args.target_agent not in {"claude", "vscode", "cursor", "all"}:
+        parser.error("target-agent must be one of: claude, vscode, cursor, all")
     if args.critique_agent is not None and args.critique_agent not in {"claude", "codex", "cursor"}:
         parser.error("critique-agent must be one of: claude, codex, cursor")
     if args.graph_agent is not None and args.graph_agent not in {"claude", "codex", "cursor"}:
@@ -942,6 +952,7 @@ def main() -> None:
             skip_ref_check=args.skip_ref_check,
             min_desc_score=args.min_desc_score,
             strict_vscode=args.strict_vscode,
+            strict_cursor=args.strict_cursor,
             target_agent=args.target_agent,
         )
         for p in paths

@@ -20,11 +20,15 @@ inputs:
     required: false
     default: ""
   target-agent:
-    description: "Scope compat checks: claude, vscode, or all (default: all)."
+    description: "Scope compat checks: claude, vscode, cursor, or all (default: all)."
     required: false
     default: ""
   strict-vscode:
     description: "Promote VS Code compat issues to errors."
+    required: false
+    default: "false"
+  strict-cursor:
+    description: "Promote Cursor compat issues to errors."
     required: false
     default: "false"
   skip-dirname-check:
@@ -117,6 +121,7 @@ runs:
       env:
         INPUT_PATH: ${{ inputs.path }}
         INPUT_STRICT_VSCODE: ${{ inputs.strict-vscode }}
+        INPUT_STRICT_CURSOR: ${{ inputs.strict-cursor }}
         INPUT_SKIP_DIRNAME_CHECK: ${{ inputs.skip-dirname-check }}
         INPUT_SKIP_REF_CHECK: ${{ inputs.skip-ref-check }}
         INPUT_MIN_DESC_SCORE: ${{ inputs.min-desc-score }}
