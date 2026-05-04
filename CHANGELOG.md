@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `--strict` umbrella flag. Escalates warning-only runs to exit 1 and turns on `--strict-vscode` and `--strict-cursor`. Reserves the `strict-all` config field for future strict rules to opt into automatically.
+- `strict` action input (`action.yml`) and `INPUT_STRICT` wiring (`action/entrypoint.py`).
+- TOML config: `strict-all = true` is now accepted in `skillcheck.toml`.
+
+### Removed
+
+- `--warnings-as-errors` flag (replaced by `--strict`, which subsumes the same exit-code escalation).
+
 ## [1.2.2] - 2026-05-03
 
 ### Added

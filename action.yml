@@ -1,6 +1,6 @@
 name: "skillcheck"
 description: "Cross-agent skill quality gate for SKILL.md files. Validates against the agentskills.io specification."
-author: "moonrunnerkc"
+author: "Brad Kinnard (moonrunnerkc), Aftermath Technologies Ltd"
 
 branding:
   icon: "check-circle"
@@ -29,6 +29,10 @@ inputs:
     default: "false"
   strict-cursor:
     description: "Promote Cursor compat issues to errors."
+    required: false
+    default: "false"
+  strict:
+    description: "Strict mode. Escalates warnings to exit 1 and enables --strict-vscode and --strict-cursor."
     required: false
     default: "false"
   skip-dirname-check:
@@ -122,6 +126,7 @@ runs:
         INPUT_PATH: ${{ inputs.path }}
         INPUT_STRICT_VSCODE: ${{ inputs.strict-vscode }}
         INPUT_STRICT_CURSOR: ${{ inputs.strict-cursor }}
+        INPUT_STRICT: ${{ inputs.strict }}
         INPUT_SKIP_DIRNAME_CHECK: ${{ inputs.skip-dirname-check }}
         INPUT_SKIP_REF_CHECK: ${{ inputs.skip-ref-check }}
         INPUT_MIN_DESC_SCORE: ${{ inputs.min-desc-score }}

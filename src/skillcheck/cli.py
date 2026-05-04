@@ -277,6 +277,7 @@ examples:
   skillcheck SKILL.md --strict-vscode         treat VS Code issues as errors
   skillcheck SKILL.md --target-agent cursor   scope checks to Cursor
   skillcheck SKILL.md --strict-cursor         treat Cursor issues as errors
+  skillcheck SKILL.md --strict                treat all warnings as errors (umbrella)
   skillcheck SKILL.md --skip-ref-check        skip file reference validation
   skillcheck SKILL.md --emit-critique-prompt  print prompt for agent self-critique
   skillcheck SKILL.md --ingest-critique r.json  ingest agent response and merge diagnostics
@@ -382,10 +383,16 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Promote Cursor compatibility issues to errors.",
     )
     parser.add_argument(
-        "--warnings-as-errors",
+        "--strict",
+        dest="strict_all",
         action="store_true",
         default=False,
-        help="Escalate warning-only runs to exit code 1. Default exit for warning-only is 0.",
+        help=(
+            "Strict mode. Escalates warning-only runs to exit 1, "
+            "promotes VS Code compatibility to errors (same as --strict-vscode), "
+            "promotes Cursor compatibility to errors (same as --strict-cursor), "
+            "and enables the 'all' field in config for future strict rules."
+        ),
     )
     parser.add_argument(
         "--version",
@@ -691,6 +698,8 @@ def _apply_config(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
         args.strict_vscode = True
     if loaded_config.strict_cursor is True:
         args.strict_cursor = True
+    if loaded_config.strict_all is True:
+        args.strict_all = True
     if loaded_config.skip_dirname_check is True:
         args.skip_dirname_check = True
     if loaded_config.skip_ref_check is True:
@@ -719,6 +728,14 @@ def main() -> None:
     parser = _build_parser()
     args = parser.parse_args()
     _apply_config(args, parser)
+
+     # --strict: enable all strict modes. warnings_as_errors is an internal
+     # exit-code flag (no longer a public flag); --strict is the umbrella switch.
+    args.warnings_as_errors = False
+    if args.strict_all:
+        args.warnings_as_errors = True
+        args.strict_vscode = True
+        args.strict_cursor = True
 
     if args.format not in {"text", "json", "md", "agent"}:
         parser.error("format must be one of: text, json, md, agent")
@@ -953,10 +970,11 @@ def main() -> None:
             min_desc_score=args.min_desc_score,
             strict_vscode=args.strict_vscode,
             strict_cursor=args.strict_cursor,
+            strict_all=args.strict_all,
             target_agent=args.target_agent,
-        )
+         )
         for p in paths
-    ]
+     ]
 
     # Track symbolic-only validity BEFORE any ingest merges. Ingest parse
     # failures and symbolic errors both exit 1; semantic-only drift exits 3.

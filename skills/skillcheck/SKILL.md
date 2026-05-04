@@ -2,7 +2,7 @@
 name: skillcheck
 description: Validates and scores SKILL.md files against the agentskills.io specification; use when linting skills for cross-agent compatibility, description quality, or capability graph structure.
 version: "1.2.2"
-author: brad
+author: "Brad Kinnard (moonrunnerkc), Aftermath Technologies Ltd"
 ---
 
 skillcheck is a static analyzer for SKILL.md files. It validates frontmatter structure, scores description discoverability, checks file references, and extracts a capability graph from heading and backtick-reference patterns. Run it before committing a skill, plugging it into CI, or publishing to a skill registry.

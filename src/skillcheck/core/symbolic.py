@@ -18,6 +18,7 @@ def validate(
     min_desc_score: int | None = None,
     strict_vscode: bool = False,
     strict_cursor: bool = False,
+    strict_all: bool = False,
     target_agent: str = "all",
 ) -> ValidationResult:
     """Validate a single SKILL.md file using deterministic symbolic rules.
@@ -32,6 +33,7 @@ def validate(
         min_desc_score: Minimum description quality score.
         strict_vscode: Promote VS Code compatibility issues to errors.
         strict_cursor: Promote Cursor compatibility issues to errors.
+        strict_all: Enable all strict modes (warnings-as-errors + strict VS Code + strict Cursor).
         target_agent: Scope compatibility checks to an agent target.
 
     Returns:
@@ -57,8 +59,9 @@ def validate(
         skip_dirname_check=skip_dirname_check,
         skip_ref_check=skip_ref_check,
         min_desc_score=min_desc_score,
-        strict_vscode=strict_vscode,
-        strict_cursor=strict_cursor,
+        strict_vscode=strict_vscode or strict_all,
+        strict_cursor=strict_cursor or strict_all,
+        strict_all=strict_all,
         target_agent=target_agent,
     )
     diagnostics: list[Diagnostic] = [

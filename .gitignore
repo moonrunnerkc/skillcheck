@@ -8,7 +8,7 @@ build/
 .ruff_cache/
 *.egg
 CLAUDE.md
-.copilot-instructions.md
+copilot-instructions.md
 # Field test artifacts (kept locally, not in git)
 runs/
 

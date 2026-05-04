@@ -2,7 +2,7 @@
 name: skillcheck
 description: Validates SKILL.md files for spec-facing structure, sizing, references, cross-agent compatibility, and agent-authored critique or graph diagnostics.
 version: "1.2.0"
-author: brad
+author: "Brad Kinnard (moonrunnerkc), Aftermath Technologies Ltd"
 ---
 
 Use this skill when validating a `SKILL.md` file or a directory of skill files with the `skillcheck` CLI.

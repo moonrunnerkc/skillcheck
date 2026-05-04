@@ -14,11 +14,11 @@
 
 <img src="https://img.shields.io/pypi/v/skillcheck?style=flat-square" alt="PyPI version"> <img src="https://img.shields.io/pypi/pyversions/skillcheck?style=flat-square" alt="Python"> <img src="https://img.shields.io/github/actions/workflow/status/moonrunnerkc/skillcheck/ci.yml?style=flat-square" alt="CI status"> <img src="https://img.shields.io/github/license/moonrunnerkc/skillcheck?style=flat-square" alt="License">
 
-**v1.2.2 · 709 tests cover all rule modules · production**
+**v1.2.2 · 712 tests cover all rule modules · production**
 
 </div>
 
-709 tests cover all rule modules, 0 known false positives.
+712 tests cover all rule modules, 0 known false positives.
 
 ---
 
@@ -254,6 +254,7 @@ The JSON schema is stable. It will not change in a backward-incompatible way wit
 | `--target-agent {claude,vscode,cursor,all}` | `all` | Scope compatibility checks to a specific agent |
 | `--strict-vscode` | `false` | Promote VS Code compatibility issues to errors |
 | `--strict-cursor` | `false` | Promote Cursor compatibility issues to errors |
+| `--strict` | `false` | Enable all strict modes: escalates all warnings to errors, activates --strict-vscode and --strict-cursor, and enables the 'all' field for future strict rules |
 | `--warnings-as-errors` | `false` | Escalate warning-only runs to exit code 1 (default for warning-only is 0) |
 | `--semantic` | `false` | Enable semantic-adjacent validation; standalone mode runs heuristic graph analysis |
 | `--agent-reason` | `false` | Emit a combined critique + graph prompt packet for the calling agent |

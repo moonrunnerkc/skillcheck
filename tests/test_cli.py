@@ -156,11 +156,12 @@ def test_max_lines_override_triggers_warning():
     assert result.returncode == 0
 
 
-def test_max_lines_override_with_warnings_as_errors_exits_one():
+def test_max_lines_override_with_strict_exits_one():
     result = run_fixture(
         str(FIXTURES_DIR / "valid_basic.md"),
         "--max-lines", "1",
-        "--warnings-as-errors",
+        "--target-agent", "claude",
+        "--strict",
     )
     assert "sizing.body.line-count" in result.stdout
     assert result.returncode == 1
@@ -300,3 +301,44 @@ def test_target_agent_cursor_accepted():
     )
     assert "invalid choice" not in (result.stderr or "")
     assert "compat.cursor-description-block-scalar" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# --strict umbrella flag
+# ---------------------------------------------------------------------------
+
+def test_strict_escalates_warning_run_to_exit_one():
+    """A warning-only run (exit 0 normally) becomes exit 1 under --strict."""
+    baseline = run_fixture(
+        str(FIXTURES_DIR / "cursor_desc_folded_keep.md"),
+        "--target-agent", "cursor",
+    )
+    assert baseline.returncode == 0
+    assert "warning" in baseline.stdout.lower()
+
+    strict = run_fixture(
+        str(FIXTURES_DIR / "cursor_desc_folded_keep.md"),
+        "--target-agent", "cursor",
+        "--strict",
+    )
+    assert strict.returncode == 1
+
+
+def test_strict_promotes_cursor_block_scalar_to_error():
+    result = run_fixture(
+        str(FIXTURES_DIR / "cursor_desc_folded_keep.md"),
+        "--strict",
+    )
+    assert result.returncode == 1
+    assert "compat.cursor-description-block-scalar" in result.stdout
+    assert "error" in result.stdout.lower()
+
+
+def test_strict_passes_on_clean_skill():
+    """--strict must not invent failures on a clean file (claude-only scope)."""
+    result = run_fixture(
+        str(FIXTURES_DIR / "valid_basic.md"),
+        "--target-agent", "claude",
+        "--strict",
+    )
+    assert result.returncode == 0
