@@ -1,0 +1,6 @@
+- id: skillcheck
+  name: skillcheck
+  entry: skillcheck
+  language: python
+  files: '(^|/)SKILL\.md$'
+  pass_filenames: true

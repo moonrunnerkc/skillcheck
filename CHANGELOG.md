@@ -17,6 +17,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `--warnings-as-errors` flag (replaced by `--strict`, which subsumes the same exit-code escalation).
 
+## [1.2.3] - 2026-05-07
+
+### Added
+
+- `--format github`: outputs diagnostics as GitHub Actions workflow commands (`::error`, `::warning`, `::notice`) with proper escaping for file, line, and message properties. The GitHub Action now defaults to this format so PR annotations render automatically without a Python entrypoint.
+- `.pre-commit-hooks.yaml`: adds a `skillcheck` hook for pre-commit, matching `SKILL.md` files and passing filenames to the CLI.
+- `CONTRIBUTING.md`: documents the release convention (immutable patch tags plus a force-updated `v1` moving major tag).
+- `tests/__init__.py`: makes the test package importable, fixing `from tests.conftest` in environments where another `tests` package shadows the path.
+- `nargs="+"` on the `path` argument: the CLI now accepts multiple paths (required by pre-commit's `pass_filenames` mode). Single-path usage is unchanged.
+
+### Changed
+
+- `action.yml` simplified to a two-step composite action that installs skillcheck via pip and runs it directly. The Python entrypoint (`action/entrypoint.py`) is no longer invoked; `--format github` handles PR annotations natively. The `format` input defaults to `github` (was `json`, which was ignored at runtime).
+- README GitHub Action section updated to reflect automatic PR annotations via `--format github`.
+- README pre-commit section added with a `.pre-commit-config.yaml` snippet.
+- README test count updated to 701.
+
+### Removed
+
+- The Python entrypoint (`action/entrypoint.py`) for annotation parsing and step summary generation is no longer used by the action. The action runs skillcheck directly.
+
 ## [1.2.2] - 2026-05-03
 
 ### Added

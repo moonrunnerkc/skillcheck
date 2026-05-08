@@ -12,7 +12,7 @@ inputs:
     required: false
     default: "."
   version:
-    description: "skillcheck version to install (e.g., '1.0.0'). Leave empty for latest."
+    description: "skillcheck version to install (e.g., '1.2.3'). Leave empty for latest."
     required: false
     default: ""
   min-desc-score:
@@ -56,9 +56,9 @@ inputs:
     required: false
     default: ""
   format:
-    description: "Accepted but ignored at runtime. The action always invokes skillcheck with --format json so it can parse diagnostics, emit PR annotations, and write the step summary. Use the CLI directly if you need a different format."
+    description: "Output format. Defaults to github for automatic PR annotations."
     required: false
-    default: "json"
+    default: "github"
   semantic:
     description: "Enable semantic-adjacent validation. In standalone CI this enables heuristic graph analysis."
     required: false
@@ -92,14 +92,6 @@ inputs:
     required: false
     default: "false"
 
-outputs:
-  exit-code:
-    description: "skillcheck exit code (0=pass, 1=errors, 2=warnings or input error, 3=semantic drift)."
-    value: ${{ steps.run.outputs.exit-code }}
-  json:
-    description: "Full JSON output from skillcheck."
-    value: ${{ steps.run.outputs.json }}
-
 runs:
   using: "composite"
   steps:
@@ -108,39 +100,39 @@ runs:
       with:
         python-version: ">=3.10"
 
-    - name: Install skillcheck
+    - name: Install and run skillcheck
       shell: bash
-      env:
-        INPUT_VERSION: ${{ inputs.version }}
       run: |
-        if [ -n "$INPUT_VERSION" ]; then
-          python -m pip install --quiet "skillcheck==$INPUT_VERSION"
+        if [ -n "${{ inputs.version }}" ]; then
+          pip install --quiet "skillcheck==${{ inputs.version }}"
         else
-          python -m pip install --quiet "skillcheck>=1.0.1"
+          pip install --quiet "skillcheck>=1.0.1"
         fi
 
-    - name: Run skillcheck
-      id: run
-      shell: bash
-      env:
-        INPUT_PATH: ${{ inputs.path }}
-        INPUT_STRICT_VSCODE: ${{ inputs.strict-vscode }}
-        INPUT_STRICT_CURSOR: ${{ inputs.strict-cursor }}
-        INPUT_STRICT: ${{ inputs.strict }}
-        INPUT_SKIP_DIRNAME_CHECK: ${{ inputs.skip-dirname-check }}
-        INPUT_SKIP_REF_CHECK: ${{ inputs.skip-ref-check }}
-        INPUT_MIN_DESC_SCORE: ${{ inputs.min-desc-score }}
-        INPUT_TARGET_AGENT: ${{ inputs.target-agent }}
-        INPUT_IGNORE: ${{ inputs.ignore }}
-        INPUT_MAX_LINES: ${{ inputs.max-lines }}
-        INPUT_MAX_TOKENS: ${{ inputs.max-tokens }}
-        INPUT_FORMAT: ${{ inputs.format }}
-        INPUT_SEMANTIC: ${{ inputs.semantic }}
-        INPUT_ANALYZE_GRAPH: ${{ inputs.analyze-graph }}
-        INPUT_INGEST_CRITIQUE: ${{ inputs.ingest-critique }}
-        INPUT_CRITIQUE_AGENT: ${{ inputs.critique-agent }}
-        INPUT_INGEST_GRAPH: ${{ inputs.ingest-graph }}
-        INPUT_GRAPH_AGENT: ${{ inputs.graph-agent }}
-        INPUT_HISTORY: ${{ inputs.history }}
-        INPUT_ACTIVATION_HYPOTHESES: ${{ inputs.activation-hypotheses }}
-      run: python "${{ github.action_path }}/action/entrypoint.py"
+        args=()
+        args+=("${{ inputs.path }}")
+        args+=("--format" "${{ inputs.format }}")
+
+        [ "${{ inputs.strict-vscode }}" = "true" ] && args+=("--strict-vscode")
+        [ "${{ inputs.strict-cursor }}" = "true" ] && args+=("--strict-cursor")
+        [ "${{ inputs.strict }}" = "true" ] && args+=("--strict")
+        [ "${{ inputs.skip-dirname-check }}" = "true" ] && args+=("--skip-dirname-check")
+        [ "${{ inputs.skip-ref-check }}" = "true" ] && args+=("--skip-ref-check")
+        [ "${{ inputs.semantic }}" = "true" ] && args+=("--semantic")
+        [ "${{ inputs.analyze-graph }}" = "true" ] && args+=("--analyze-graph")
+        [ "${{ inputs.history }}" = "true" ] && args+=("--history")
+        [ "${{ inputs.activation-hypotheses }}" = "true" ] && args+=("--activation-hypotheses")
+        [ -n "${{ inputs.min-desc-score }}" ] && args+=("--min-desc-score" "${{ inputs.min-desc-score }}")
+        [ -n "${{ inputs.target-agent }}" ] && args+=("--target-agent" "${{ inputs.target-agent }}")
+        [ -n "${{ inputs.max-lines }}" ] && args+=("--max-lines" "${{ inputs.max-lines }}")
+        [ -n "${{ inputs.max-tokens }}" ] && args+=("--max-tokens" "${{ inputs.max-tokens }}")
+        [ -n "${{ inputs.ingest-critique }}" ] && args+=("--ingest-critique" "${{ inputs.ingest-critique }}")
+        [ -n "${{ inputs.critique-agent }}" ] && args+=("--critique-agent" "${{ inputs.critique-agent }}")
+        [ -n "${{ inputs.ingest-graph }}" ] && args+=("--ingest-graph" "${{ inputs.ingest-graph }}")
+        [ -n "${{ inputs.graph-agent }}" ] && args+=("--graph-agent" "${{ inputs.graph-agent }}")
+        IFS=',' read -ra PREFIXES <<< "${{ inputs.ignore }}"
+        for p in "${PREFIXES[@]}"; do
+          [ -n "$p" ] && args+=("--ignore" "$(echo "$p" | xargs)")
+        done
+
+        skillcheck "${args[@]}"

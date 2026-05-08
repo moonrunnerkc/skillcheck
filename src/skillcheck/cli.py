@@ -218,6 +218,37 @@ def _format_markdown(
     return "\n".join(lines).rstrip()
 
 
+def _gha_escape(value: str) -> str:
+    """Escape a string for use in GitHub Actions workflow command property values."""
+    value = value.replace("%", "%25")
+    value = value.replace("\r", "%0D")
+    value = value.replace("\n", "%0A")
+    value = value.replace(":", "%3A")
+    value = value.replace(",", "%2C")
+    return value
+
+
+def _format_github(results: list[ValidationResult]) -> str:
+    """Format diagnostics as GitHub Actions workflow commands for PR annotations."""
+    severity_map = {
+        Severity.ERROR: "error",
+        Severity.WARNING: "warning",
+        Severity.INFO: "notice",
+    }
+    lines: list[str] = []
+    for result in results:
+        filepath = _gha_escape(str(result.path))
+        for d in result.diagnostics:
+            gh_level = severity_map.get(d.severity, "notice")
+            parts = [f"file={filepath}"]
+            if d.line is not None:
+                parts.append(f"line={d.line}")
+            loc = ",".join(parts)
+            message = _gha_escape(d.message)
+            lines.append(f"::{gh_level} {loc},title=skillcheck: {d.rule}::{message}")
+    return "\n".join(lines)
+
+
 def _format_agent(
     results: list[ValidationResult],
     *,
@@ -302,12 +333,13 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "path",
+        nargs="+",
         type=Path,
-        help="Path to a SKILL.md file or a directory to scan recursively.",
+        help="Path to a SKILL.md file or a directory to scan recursively. Multiple paths accepted.",
     )
     parser.add_argument(
         "--format",
-        choices=["text", "json", "md", "agent"],
+        choices=["text", "json", "md", "agent", "github"],
         default="text",
         help="Output format (default: text).",
     )
@@ -532,16 +564,18 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _resolve_paths(args: argparse.Namespace) -> list[Path]:
-    """Resolve the target path to a list of SKILL.md files, exiting on error."""
-    target: Path = args.path
-    if not target.exists():
-        print(f"Error: path not found: {target}", file=sys.stderr)
-        sys.exit(2)
-    paths = _collect_paths(target)
-    if not paths:
-        print(f"No SKILL.md files found under: {target}", file=sys.stderr)
-        sys.exit(2)
-    return paths
+    """Resolve the target paths to a list of SKILL.md files, exiting on error."""
+    all_paths: list[Path] = []
+    for target in args.path:
+        if not target.exists():
+            print(f"Error: path not found: {target}", file=sys.stderr)
+            sys.exit(2)
+        paths = _collect_paths(target)
+        if not paths:
+            print(f"No SKILL.md files found under: {target}", file=sys.stderr)
+            sys.exit(2)
+        all_paths.extend(paths)
+    return all_paths
 
 
 def _do_emit_graph(paths: list[Path], fmt: str) -> None:
@@ -676,7 +710,7 @@ def _do_emit_activation(paths: list[Path], fmt: str) -> None:
 
 def _apply_config(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     """Apply skillcheck.toml defaults to parsed args."""
-    config_path = args.config or find_config(args.path)
+    config_path = args.config or find_config(args.path[0])
     try:
         loaded_config = load_config(config_path)
     except ConfigError as exc:
@@ -729,15 +763,15 @@ def main() -> None:
     args = parser.parse_args()
     _apply_config(args, parser)
 
-     # --strict: enable all strict modes. warnings_as_errors is an internal
-     # exit-code flag (no longer a public flag); --strict is the umbrella switch.
+    # --strict: enable all strict modes. warnings_as_errors is an internal
+    # exit-code flag (no longer a public flag); --strict is the umbrella switch.
     args.warnings_as_errors = False
     if args.strict_all:
         args.warnings_as_errors = True
         args.strict_vscode = True
         args.strict_cursor = True
 
-    if args.format not in {"text", "json", "md", "agent"}:
+    if args.format not in {"text", "json", "md", "agent", "github"}:
         parser.error("format must be one of: text, json, md, agent")
     if args.target_agent not in {"claude", "vscode", "cursor", "all"}:
         parser.error("target-agent must be one of: claude, vscode, cursor, all")
@@ -1147,6 +1181,8 @@ def main() -> None:
                 critique_source=critique_source,
                 graph_source=graph_source_text,
             ))
+        elif args.format == "github":
+            print(_format_github(results))
         else:
             use_color = not args.no_color and sys.stdout.isatty()
             print(_format_text(

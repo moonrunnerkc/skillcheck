@@ -14,11 +14,11 @@
 
 <img src="https://img.shields.io/pypi/v/skillcheck?style=flat-square" alt="PyPI version"> <img src="https://img.shields.io/pypi/pyversions/skillcheck?style=flat-square" alt="Python"> <img src="https://img.shields.io/github/actions/workflow/status/moonrunnerkc/skillcheck/ci.yml?style=flat-square" alt="CI status"> <img src="https://img.shields.io/github/license/moonrunnerkc/skillcheck?style=flat-square" alt="License">
 
-**v1.2.2 · 712 tests cover all rule modules · production**
+**v1.2.3 · 730 tests cover all rule modules · production**
 
 </div>
 
-712 tests cover all rule modules, 0 known false positives.
+730 tests cover all rule modules, 0 known false positives.
 
 ---
 
@@ -42,6 +42,18 @@ Requires Python 3.10 or later. For more accurate token estimation (reduces error
 
 ```bash
 pip install "skillcheck[tiktoken]"
+```
+
+### pre-commit
+
+Add to `.pre-commit-config.yaml` alongside ruff, black, mypy, or other hooks:
+
+```yaml
+repos:
+  - repo: https://github.com/moonrunnerkc/skillcheck
+    rev: v1.2.3
+    hooks:
+      - id: skillcheck
 ```
 
 ## Quick Start
@@ -180,11 +192,11 @@ Three lines to add skillcheck to any CI pipeline:
     path: skills/
 ```
 
-Pin to `@v1` for the latest patch within the v1.0 major-version line, or `@v1.0.0` for an immutable release.
+Pin to `@v1` for the latest patch within the v1.x major-version line, or `@v1.2.3` for an immutable release.
 
-Failures block the PR. Errors and warnings appear as inline diff annotations on the changed files. The workflow run page gets a Markdown summary table. For the complete list of action inputs and outputs, see [`action.yml`](action.yml).
+The action defaults to `--format github`, which emits inline PR annotations automatically: errors, warnings, and info diagnostics appear as `::error`, `::warning`, and `::notice` workflow commands on the affected files. Override with the `format` input if you need a different output format. For the complete list of action inputs, see [`action.yml`](action.yml).
 
-The v1.0 graph and critique modes are available as action inputs. Example with strict VS Code mode and a description quality floor:
+Example with strict VS Code mode and a description quality floor:
 
 ```yaml
 - uses: moonrunnerkc/skillcheck@v1
@@ -241,7 +253,7 @@ The JSON schema is stable. It will not change in a backward-incompatible way wit
 
 | Flag | Default | Description |
 |---|---|---|
-| `--format {text,json,md,agent}` | `text` | Output format |
+| `--format {text,json,md,agent,github}` | `text` | Output format |
 | `--config PATH` | nearest `skillcheck.toml` | Load config defaults from TOML |
 | `--max-lines N` | `500` | Override the line-count threshold |
 | `--max-tokens N` | `8000` | Override the token-count threshold |
