@@ -237,7 +237,7 @@ def _format_github(results: list[ValidationResult]) -> str:
     }
     lines: list[str] = []
     for result in results:
-        filepath = _gha_escape(str(result.path))
+        filepath = _gha_escape(str(result.path).replace("\\", "/"))
         for d in result.diagnostics:
             gh_level = severity_map.get(d.severity, "notice")
             parts = [f"file={filepath}"]
