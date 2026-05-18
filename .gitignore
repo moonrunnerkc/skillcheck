@@ -23,3 +23,4 @@ LAUNCH_POST_*.md
 # Agent scratchpads (kept locally; never push)
 .codex
 review.md
+.venv/

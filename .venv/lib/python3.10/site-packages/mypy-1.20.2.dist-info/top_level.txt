@@ -1,3 +1,0 @@
-0aca9ce3d91742c5b361__mypyc
-mypy
-mypyc
