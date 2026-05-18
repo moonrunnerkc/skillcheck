@@ -114,9 +114,9 @@ def check_unverified_fields(skill: ParsedSkill) -> list[Diagnostic]:
             agents_str = ", ".join(sorted(unknown_agents))
             # Provenance: attach dates for agents with "unknown" status
             date_parts = []
-            if "Codex" in agents_str:
+            if "codex" in [a.lower() for a in unknown_agents]:
                 date_parts.append(f"Codex: {_CLAUDE_DATA_DATE}")
-            if "Cursor" in agents_str:
+            if "cursor" in [a.lower() for a in unknown_agents]:
                 date_parts.append(f"Cursor: {_CURSOR_DATA_DATE}")
             date_suffix = ""
             if date_parts:

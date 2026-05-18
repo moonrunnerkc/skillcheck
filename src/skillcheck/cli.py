@@ -130,7 +130,7 @@ def _format_text(
                         "specificity": (bd.get("specificity", 0), 15),
                         "length": (bd.get("length", 0), 10),
                     }.items()]
-                    lines.append(f"{'':>12}{'· '.join(parts)}")
+                    lines.append(f"{'':>12}{' · '.join(parts)}")
 
     # summary
     total = len(results)
