@@ -4,27 +4,16 @@ Converts raw agent output into a CapabilityGraph with source="agent". Handles
 the three failure modes that are realistically distinct: invalid JSON, schema
 mismatch, and out-of-range or semantically invalid values.
 
-Stripping rules applied before JSON parsing (in order):
-  1. Leading and trailing whitespace.
-  2. A single markdown code fence block: ```json...``` or ```...``` wrapping
-     the entire remaining content. Only one level of fencing is stripped; a
-     fence inside the JSON object is left alone.
-  3. Any prose before the first '{'. Specifically, the content is sliced to
-     begin at the first occurrence of '{' that is either at the start of the
-     string or preceded only by whitespace on its line.
-
-These rules are deterministic and applied in sequence. No regex substitution
-happens inside the JSON body itself.
-
-Parallel to agents/parser.py (critique responses).
+Noise stripping (markdown fences, prose preambles) is shared with the
+critique parser; see agents/_response_text.py.
 """
 
 from __future__ import annotations
 
 import json
-import re
 from typing import Literal
 
+from skillcheck.agents._response_text import strip_response_noise
 from skillcheck.core.graph import Capability, CapabilityGraph, Edge, Input, Output
 from skillcheck.parser import ParsedSkill
 
@@ -106,36 +95,6 @@ _EDGE_FIELDS: dict[str, type] = {
     "target_id": str,
     "kind": str,
 }
-
-# Matches a full ```json\n...\n``` or ```\n...\n``` fence wrapping the entire content.
-_FENCE_RE = re.compile(r"^```(?:json)?\s*\n(.*?)\n```\s*$", re.DOTALL)
-
-
-# ---------------------------------------------------------------------------
-# Noise stripping (same policy as critique parser)
-# ---------------------------------------------------------------------------
-
-
-def _strip_noise(raw: str) -> str:
-    """Remove LLM response noise before attempting JSON parsing.
-
-    Stripping steps (applied in order):
-    1. Strip leading/trailing whitespace.
-    2. Strip a single markdown code fence (```json or ```) wrapping the whole content.
-    3. Strip any prose before the first '{'.
-    """
-    text = raw.strip()
-
-    fence_match = _FENCE_RE.match(text)
-    if fence_match:
-        text = fence_match.group(1).strip()
-
-    brace_pos = text.find("{")
-    if brace_pos > 0:
-        text = text[brace_pos:]
-
-    return text
-
 
 # ---------------------------------------------------------------------------
 # Field-level helpers
@@ -313,7 +272,7 @@ def parse_graph_response(raw: str, skill: ParsedSkill) -> CapabilityGraph:
         GraphValueError: Schema matches but values violate semantic rules
             (out-of-range line numbers, duplicate IDs, dangling edge references).
     """
-    cleaned = _strip_noise(raw)
+    cleaned = strip_response_noise(raw)
 
     try:
         data = json.loads(cleaned)
