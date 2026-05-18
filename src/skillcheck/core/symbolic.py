@@ -33,7 +33,7 @@ def validate(
         min_desc_score: Minimum description quality score.
         strict_vscode: Promote VS Code compatibility issues to errors.
         strict_cursor: Promote Cursor compatibility issues to errors.
-        strict_all: Enable all strict modes (warnings-as-errors + strict VS Code + strict Cursor).
+        strict_all: Enable all strict modes (promote warnings to exit 1, strict VS Code, strict Cursor).
         target_agent: Scope compatibility checks to an agent target.
 
     Returns:
