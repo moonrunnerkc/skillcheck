@@ -14,11 +14,11 @@
 
 <img src="https://img.shields.io/pypi/v/skillcheck?style=flat-square" alt="PyPI version"> <img src="https://img.shields.io/pypi/pyversions/skillcheck?style=flat-square" alt="Python"> <img src="https://img.shields.io/github/actions/workflow/status/moonrunnerkc/skillcheck/ci.yml?style=flat-square" alt="CI status"> <img src="https://img.shields.io/github/license/moonrunnerkc/skillcheck?style=flat-square" alt="License">
 
-**v1.2.3 · 730 tests cover all rule modules · production**
+**v1.3.0 · 744 tests cover all rule modules · production**
 
 </div>
 
-730 tests cover all rule modules, 0 known false positives.
+744 tests cover all rule modules, 0 known false positives.
 
 ---
 

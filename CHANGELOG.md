@@ -7,15 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-05-18
+
 ### Added
 
 - `--strict` umbrella flag. Escalates warning-only runs to exit 1 and turns on `--strict-vscode` and `--strict-cursor`. Reserves the `strict-all` config field for future strict rules to opt into automatically.
-- `strict` action input (`action.yml`) and `INPUT_STRICT` wiring (`action/entrypoint.py`).
+- `strict` action input (`action.yml`).
 - TOML config: `strict-all = true` is now accepted in `skillcheck.toml`.
+- `--explain-score` flag. Shows per-dimension breakdown (action, trigger, keywords, specificity, length) under each `description.quality-score` diagnostic in text output. JSON format always includes the `breakdown` object regardless of the flag.
+- `--fail-on-regression` flag. With `--history`, promotes `history.skill.regressed` to exit 1. Independent of `--strict`.
+- `fail-on-regression` and `explain-score` action inputs in `action.yml`.
+- Provenance dates on cross-agent diagnostics. Every `compat.*` rule that encodes platform-specific behavior now includes `(as of YYYY-MM-DD)`.
+- `_CLAUDE_DATA_DATE`, `_VSCODE_DATA_DATE`, `_CURSOR_DATA_DATE` constants in `rules/compat.py`.
+- `test_compat_data_freshness.py`: staleness tests asserting each date is within 365 days of today.
+- `tiktoken` action input in `action.yml`. Set `tiktoken: true` to install `skillcheck[tiktoken]`.
+- `score_description()` now returns a 3-tuple `(score, suggestions, breakdown)` with per-dimension point breakdown.
+
+### Changed
+
+- Mutual-exclusion block in CLI refactored: individual print-and-sys.exit(2) pairs replaced by `_EMIT_MODES`/`_AUGMENT_FLAGS` dicts and a single `_die_on_mode_conflict()` resolver. Net LOC reduced; behavior identical.
+- `--semantic` flag help string now states that it implies `--analyze-graph` when no `--ingest-graph` is supplied.
+- `action.yml` install line tightened from unpinned `skillcheck` to `skillcheck>=1.2,<2`. Python version pinned to `3.12` for the setup-python step.
+- README options table: removed `--warnings-as-errors` row; added `--fail-on-regression` and `--explain-score` rows.
+- README exit codes section: `--strict` and `--fail-on-regression` are now the only documented warning-escalation knobs.
+- README GitHub Action section: added `tiktoken: true` documentation.
+- Compat diagnostic messages updated with `(as of YYYY-MM-DD)` provenance suffixes.
 
 ### Removed
 
 - `--warnings-as-errors` flag (replaced by `--strict`, which subsumes the same exit-code escalation).
+- `action/entrypoint.py` (unused since v1.2.3; the composite action runs skillcheck directly).
+- `RELEASE_NOTES_v1.0.0.md`, `RELEASE_NOTES_v1.0.1.md`, `RELEASE_NOTES_v1.1.0.md` (CHANGELOG.md is the canonical history).
 
 ## [1.2.3] - 2026-05-07
 
