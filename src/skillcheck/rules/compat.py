@@ -6,6 +6,12 @@ work in one agent but are ignored or cause breakage in others.
 
 This module flags fields with limited cross-agent support so authors
 can make informed decisions about portability.
+
+Provenance dates (``_CLAUDE_DATA_DATE``, ``_VSCODE_DATA_DATE``,
+``_CURSOR_DATA_DATE``) record when the compatibility data was last
+verified. The ``test_compat_data_freshness`` test asserts that these
+dates are within 365 days of today; when the test fails, update the
+constants and re-verify the agent behavior they encode.
 """
 
 from __future__ import annotations
@@ -18,6 +24,14 @@ from skillcheck.parser import _FRONTMATTER_RE
 from skillcheck.parser import ParsedSkill
 from skillcheck.result import Diagnostic, Severity
 from skillcheck.template_detection import is_template
+
+# ---------------------------------------------------------------------------
+# Provenance dates for compatibility data
+# ---------------------------------------------------------------------------
+
+_CLAUDE_DATA_DATE = "2026-04-20"
+_VSCODE_DATA_DATE = "2026-04-20"
+_CURSOR_DATA_DATE = "2026-04-20"
 
 # Detects a block scalar marker (>, >+, |, |+) on the description field.
 # >- and |- strip trailing whitespace and render correctly in Cursor's UI,
@@ -37,7 +51,8 @@ def check_claude_only_fields(skill: ParsedSkill) -> list[Diagnostic]:
                 rule="compat.claude-only",
                 severity=Severity.INFO,
                 message=(
-                    f"Field '{field}' is Claude Code-specific. "
+                    f"Field '{field}' is Claude Code-specific "
+                    f"(as of {_CLAUDE_DATA_DATE}). "
                     f"It will be ignored by VS Code/Copilot and behavior in "
                     f"Codex and Cursor is unverified."
                 ),
@@ -79,7 +94,7 @@ def check_vscode_dirname(skill: ParsedSkill) -> list[Diagnostic]:
         message=(
             f"VS Code requires the name field ('{name}') to match the "
             f"parent directory ('{parent_dir}'). This skill would not "
-            f"load in VS Code/Copilot."
+            f"load in VS Code/Copilot (as of {_VSCODE_DATA_DATE})."
         ),
     )]
 
@@ -97,11 +112,20 @@ def check_unverified_fields(skill: ParsedSkill) -> list[Diagnostic]:
         ]
         if unknown_agents:
             agents_str = ", ".join(sorted(unknown_agents))
+            # Provenance: attach dates for agents with "unknown" status
+            date_parts = []
+            if "Codex" in agents_str:
+                date_parts.append(f"Codex: {_CLAUDE_DATA_DATE}")
+            if "Cursor" in agents_str:
+                date_parts.append(f"Cursor: {_CURSOR_DATA_DATE}")
+            date_suffix = ""
+            if date_parts:
+                date_suffix = f" (as of {'; '.join(date_parts)})"
             diagnostics.append(Diagnostic(
                 rule="compat.unverified",
                 severity=Severity.INFO,
                 message=(
-                    f"Behavior of field '{field}' in {agents_str} is unverified."
+                    f"Behavior of field '{field}' in {agents_str} is unverified{date_suffix}."
                 ),
             ))
     return diagnostics
@@ -124,7 +148,7 @@ def make_strict_vscode_rule() -> Callable[[ParsedSkill], list[Diagnostic]]:
             message=(
                 f"VS Code requires the name field ('{name}') to match the "
                 f"parent directory ('{parent_dir}'). This skill will not "
-                f"load in VS Code/Copilot."
+                f"load in VS Code/Copilot (as of {_VSCODE_DATA_DATE})."
             ),
         )]
 
@@ -154,7 +178,8 @@ def _cursor_block_scalar_message(marker: str) -> str:
     return (
         f"description uses block scalar '{marker}' which Cursor's skills "
         f"UI renders as empty (got 'description: {marker}'). Use "
-        f"'description: >-' (folded strip) instead."
+        f"'description: >-' (folded strip) instead "
+        f"(as of {_CURSOR_DATA_DATE})."
     )
 
 
