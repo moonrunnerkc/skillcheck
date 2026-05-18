@@ -90,6 +90,8 @@ def _format_text(
     color: bool = False,
     critique_source: str | None = None,
     graph_source: str | None = None,
+    score_breakdowns: dict[str, dict[str, int]] | None = None,
+    explain_score: bool = False,
 ) -> str:
     lines: list[str] = []
     if critique_source is not None:
@@ -113,6 +115,22 @@ def _format_text(
             if d.context:
                 ctx = _style(d.context, _DIM, color=color)
                 lines.append(f"{'':>12}  {ctx}")
+            # Explain description quality scores when requested
+            if (
+                explain_score
+                and d.rule == "description.quality-score"
+                and score_breakdowns
+            ):
+                bd = score_breakdowns.get(str(result.path))
+                if bd:
+                    parts = [f"{k}: {v}/{max_v}" for k, (v, max_v) in {
+                        "action": (bd.get("action", 0), 25),
+                        "trigger": (bd.get("trigger", 0), 25),
+                        "keywords": (bd.get("keywords", 0), 25),
+                        "specificity": (bd.get("specificity", 0), 15),
+                        "length": (bd.get("length", 0), 10),
+                    }.items()]
+                    lines.append(f"{'':>12}{'· '.join(parts)}")
 
     # summary
     total = len(results)
@@ -140,6 +158,7 @@ def _format_json(
     version: str,
     critique_source: str | None = None,
     graph_source: dict | None = None,
+    score_breakdowns: dict[str, dict[str, int]] | None = None,
 ) -> str:
     passed = sum(1 for r in results if r.valid)
     payload: dict[str, object] = {
@@ -155,13 +174,22 @@ def _format_json(
                 "valid": r.valid,
                 "diagnostics": [
                     {
-                        "rule": d.rule,
-                        "severity": d.severity.value,
-                        "message": d.message,
-                        "line": d.line,
-                        "context": d.context,
-                        "source": d.source,
-                        "confidence": d.confidence,
+                        **{
+                            "rule": d.rule,
+                            "severity": d.severity.value,
+                            "message": d.message,
+                            "line": d.line,
+                            "context": d.context,
+                            "source": d.source,
+                            "confidence": d.confidence,
+                        },
+                        **(
+                            {"breakdown": score_breakdowns[str(r.path)]}
+                            if d.rule == "description.quality-score"
+                            and score_breakdowns
+                            and str(r.path) in score_breakdowns
+                            else {}
+                        ),
                     }
                     for d in r.diagnostics
                 ],
@@ -395,6 +423,12 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         metavar="N",
         help="Minimum description quality score (0-100). Below this triggers a warning.",
+    )
+    parser.add_argument(
+        "--explain-score",
+        action="store_true",
+        default=False,
+        help="Show per-dimension breakdown for description quality scores.",
     )
     parser.add_argument(
         "--target-agent",
@@ -1158,6 +1192,29 @@ def main() -> None:
             ])
             # Write failure is a warning; validation exit code stands.
 
+    # Compute description quality score breakdowns when relevant.
+    score_breakdowns: dict[str, dict[str, int]] = {}
+    has_quality_diag = any(
+        d.rule == "description.quality-score"
+        for r in results
+        for d in r.diagnostics
+    )
+    if has_quality_diag:
+        from skillcheck.rules.description import score_description as _score
+        from skillcheck.template_detection import is_template
+        for r in results:
+            for d in r.diagnostics:
+                if d.rule == "description.quality-score":
+                    try:
+                        skill = _parse_skill(r.path)
+                        desc = skill.frontmatter.get("description")
+                        if desc and isinstance(desc, str) and desc.strip() and not is_template(skill):
+                            _, _, bd = _score(desc)
+                            score_breakdowns[str(r.path)] = bd
+                    except Exception:
+                        pass
+                    break  # one description per file
+
     # Print report (after history processing so regression/write-fail diagnostics appear).
     if not args.quiet:
         if args.format == "json":
@@ -1166,6 +1223,7 @@ def main() -> None:
                 __version__,
                 critique_source=critique_source,
                 graph_source=graph_source_json,
+                score_breakdowns=score_breakdowns or None,
             ))
         elif args.format == "md":
             print(_format_markdown(
@@ -1188,6 +1246,8 @@ def main() -> None:
                 color=use_color,
                 critique_source=critique_source,
                 graph_source=graph_source_text,
+                score_breakdowns=score_breakdowns or None,
+                explain_score=args.explain_score,
             ))
 
     sys.exit(final_exit_code)

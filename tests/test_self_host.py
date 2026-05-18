@@ -146,5 +146,5 @@ def test_self_host_description_score_above_threshold() -> None:
     skill = parse(SKILL_PATH)
     desc = skill.frontmatter.get("description", "")
     assert isinstance(desc, str) and desc.strip(), "Description must be a non-empty string"
-    score, _ = score_description(desc)
+    score, _, _ = score_description(desc)
     assert score >= 85, f"Description score {score} is below the 85 threshold: {desc!r}"

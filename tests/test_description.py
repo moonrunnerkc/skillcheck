@@ -23,55 +23,55 @@ def test_high_quality_description_scores_above_60():
         "the user needs a commit message, mentions conventional commits, "
         "or has staged changes ready to commit."
     )
-    score, suggestions = score_description(desc)
+    score, suggestions, _ = score_description(desc)
     assert score >= 60, f"Expected >= 60, got {score}. Suggestions: {suggestions}"
 
 
 def test_low_quality_description_scores_below_40():
     desc = "A thing."
-    score, suggestions = score_description(desc)
+    score, suggestions, _ = score_description(desc)
     assert score < 40, f"Expected < 40, got {score}"
     assert len(suggestions) > 0
 
 
 def test_empty_description_scores_zero():
-    score, suggestions = score_description("")
+    score, suggestions, _ = score_description("")
     assert score == 0
 
 
 def test_vague_description_penalized():
     desc = "A helpful tool and general utility for various things."
-    score, _ = score_description(desc)
+    score, _, _ = score_description(desc)
     # This is vague and should score poorly
     assert score < 40
 
 
 def test_action_verb_at_start_boosts_score():
     desc = "Validates SKILL.md files against the agentskills.io specification."
-    score_with_verb, _ = score_description(desc)
+    score_with_verb, _, _ = score_description(desc)
     desc_no_verb = "A checker for SKILL.md files and specification compliance."
-    score_no_verb, _ = score_description(desc_no_verb)
+    score_no_verb, _, _ = score_description(desc_no_verb)
     assert score_with_verb > score_no_verb
 
 
 def test_trigger_phrase_boosts_score():
     base = "Generates commit messages from git diffs."
     with_trigger = base + " Use this skill whenever the user mentions commits."
-    score_base, _ = score_description(base)
-    score_trigger, _ = score_description(with_trigger)
+    score_base, _, _ = score_description(base)
+    score_trigger, _, _ = score_description(with_trigger)
     assert score_trigger > score_base
 
 
 def test_very_short_description_penalized():
     desc = "Lints files."
-    score, suggestions = score_description(desc)
+    score, suggestions, _ = score_description(desc)
     # 11 chars, should get length penalty
     assert any("short" in s.lower() for s in suggestions)
 
 
 def test_very_long_description_penalized():
     desc = "Deploys applications to production. " * 20  # ~700 chars
-    score, suggestions = score_description(desc)
+    score, suggestions, _ = score_description(desc)
     assert any("long" in s.lower() for s in suggestions)
 
 
@@ -147,8 +147,8 @@ def test_comprehensive_alone_does_not_penalize():
         "Generates Python type stubs from runtime introspection. "
         "Use this skill when the user asks for stub generation."
     )
-    score_with, _ = score_description(with_word)
-    score_without, _ = score_description(without_word)
+    score_with, _, _ = score_description(with_word)
+    score_without, _, _ = score_description(without_word)
     assert score_with == score_without, (
         f"'comprehensive' incurred a penalty: {score_with} vs {score_without}"
     )
@@ -159,7 +159,7 @@ def test_third_person_verb_forms_count_via_stem_normalization():
     count as action verbs without being explicitly enumerated.
     """
     base = "Identifies cyclic dependencies in plan graphs."
-    score, _ = score_description(base)
+    score, _, _ = score_description(base)
     assert score >= 30, f"Expected leading verb to register, got {score}"
 
 
@@ -210,7 +210,7 @@ def test_issue_2_regression_investigate_description():
              "a failing GitLab job URL or job ID, especially for "
              "dashboard-api-automation test failures."
        )
-       score, suggestions = score_description(desc)
+       score, suggestions, _ = score_description(desc)
        assert not any(
              "action verb" in s.lower() for s in (suggestions or [])
        ), f'Issue #2 description should not trigger action-verb suggestion: {suggestions}'

@@ -202,26 +202,29 @@ def _score_length(desc: str) -> tuple[int, str | None]:
     return 10, None
 
 
-def score_description(desc: str) -> tuple[int, list[str]]:
-    """Score a description string from 0-100 with improvement suggestions.
+def score_description(desc: str) -> tuple[int, list[str], dict[str, int]]:
+    """Score a description string from 0-100 with improvement suggestions and breakdown.
 
-    Returns (score, suggestions) where suggestions is a list of actionable strings.
+    Returns (score, suggestions, breakdown) where suggestions is a list of
+    actionable strings and breakdown maps each dimension name to its points.
     """
     scorers = [
-        _score_action_verbs,
-        _score_trigger_phrases,
-        _score_keyword_density,
-        _score_specificity,
-        _score_length,
+        ("action", 25, _score_action_verbs),
+        ("trigger", 25, _score_trigger_phrases),
+        ("keywords", 25, _score_keyword_density),
+        ("specificity", 15, _score_specificity),
+        ("length", 10, _score_length),
     ]
     total = 0
     suggestions: list[str] = []
-    for scorer in scorers:
+    breakdown: dict[str, int] = {}
+    for name, max_pts, scorer in scorers:
         points, suggestion = scorer(desc)
         total += points
+        breakdown[name] = points
         if suggestion:
             suggestions.append(suggestion)
-    return total, suggestions
+    return total, suggestions, breakdown
 
 
 def check_description_quality(skill: ParsedSkill) -> list[Diagnostic]:
@@ -233,7 +236,7 @@ def check_description_quality(skill: ParsedSkill) -> list[Diagnostic]:
     if not desc or not isinstance(desc, str) or not desc.strip():
         return []   # Missing/empty descriptions are handled by frontmatter rules.
 
-    score, suggestions = score_description(desc)
+    score, suggestions, _breakdown = score_description(desc)
 
     suggestion_text = ""
     if suggestions:
@@ -259,7 +262,7 @@ def make_min_score_rule(
         if not desc or not isinstance(desc, str) or not desc.strip():
             return []
 
-        score, suggestions = score_description(desc)
+        score, suggestions, _breakdown = score_description(desc)
         if score >= min_score:
             return []
 
