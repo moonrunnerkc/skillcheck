@@ -581,6 +581,16 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--fail-on-regression",
+        action="store_true",
+        default=False,
+        help=(
+            "Exit 1 when --history is active and a regression is detected "
+            "(history.skill.regressed fires). Without this flag, regressions are "
+            "warnings that do not affect the exit code. Independent of --strict."
+        ),
+    )
+    parser.add_argument(
         "--activation-hypotheses",
         action="store_true",
         default=False,
@@ -1169,7 +1179,14 @@ def main() -> None:
             ]
         if regression_diags:
             results[0] = merge_diagnostics(results[0], regression_diags)
-            # Regression is WARNING; does not raise or change the exit code.
+            # Regression is WARNING by default; does not change the exit code.
+            # --fail-on-regression promotes it to exit 1.
+            if args.fail_on_regression:
+                has_regression = any(
+                    d.rule == "history.skill.regressed" for d in regression_diags
+                )
+                if has_regression:
+                    final_exit_code = 1
 
         # Build final entry with all diagnostics included (regression if any).
         final_entry = build_entry(

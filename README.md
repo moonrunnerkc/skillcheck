@@ -279,6 +279,7 @@ The JSON schema is stable. It will not change in a backward-incompatible way wit
 | `--graph-agent NAME` | `claude` | Prompt variant for graph extraction: `claude`, `codex`, or `cursor`. Requires `--emit-graph-prompt` or `--ingest-graph` |
 | `--history` | `false` | Append a validation record to `.skillcheck-history.json` next to the skill |
 | `--show-history` | `false` | Print the validation ledger and exit 0 |
+| `--fail-on-regression` | `false` | With `--history`, exit 1 on `history.skill.regressed`; independent of `--strict` |
 | `--activation-hypotheses` | `false` | Experimental emit mode for likely natural-language activation triggers |
 | `--version` | | Show version and exit |
 
