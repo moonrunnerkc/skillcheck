@@ -251,6 +251,26 @@ Each diagnostic includes `source` and `confidence` fields in JSON output. `sourc
 
 The JSON schema is stable. It will not change in a backward-incompatible way within the v1.x series.
 
+### Description quality breakdown (`--explain-score`)
+
+`--explain-score` adds a per-dimension breakdown line under each `description.quality-score` diagnostic. In text output:
+
+```
+  · info     description.quality-score  Description quality score: 95/100.
+              action: 25/25 · trigger: 20/25 · keywords: 25/25 · specificity: 15/15 · length: 10/10
+```
+
+In JSON output, the `breakdown` object is always present on `description.quality-score` diagnostics regardless of whether `--explain-score` is set:
+
+```json
+{
+  "rule": "description.quality-score",
+  "severity": "info",
+  "message": "Description quality score: 95/100.",
+  "breakdown": {"action": 25, "trigger": 20, "keywords": 25, "specificity": 15, "length": 10}
+}
+```
+
 ## Options
 
 | Flag | Default | Description |
@@ -265,6 +285,7 @@ The JSON schema is stable. It will not change in a backward-incompatible way wit
 | `--skip-dirname-check` | `false` | Skip directory-name matching (useful for CI temp paths) |
 | `--skip-ref-check` | `false` | Skip file reference validation |
 | `--min-desc-score N` | | Minimum description quality score (0-100); below this triggers a warning |
+| `--explain-score` | `false` | Show per-dimension breakdown for description quality scores (action, trigger, keywords, specificity, length) |
 | `--target-agent {claude,vscode,cursor,all}` | `all` | Scope compatibility checks to a specific agent |
 | `--strict-vscode` | `false` | Promote VS Code compatibility issues to errors |
 | `--strict-cursor` | `false` | Promote Cursor compatibility issues to errors |
