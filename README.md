@@ -196,6 +196,8 @@ Pin to `@v1` for the latest patch within the v1.x major-version line, or `@v1.2.
 
 The action defaults to `--format github`, which emits inline PR annotations automatically: errors, warnings, and info diagnostics appear as `::error`, `::warning`, and `::notice` workflow commands on the affected files. Override with the `format` input if you need a different output format. For the complete list of action inputs, see [`action.yml`](action.yml).
 
+Set `tiktoken: true` to install the optional tokenizer extra; token estimates drop from ~15% error to ~5%.
+
 Example with strict VS Code mode and a description quality floor:
 
 ```yaml

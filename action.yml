@@ -87,8 +87,20 @@ inputs:
     description: "Append a validation record to .skillcheck-history.json."
     required: false
     default: "false"
+  fail-on-regression:
+    description: "With --history, exit 1 on history.skill.regressed. Independent of --strict."
+    required: false
+    default: "false"
+  explain-score:
+    description: "Show per-dimension breakdown for description quality scores."
+    required: false
+    default: "false"
   activation-hypotheses:
     description: "Generate activation hypotheses. This is an emit mode and does not produce PR annotations."
+    required: false
+    default: "false"
+  tiktoken:
+    description: "Install the optional tiktoken extra for more accurate token estimates."
     required: false
     default: "false"
 
@@ -104,9 +116,17 @@ runs:
       shell: bash
       run: |
         if [ -n "${{ inputs.version }}" ]; then
-          pip install --quiet "skillcheck==${{ inputs.version }}"
+          if [ "${{ inputs.tiktoken }}" = "true" ]; then
+            pip install --quiet "skillcheck[tiktoken]==${{ inputs.version }}"
+          else
+            pip install --quiet "skillcheck==${{ inputs.version }}"
+          fi
         else
-          pip install --quiet "skillcheck>=1.2,<2"
+          if [ "${{ inputs.tiktoken }}" = "true" ]; then
+            pip install --quiet "skillcheck[tiktoken]>=1.2,<2"
+          else
+            pip install --quiet "skillcheck>=1.2,<2"
+          fi
         fi
 
         args=()
@@ -121,6 +141,8 @@ runs:
         [ "${{ inputs.semantic }}" = "true" ] && args+=("--semantic")
         [ "${{ inputs.analyze-graph }}" = "true" ] && args+=("--analyze-graph")
         [ "${{ inputs.history }}" = "true" ] && args+=("--history")
+        [ "${{ inputs.fail-on-regression }}" = "true" ] && args+=("--fail-on-regression")
+        [ "${{ inputs.explain-score }}" = "true" ] && args+=("--explain-score")
         [ "${{ inputs.activation-hypotheses }}" = "true" ] && args+=("--activation-hypotheses")
         [ -n "${{ inputs.min-desc-score }}" ] && args+=("--min-desc-score" "${{ inputs.min-desc-score }}")
         [ -n "${{ inputs.target-agent }}" ] && args+=("--target-agent" "${{ inputs.target-agent }}")
