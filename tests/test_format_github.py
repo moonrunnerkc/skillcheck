@@ -5,7 +5,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from skillcheck.cli import _format_github, _gha_escape
+from skillcheck.formatters import _format_github, _gha_escape
 from skillcheck.result import Diagnostic, ValidationResult, Severity
 
 from tests.conftest import FIXTURES_DIR
