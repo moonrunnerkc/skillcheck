@@ -441,7 +441,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--semantic",
         action="store_true",
         default=False,
-        help="Run semantic-adjacent validation. In standalone mode this enables heuristic graph analysis; with ingested agent responses it merges those diagnostics.",
+        help="Run semantic-adjacent validation. Implies --analyze-graph when --ingest-graph is not supplied.",
     )
     parser.add_argument(
         "--agent-reason",
@@ -763,11 +763,8 @@ def main() -> None:
     args = parser.parse_args()
     _apply_config(args, parser)
 
-    # --strict: enable all strict modes. warnings_as_errors is an internal
-    # exit-code flag (no longer a public flag); --strict is the umbrella switch.
-    args.warnings_as_errors = False
+    # --strict: enable all strict modes.
     if args.strict_all:
-        args.warnings_as_errors = True
         args.strict_vscode = True
         args.strict_cursor = True
 
@@ -787,140 +784,141 @@ def main() -> None:
     # Mutual exclusion checks
     # -----------------------------------------------------------------------
 
-    if args.emit_critique_prompt and args.ingest_critique is not None:
-        print(
-            "Cannot use --emit-critique-prompt and --ingest-critique together. "
-            "Pick one: emit a prompt for your agent to execute, or ingest the agent's response.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
+    # -----------------------------------------------------------------------
+    # Mode conflict resolution
+    # -----------------------------------------------------------------------
 
-    if args.emit_graph and args.analyze_graph:
-        print(
-            "Cannot use --emit-graph with --analyze-graph. "
-            "--emit-graph is an emit mode (replaces the report). "
-            "--analyze-graph is an augment mode (adds to the report).",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    if args.emit_graph and args.emit_critique_prompt:
-        print(
-            "Cannot use --emit-graph with --emit-critique-prompt. "
-            "Both are emit modes; pick one.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    if args.emit_graph and args.ingest_critique is not None:
-        print(
-            "Cannot use --emit-graph with --ingest-critique. "
-            "--emit-graph replaces the report; --ingest-critique augments it.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    if args.emit_graph_prompt and args.emit_graph:
-        print(
-            "Cannot use --emit-graph-prompt with --emit-graph. "
-            "Both are emit modes; pick one.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    if args.emit_graph_prompt and args.emit_critique_prompt:
-        print(
-            "Cannot use --emit-graph-prompt with --emit-critique-prompt. "
-            "Both are emit modes; pick one.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    if args.emit_graph_prompt and args.ingest_critique is not None:
-        print(
-            "Cannot use --emit-graph-prompt with --ingest-critique. "
-            "--emit-graph-prompt is an emit mode; --ingest-critique is an augment mode.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    if args.emit_graph_prompt and args.analyze_graph:
-        print(
-            "Cannot use --emit-graph-prompt with --analyze-graph. "
-            "--emit-graph-prompt is an emit mode; --analyze-graph is an augment mode.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    if args.emit_graph_prompt and args.ingest_graph is not None:
-        print(
-            "Cannot use --emit-graph-prompt with --ingest-graph. "
-            "--emit-graph-prompt emits a prompt; --ingest-graph ingests the agent's response. "
-            "Use them in separate invocations.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    if args.ingest_graph is not None and args.emit_graph:
-        print(
-            "Cannot use --ingest-graph with --emit-graph. "
-            "--emit-graph replaces the report; --ingest-graph augments it.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    if args.ingest_graph is not None and args.emit_critique_prompt:
-        print(
-            "Cannot use --ingest-graph with --emit-critique-prompt. "
-            "--emit-critique-prompt is an emit mode; --ingest-graph is an augment mode.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    if args.ingest_graph is not None and args.analyze_graph:
-        print(
-            "Cannot use --ingest-graph with --analyze-graph. "
-            "--ingest-graph supersedes heuristic-only graph analysis.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    if args.agent_reason and (
-        args.emit_critique_prompt
-        or args.emit_graph
-        or args.emit_graph_prompt
-        or args.activation_hypotheses
-    ):
-        print(
-            "Cannot use --agent-reason with another emit mode. "
-            "Use --agent-reason alone to emit the combined agent prompt packet.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    # Emit modes incompatible with --history (emit modes skip validation entirely).
-    _EMIT_FLAGS = {
+    _EMIT_MODES: dict[str, bool] = {
         "--emit-critique-prompt": args.emit_critique_prompt,
         "--emit-graph": args.emit_graph,
         "--emit-graph-prompt": args.emit_graph_prompt,
-        "--agent-reason": args.agent_reason and args.ingest_critique is None and args.ingest_graph is None,
         "--activation-hypotheses": args.activation_hypotheses,
     }
-    for emit_flag, emit_active in _EMIT_FLAGS.items():
-        if emit_active and args.history:
+    # --agent-reason is an emit mode only when not paired with ingest flags.
+    if args.agent_reason and args.ingest_critique is None and args.ingest_graph is None:
+        _EMIT_MODES["--agent-reason"] = True
+
+    _AUGMENT_FLAGS: dict[str, bool] = {
+        "--analyze-graph": args.analyze_graph,
+        "--ingest-critique": args.ingest_critique is not None,
+        "--ingest-graph": args.ingest_graph is not None,
+    }
+
+    def _die_on_mode_conflict() -> None:
+        """Check for mode conflicts and exit with code 2 on any conflict."""
+        active_emits = [flag for flag, on in _EMIT_MODES.items() if on]
+        active_augments = [flag for flag, on in _AUGMENT_FLAGS.items() if on]
+
+        # Two or more emit modes active → pick-one conflict.
+        if len(active_emits) > 1:
             print(
-                f"Cannot use --history with {emit_flag}. "
-                f"--history records validation runs; emit modes skip validation.",
+                f"Cannot use {' and '.join(active_emits[:2])} together. "
+                f"Pick one emit mode.",
                 file=sys.stderr,
             )
             sys.exit(2)
-        if emit_active and args.show_history:
+
+        # --emit-critique-prompt + --ingest-critique → emit/ingest pair conflict.
+        if args.emit_critique_prompt and args.ingest_critique is not None:
             print(
-                f"Cannot use --show-history with {emit_flag}. "
-                f"--show-history reads the ledger; {emit_flag} emits a prompt.",
+                "Cannot use --emit-critique-prompt and --ingest-critique together. "
+                "Pick one: emit a prompt for your agent to execute, or ingest the agent's response.",
                 file=sys.stderr,
             )
             sys.exit(2)
+
+        # emit_graph vs analyze_graph
+        if args.emit_graph and args.analyze_graph:
+            print(
+                "Cannot use --emit-graph with --analyze-graph. "
+                "--emit-graph is an emit mode (replaces the report). "
+                "--analyze-graph is an augment mode (adds to the report).",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+
+        # emit_graph vs ingest_critique
+        if args.emit_graph and args.ingest_critique is not None:
+            print(
+                "Cannot use --emit-graph with --ingest-critique. "
+                "--emit-graph replaces the report; --ingest-critique augments it.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+
+        # emit_graph_prompt vs ingest_critique
+        if args.emit_graph_prompt and args.ingest_critique is not None:
+            print(
+                "Cannot use --emit-graph-prompt with --ingest-critique. "
+                "--emit-graph-prompt is an emit mode; --ingest-critique is an augment mode.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+
+        # emit_graph_prompt vs analyze_graph
+        if args.emit_graph_prompt and args.analyze_graph:
+            print(
+                "Cannot use --emit-graph-prompt with --analyze-graph. "
+                "--emit-graph-prompt is an emit mode; --analyze-graph is an augment mode.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+
+        # emit_graph_prompt vs ingest_graph
+        if args.emit_graph_prompt and args.ingest_graph is not None:
+            print(
+                "Cannot use --emit-graph-prompt with --ingest-graph. "
+                "--emit-graph-prompt emits a prompt; --ingest-graph ingests the agent's response. "
+                "Use them in separate invocations.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+
+        # ingest_graph vs emit_graph
+        if args.ingest_graph is not None and args.emit_graph:
+            print(
+                "Cannot use --ingest-graph with --emit-graph. "
+                "--emit-graph replaces the report; --ingest-graph augments it.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+
+        # ingest_graph vs emit_critique_prompt
+        if args.ingest_graph is not None and args.emit_critique_prompt:
+            print(
+                "Cannot use --ingest-graph with --emit-critique-prompt. "
+                "--emit-critique-prompt is an emit mode; --ingest-graph is an augment mode.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+
+        # ingest_graph vs analyze_graph
+        if args.ingest_graph is not None and args.analyze_graph:
+            print(
+                "Cannot use --ingest-graph with --analyze-graph. "
+                "--ingest-graph supersedes heuristic-only graph analysis.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+
+        # Emit modes + --history / --show-history incompatibility.
+        for emit_flag, emit_active in _EMIT_MODES.items():
+            if emit_active and args.history:
+                print(
+                    f"Cannot use --history with {emit_flag}. "
+                    f"--history records validation runs; emit modes skip validation.",
+                    file=sys.stderr,
+                )
+                sys.exit(2)
+            if emit_active and args.show_history:
+                print(
+                    f"Cannot use --show-history with {emit_flag}. "
+                    f"--show-history reads the ledger; {emit_flag} emits a prompt.",
+                    file=sys.stderr,
+                )
+                sys.exit(2)
+
+    _die_on_mode_conflict()
 
     if args.show_history and args.history:
         print(
@@ -1093,10 +1091,10 @@ def main() -> None:
         for r in results
         for d in r.diagnostics
     ):
-        # Warning-only runs are a clean pass by default; --warnings-as-errors
+        # Warning-only runs are a clean pass by default; --strict
         # escalates them to exit 1 for stricter CI gates. Exit 2 stays
         # reserved for tool-misuse / input errors so CI can distinguish them.
-        final_exit_code = 1 if args.warnings_as_errors else 0
+        final_exit_code = 1 if args.strict_all else 0
     else:
         final_exit_code = 0
 

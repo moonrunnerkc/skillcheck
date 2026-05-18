@@ -1,7 +1,7 @@
 ---
 name: skillcheck
 description: Validates SKILL.md files for spec-facing structure, sizing, references, cross-agent compatibility, and agent-authored critique or graph diagnostics.
-version: "1.2.0"
+version: "1.3.0"
 author: "Brad Kinnard (moonrunnerkc), Aftermath Technologies Ltd"
 ---
 
@@ -16,7 +16,7 @@ skillcheck SKILL.md
 skillcheck skills/ --format json
 ```
 
-The report includes errors, warnings, and info diagnostics. Exit code 0 means no errors. Exit code 1 means at least one error, or warnings with `--warnings-as-errors`. Exit code 2 means input or argument error. Exit code 3 means symbolic validation passed but ingested agent critique found semantic errors.
+The report includes errors, warnings, and info diagnostics. Exit code 0 means no errors. Exit code 1 means at least one error, or warnings with `--strict`, or a regression with `--fail-on-regression`. Exit code 2 means input or argument error. Exit code 3 means symbolic validation passed but ingested agent critique found semantic errors.
 
 ## Agent workflows
 

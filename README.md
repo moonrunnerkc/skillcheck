@@ -266,9 +266,8 @@ The JSON schema is stable. It will not change in a backward-incompatible way wit
 | `--target-agent {claude,vscode,cursor,all}` | `all` | Scope compatibility checks to a specific agent |
 | `--strict-vscode` | `false` | Promote VS Code compatibility issues to errors |
 | `--strict-cursor` | `false` | Promote Cursor compatibility issues to errors |
-| `--strict` | `false` | Enable all strict modes: escalates all warnings to errors, activates --strict-vscode and --strict-cursor, and enables the 'all' field for future strict rules |
-| `--warnings-as-errors` | `false` | Escalate warning-only runs to exit code 1 (default for warning-only is 0) |
-| `--semantic` | `false` | Enable semantic-adjacent validation; standalone mode runs heuristic graph analysis |
+|| `--strict` | `false` | Enable all strict modes: escalates all warnings to errors, activates --strict-vscode and --strict-cursor, and enables the 'all' field for future strict rules |
+|| `--semantic` | `false` | Enable semantic-adjacent validation; implies --analyze-graph when --ingest-graph is not supplied |
 | `--agent-reason` | `false` | Emit a combined critique + graph prompt packet for the calling agent |
 | `--emit-critique-prompt` | `false` | Print agent self-critique prompt to stdout and exit 0 |
 | `--ingest-critique PATH` | | Read agent critique JSON from PATH or `-` for stdin; merge with symbolic results |
@@ -287,12 +286,12 @@ The JSON schema is stable. It will not change in a backward-incompatible way wit
 
 | Code | Meaning | Example invocation |
 |---|---|---|
-| `0` | No errors (warning-only counts as a clean pass by default) | `skillcheck skills/skillcheck/SKILL.md` |
-| `1` | One or more errors found, or warnings with `--warnings-as-errors` | `skillcheck SKILL.md` when the name is invalid |
+|| `0` | No errors (warning-only counts as a clean pass; `--fail-on-regression` and `--strict` escalate to 1) | `skillcheck skills/skillcheck/SKILL.md` |
+|| `1` | One or more errors found, or warnings with `--strict`, or regression with `--fail-on-regression` | `skillcheck SKILL.md` when the name is invalid |
 | `2` | Input error: missing path, empty directory, conflicting flags, malformed argument | `skillcheck nonexistent.md` |
 | `3` | Symbolic passed but ingested critique found semantic errors | `skillcheck SKILL.md --ingest-critique response.json` when the agent reported contradictions |
 
-Pass `--warnings-as-errors` to escalate warning-only runs to exit 1 for stricter CI gates. Exit code 1 takes priority over 3 when symbolic errors also exist; code 2 is reserved for tool-misuse cases so CI can distinguish them from skill-content findings.
+`--strict` escalates warning-only runs to exit 1. `--fail-on-regression` escalates only `history.skill.regressed` to exit 1, independent of `--strict`. Exit code 1 takes priority over 3 when symbolic errors also exist; code 2 is reserved for tool-misuse cases so CI can distinguish them from skill-content findings.
 
 ## Rules
 

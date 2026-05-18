@@ -98,7 +98,7 @@ runs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: ">=3.10"
+        python-version: "3.12"
 
     - name: Install and run skillcheck
       shell: bash
@@ -106,7 +106,7 @@ runs:
         if [ -n "${{ inputs.version }}" ]; then
           pip install --quiet "skillcheck==${{ inputs.version }}"
         else
-          pip install --quiet "skillcheck>=1.0.1"
+          pip install --quiet "skillcheck>=1.2,<2"
         fi
 
         args=()
