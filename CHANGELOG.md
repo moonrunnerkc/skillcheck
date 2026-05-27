@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-05-27
+
 ### Changed
 
 - README exit-codes table expanded: the `1` row now lists every escalation path (errors, warning-only run with `--strict`, regression with `--fail-on-regression`, ingest parse failure) and includes the `1` > `3` priority note that was previously only in `.github/CLAUDE.md`.
