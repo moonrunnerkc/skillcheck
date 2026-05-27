@@ -121,6 +121,12 @@ def compute_skill_hash(skill: ParsedSkill) -> str:
     Deterministic across runs of the same file content. Detects whether the
     skill itself changed between two ledger entries.
 
+    The 64-bit truncation is intentional: ledger size matters more than
+    cryptographic collision resistance, and the regression check compares
+    hashes only within one skill's own ledger.  The per-pair false-match
+    probability is about 1e-19, which is acceptable for that use.  Do not
+    use this hash for any cross-skill or security-sensitive purpose.
+
     Args:
         skill: Parsed skill file.
 
