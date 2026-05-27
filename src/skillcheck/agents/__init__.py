@@ -7,9 +7,17 @@ framing produces better results for a given agent, file an issue.
 
 The JSON schemas and parsers (Phase 1A for self-critique, Phase 2C for graph
 extraction) are invariant across agents. Only the prompt framing changes.
+
+The schema files are shipped with the package under skillcheck/schemas/ and
+are also published in the repo at schemas/. SCHEMAS maps the schema id to the
+on-disk path so callers can validate agent responses before invoking
+--ingest-critique or --ingest-graph.
 """
 
 from __future__ import annotations
+
+from importlib import resources
+from pathlib import Path
 
 from skillcheck.agents.base import SelfCritiquePrompt
 from skillcheck.agents.claude import ClaudePrompt
@@ -19,6 +27,22 @@ from skillcheck.agents.graph_base import GraphExtractionPrompt
 from skillcheck.agents.graph_claude import ClaudeGraphPrompt
 from skillcheck.agents.graph_codex import CodexGraphPrompt
 from skillcheck.agents.graph_cursor import CursorGraphPrompt
+
+
+def _schema_path(name: str) -> Path:
+    """Resolve a shipped schema file to a concrete filesystem Path.
+
+    importlib.resources.files() returns a Traversable that, for a real
+    installation, resolves to an absolute path under the package directory.
+    Coerce to Path so callers can open() it directly.
+    """
+    return Path(str(resources.files("skillcheck") / "schemas" / name))
+
+
+SCHEMAS: dict[str, Path] = {
+    "critique-v1": _schema_path("critique-v1.json"),
+    "graph-v1": _schema_path("graph-v1.json"),
+}
 
 AGENTS: dict[str, type[SelfCritiquePrompt]] = {
     "claude": ClaudePrompt,
@@ -95,4 +119,5 @@ __all__ = [
     "CursorGraphPrompt",
     "GRAPH_AGENTS",
     "get_graph_prompt",
+    "SCHEMAS",
 ]

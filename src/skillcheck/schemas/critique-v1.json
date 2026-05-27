@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/moonrunnerkc/skillcheck/main/src/skillcheck/schemas/critique-v1.json",
+  "title": "skillcheck agent self-critique response",
+  "description": "JSON shape that skillcheck's --ingest-critique mode expects from a calling agent. Severity values use the lowercased Severity enum names (error, warning, info). Scores are integers in the inclusive 0-100 range.",
+  "type": "object",
+  "required": [
+    "clarity_score",
+    "completeness_score",
+    "executability_score",
+    "findings",
+    "missing_context",
+    "contradictions"
+  ],
+  "properties": {
+    "clarity_score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "How clearly the skill states what it does and when (0-100)."
+    },
+    "completeness_score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Whether all necessary context is present for execution (0-100)."
+    },
+    "executability_score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Whether an agent can act on the instructions as written (0-100)."
+    },
+    "findings": {
+      "type": "array",
+      "description": "Per-section structured critique items.",
+      "items": {
+        "type": "object",
+        "required": ["section", "issue", "severity", "suggestion"],
+        "properties": {
+          "section": {"type": "string"},
+          "issue": {"type": "string"},
+          "severity": {
+            "type": "string",
+            "enum": ["error", "warning", "info"]
+          },
+          "suggestion": {"type": "string"}
+        }
+      }
+    },
+    "missing_context": {
+      "type": "array",
+      "description": "Names of things an agent would need but the skill omits.",
+      "items": {"type": "string"}
+    },
+    "contradictions": {
+      "type": "array",
+      "description": "Pairs of contradicting locations within the skill body.",
+      "items": {
+        "type": "object",
+        "required": ["location_a", "location_b", "nature"],
+        "properties": {
+          "location_a": {"type": "string"},
+          "location_b": {"type": "string"},
+          "nature": {"type": "string"}
+        }
+      }
+    }
+  }
+}

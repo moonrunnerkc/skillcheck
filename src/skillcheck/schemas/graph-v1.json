@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/moonrunnerkc/skillcheck/main/src/skillcheck/schemas/graph-v1.json",
+  "title": "skillcheck agent capability-graph response",
+  "description": "JSON shape that skillcheck's --ingest-graph mode expects. Two additional constraints not expressible in JSON Schema: every id must be unique across capabilities, inputs, and outputs combined; for kind='requires' the target_id must reference an input id, and for kind='produces' an output id. skillcheck rejects responses that violate either constraint.",
+  "type": "object",
+  "required": ["capabilities", "inputs", "outputs", "edges"],
+  "properties": {
+    "capabilities": {
+      "type": "array",
+      "description": "Capabilities the skill provides.",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "description", "line"],
+        "properties": {
+          "id": {"type": "string", "description": "Unique across all node collections in this response."},
+          "name": {"type": "string"},
+          "description": {"type": "string"},
+          "line": {
+            "type": ["integer", "null"],
+            "description": "Body-relative line number (1-indexed after the closing ---). Null for synthesized nodes."
+          }
+        }
+      }
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "kind", "line"],
+        "properties": {
+          "id": {"type": "string"},
+          "name": {"type": "string"},
+          "kind": {
+            "type": "string",
+            "enum": ["file", "tool", "env", "context", "prerequisite"]
+          },
+          "line": {"type": ["integer", "null"]}
+        }
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "kind", "line"],
+        "properties": {
+          "id": {"type": "string"},
+          "name": {"type": "string"},
+          "kind": {
+            "type": "string",
+            "enum": ["file", "artifact", "side_effect", "return"]
+          },
+          "line": {"type": ["integer", "null"]}
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source_id", "target_id", "kind"],
+        "properties": {
+          "source_id": {"type": "string", "description": "Must reference a capability id."},
+          "target_id": {"type": "string", "description": "For kind='requires', an input id; for kind='produces', an output id."},
+          "kind": {
+            "type": "string",
+            "enum": ["requires", "produces"]
+          }
+        }
+      }
+    }
+  }
+}
