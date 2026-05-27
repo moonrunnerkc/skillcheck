@@ -115,11 +115,29 @@ runs:
     - name: Install and run skillcheck
       shell: bash
       run: |
+        # Install strategy:
+        # 1. inputs.version set -> pin to that PyPI version (covers the rare
+        #    case of running an older skillcheck against newer action sources).
+        # 2. inputs.version empty AND $GITHUB_ACTION_PATH/pyproject.toml present
+        #    -> install from the action's own checkout. This is how composite
+        #    actions are laid out by actions/checkout: the tag the user wrote in
+        #    `uses:` is checked out into $GITHUB_ACTION_PATH, so installing from
+        #    there pins skillcheck to that tag's source and closes any PyPI/tag
+        #    drift. `uses: ./` dogfood jobs also resolve here.
+        # 3. Otherwise fall back to the PyPI range. This only fires in edge cases
+        #    where $GITHUB_ACTION_PATH does not contain a checkout (e.g. a
+        #    user-built container that drops the action sources).
         if [ -n "${{ inputs.version }}" ]; then
           if [ "${{ inputs.tiktoken }}" = "true" ]; then
             pip install --quiet "skillcheck[tiktoken]==${{ inputs.version }}"
           else
             pip install --quiet "skillcheck==${{ inputs.version }}"
+          fi
+        elif [ -f "${GITHUB_ACTION_PATH}/pyproject.toml" ]; then
+          if [ "${{ inputs.tiktoken }}" = "true" ]; then
+            pip install --quiet "${GITHUB_ACTION_PATH}[tiktoken]"
+          else
+            pip install --quiet "${GITHUB_ACTION_PATH}"
           fi
         else
           if [ "${{ inputs.tiktoken }}" = "true" ]; then
