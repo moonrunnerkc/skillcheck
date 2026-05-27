@@ -115,6 +115,16 @@ Defaults live in a `skillcheck.toml` discovered upward from the validated path. 
 - [`docs/case-study-silent-skill-failure.md`](docs/case-study-silent-skill-failure.md): VS Code dirname-mismatch incident.
 - [`skills/skillcheck/SKILL.md`](skills/skillcheck/SKILL.md): a SKILL.md that passes every rule.
 
+## Releases
+
+Tagged releases (`v*`) carry a SLSA build provenance attestation issued by `actions/attest-build-provenance@v1`. To verify a release artifact before installing:
+
+```bash
+gh attestation verify dist/skillcheck-*.whl --owner moonrunnerkc
+```
+
+This confirms the wheel was built by `moonrunnerkc/skillcheck` CI from the source at the tagged commit. Untagged builds (PR and main-branch CI) are not attested.
+
 ## License
 
 MIT. See [`LICENSE`](LICENSE).

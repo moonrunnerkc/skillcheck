@@ -49,6 +49,13 @@ jobs:
 
   package:
     runs-on: ubuntu-latest
+    # Attestation steps below need to issue an OIDC token and write the
+    # attestation; both default to off in the workflow-level permissions
+    # block. Job-scoped overrides keep the rest of the workflow read-only.
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v4
 
@@ -67,3 +74,14 @@ jobs:
         run: |
           pip install dist/skillcheck-*.whl
           skillcheck --version
+
+      - name: Attest build provenance
+        # Only attest tagged releases. Attestations on every CI run would
+        # flood the project's attestation feed and are not signed against
+        # an intended release artifact.
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: |
+            dist/skillcheck-*.whl
+            dist/skillcheck-*.tar.gz
