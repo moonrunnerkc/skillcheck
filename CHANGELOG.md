@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- README Configuration section now documents that `--ignore PREFIX` accepts any dotted rule prefix, not just top-level categories. The worked example shows `--ignore compat.unverified` so users can silence the unverified-field info diagnostics while keeping `compat.claude-only` and `compat.vscode-dirname`.
 - `action.yml` install step now prefers the action's own checkout when `inputs.version` is empty and `pyproject.toml` is present at `$GITHUB_ACTION_PATH`. This pins both `uses: moonrunnerkc/skillcheck@<tag>` and `uses: ./` dogfood jobs to the tag's source, closing the previous PyPI/tag drift window. When `inputs.version` is set, the action still installs from PyPI at that pin. The PyPI range install remains as a fallback for environments where the checkout is absent.
 - `.pre-commit-hooks.yaml` now passes `--no-color` by default. The captured pre-commit log is plain text instead of carrying ANSI escapes from a TTY-less invocation. Consumers who want color back can override `args:` in their own `.pre-commit-config.yaml`.
 

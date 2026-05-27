@@ -102,7 +102,9 @@ The same flow exists for capability graph extraction (`--emit-graph-prompt` / `-
 
 ## Configuration
 
-Defaults live in a `skillcheck.toml` discovered upward from the validated path. Override per invocation with `--config PATH`. Organization-specific frontmatter keys belong under `[frontmatter] extension_fields`.
+Defaults live in a `skillcheck.toml` discovered upward from the validated path. Override per invocation with `--config PATH`. Organization-specific frontmatter keys belong under `[frontmatter] extension_fields`. Override the name reserved-word list with `[frontmatter] reserved_words = ["acme", "internal"]` (an empty array reverts to the defaults).
+
+`--ignore PREFIX` suppresses any diagnostic whose rule ID starts with `PREFIX`. The prefix is matched against the full dotted rule ID, so all three levels work: a top-level category (`--ignore sizing`), a category-and-field pair (`--ignore frontmatter.name`), or a fully-qualified rule (`--ignore compat.unverified`). The flag is repeatable.
 
 ## Documentation
 
