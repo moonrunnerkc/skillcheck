@@ -96,9 +96,11 @@ The same flow exists for capability graph extraction (`--emit-graph-prompt` / `-
 | Code | Meaning |
 |---|---|
 | `0` | No errors. Warnings alone exit 0 unless `--strict` is set. |
-| `1` | One or more errors, or warnings with `--strict`, or regression with `--fail-on-regression`. |
+| `1` | One or more errors. Also: warnings with `--strict` (the umbrella `--strict-vscode` / `--strict-cursor` only escalate their own diagnostics; the umbrella additionally escalates any warning-only run). Also: `history.skill.regressed` with `--fail-on-regression`. Also: any ingest parse failure. |
 | `2` | Input or argument error (missing path, conflicting flags, malformed input). |
 | `3` | Symbolic checks passed but an ingested critique reported semantic errors. |
+
+When both `1` and `3` would apply, `1` wins so CI consumers see the higher-severity signal.
 
 ## Configuration
 

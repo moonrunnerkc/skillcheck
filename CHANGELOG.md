@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- README exit-codes table expanded: the `1` row now lists every escalation path (errors, warning-only run with `--strict`, regression with `--fail-on-regression`, ingest parse failure) and includes the `1` > `3` priority note that was previously only in `.github/CLAUDE.md`.
+- `CONTRIBUTING.md` documents platform-skipped tests so the next maintainer knows why pass/skip ratios differ across the CI matrix without having to grep the suite.
 - CLI mutual-exclusion block refactored to a single `_PAIRWISE_CONFLICTS` table walked by one loop, replacing nine hand-written `if ... and ...:` branches. Exit code 2 and stderr messages are unchanged.
 - `--history` now fans out across every target path instead of silently writing only when exactly one path is supplied. Each SKILL.md still gets its own per-skill `.skillcheck-history.json` next to it. `--fail-on-regression` escalates to exit 1 when any target regresses.
 - `--show-history` with multiple paths still reads only the first path's ledger (each skill has its own), but the extra paths now produce a stderr warning instead of being silently dropped.
