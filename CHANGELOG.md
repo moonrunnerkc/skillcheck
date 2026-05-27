@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Empty `action/` directory and the stale `compileall ... action` step in `.github/workflows/ci.yml`. The Python entrypoint was deleted in v1.3.0; the empty directory and its CI reference lingered. No shipped behavior change (the compile step was already a no-op against an empty directory).
+
 ## [1.3.0] - 2026-05-18
 
 ### Added

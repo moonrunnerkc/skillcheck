@@ -45,7 +45,7 @@ jobs:
           python-version: "3.12"
 
       - name: Compile check (all modules)
-        run: python -m compileall -q src/skillcheck action
+        run: python -m compileall -q src/skillcheck
 
   package:
     runs-on: ubuntu-latest
