@@ -1,0 +1,90 @@
+name: Release notes
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  promote-unreleased:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Promote [Unreleased] to released version heading
+        id: promote
+        shell: bash
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          today=$(date -u +%Y-%m-%d)
+          python3 - "$version" "$today" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          version, today = sys.argv[1], sys.argv[2]
+          path = Path("CHANGELOG.md")
+          text = path.read_text(encoding="utf-8")
+
+          # Locate the [Unreleased] block: its content runs until the next ## heading.
+          match = re.search(r"^##\s*\[Unreleased\]\s*\n", text, re.MULTILINE)
+          if not match:
+              print("CHANGELOG.md has no [Unreleased] heading; nothing to promote.")
+              sys.exit(0)
+
+          start = match.end()
+          next_heading = re.search(r"^##\s*\[", text[start:], re.MULTILINE)
+          end = start + next_heading.start() if next_heading else len(text)
+          body = text[start:end].strip()
+
+          if not body:
+              print("[Unreleased] is empty; nothing to promote.")
+              # Signal an empty promotion to the next step.
+              Path("PROMOTED.flag").write_text("empty", encoding="utf-8")
+              sys.exit(0)
+
+          # If a heading for the released version already exists, the developer
+          # promoted by hand; treat as a no-op to avoid duplicating entries.
+          if re.search(rf"^##\s*\[{re.escape(version)}\]", text, re.MULTILINE):
+              print(f"[{version}] heading already present; not promoting.")
+              Path("PROMOTED.flag").write_text("already", encoding="utf-8")
+              sys.exit(0)
+
+          new_block = (
+              f"## [Unreleased]\n\n"
+              f"## [{version}] - {today}\n\n{body}\n\n"
+          )
+          updated = text[:match.start()] + new_block + text[end:].lstrip()
+          path.write_text(updated, encoding="utf-8")
+          Path("PROMOTED.flag").write_text("promoted", encoding="utf-8")
+          print(f"Promoted [Unreleased] -> [{version}] - {today}")
+          PY
+          if [ -f PROMOTED.flag ]; then
+            echo "result=$(cat PROMOTED.flag)" >> "$GITHUB_OUTPUT"
+            rm PROMOTED.flag
+          else
+            echo "result=skipped" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open PR with the promoted CHANGELOG
+        if: steps.promote.outputs.result == 'promoted'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: |
+            docs(changelog): promote [Unreleased] to [${{ github.event.release.tag_name }}]
+          title: "docs(changelog): promote [Unreleased] to [${{ github.event.release.tag_name }}]"
+          body: |
+            Automated promotion triggered by the `${{ github.event.release.tag_name }}` GitHub release.
+            Moves the `[Unreleased]` block under a new `[${{ github.event.release.tag_name }}]` heading dated today.
+          branch: changelog/promote-${{ github.event.release.tag_name }}
+          base: main
+          labels: docs, automation
