@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- CLI mutual-exclusion block refactored to a single `_PAIRWISE_CONFLICTS` table walked by one loop, replacing nine hand-written `if ... and ...:` branches. Exit code 2 and stderr messages are unchanged.
 - `--history` now fans out across every target path instead of silently writing only when exactly one path is supplied. Each SKILL.md still gets its own per-skill `.skillcheck-history.json` next to it. `--fail-on-regression` escalates to exit 1 when any target regresses.
 - `--show-history` with multiple paths still reads only the first path's ledger (each skill has its own), but the extra paths now produce a stderr warning instead of being silently dropped.
 - README Configuration section now documents that `--ignore PREFIX` accepts any dotted rule prefix, not just top-level categories. The worked example shows `--ignore compat.unverified` so users can silence the unverified-field info diagnostics while keeping `compat.claude-only` and `compat.vscode-dirname`.
