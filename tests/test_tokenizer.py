@@ -1,5 +1,7 @@
 """Tests for Fix 1: Tokenizer lazy caching."""
 
+from concurrent.futures import ThreadPoolExecutor
+
 from skillcheck.tokenizer import _get_tiktoken_enc, estimate_tokens
 
 
@@ -30,3 +32,18 @@ def test_tiktoken_enc_cached():
 def test_empty_string_returns_one():
     """Empty string returns at least 1 (the floor)."""
     assert estimate_tokens("") >= 1
+
+
+def test_tokenizer_concurrent_first_init_is_consistent():
+    """Concurrent first-init calls return the same cached encoding instance.
+
+    The first observer pays the tiktoken.get_encoding cost; subsequent
+    observers find the cache populated under the lock and return the
+    same object (or all None when tiktoken is not installed).
+    """
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(lambda _: _get_tiktoken_enc(), range(8)))
+    distinct = {id(r) for r in results}
+    assert len(distinct) == 1, (
+        f"Concurrent first-init produced different encoding objects: {distinct}"
+    )

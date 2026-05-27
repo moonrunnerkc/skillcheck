@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `tokenizer._get_tiktoken_enc` is now thread-safe. The first-init fast path takes a module-level lock and re-checks the cached state, so concurrent callers (e.g. editor plugins running in a worker pool) cannot race on `tiktoken.get_encoding`.
 - `_is_action_verb` now recognizes `-ing` and `-ed` inflections, including the e-drop ("validating" -> "validate") and doubled-consonant ("scanning" -> "scan") forms. Descriptions like "Validating skills..." or "Used for..." used to score 0 on the action axis even though the leading word was a clear action verb.
 - `--format` error message now lists `github` as a valid choice (`cli.py`). The argparse `choices=` set on the `--format` definition has accepted `github` since v1.2.3, but the post-parse runtime check still printed the pre-v1.2.3 four-value list.
 

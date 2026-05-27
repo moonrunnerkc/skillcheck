@@ -1,4 +1,5 @@
 import re
+import threading
 from typing import Any
 
 # Two patterns that cover the token-relevant structure of BPE tokenization:
@@ -18,22 +19,30 @@ _PUNCT_RE = re.compile(r"[^\w\s]+")
 
 # Lazy-cached tiktoken encoding.  The BPE merge table is allocated once on
 # first use and reused for all subsequent calls, avoiding the per-call
-# overhead of ``tiktoken.get_encoding()``.
+# overhead of ``tiktoken.get_encoding()``.  The lock guards the first-init
+# fast path so concurrent worker threads (editor plugins planned for
+# future use) cannot both observe the untested state and race on
+# ``tiktoken.get_encoding``.
 _tiktoken_enc: Any | None = None
 _tiktoken_available: bool | None = None  # tri-state: None = untested
+_tiktoken_lock = threading.Lock()
 
 
 def _get_tiktoken_enc() -> Any | None:
     """Return a cached tiktoken ``Encoding``, or *None* if unavailable."""
     global _tiktoken_enc, _tiktoken_available  # noqa: PLW0603
-    if _tiktoken_available is None:
-        try:
-            import tiktoken  # type: ignore[import-untyped]
-            _tiktoken_enc = tiktoken.get_encoding("cl100k_base")
-            _tiktoken_available = True
-        except ImportError:
-            _tiktoken_available = False
-    return _tiktoken_enc
+    if _tiktoken_available is not None:
+        return _tiktoken_enc
+    with _tiktoken_lock:
+        # Re-check under the lock so the second arrival sees the cached value.
+        if _tiktoken_available is None:
+            try:
+                import tiktoken  # type: ignore[import-untyped]
+                _tiktoken_enc = tiktoken.get_encoding("cl100k_base")
+                _tiktoken_available = True
+            except ImportError:
+                _tiktoken_available = False
+        return _tiktoken_enc
 
 
 def estimate_tokens(text: str) -> int:
