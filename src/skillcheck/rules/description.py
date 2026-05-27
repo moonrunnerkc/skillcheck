@@ -110,11 +110,18 @@ _TRIGGER_PATTERNS = [
 # input", "flexible CLI grammar") are deliberately excluded, even
 # if they often appear as marketing fluff. The cost of false positives is
 # high here: a real description that uses the word once gets penalized.
+#
+# "seamless" and "empowering" are included because neither carries a
+# concrete-attribute reading in description context: a tool is not
+# observably "seamless" relative to anything in the SKILL.md surface, and
+# "empowering" is a register signal, not a capability claim. Both also
+# appear on the project's own AI-tell ban list in `.github/CLAUDE.md`.
 _VAGUE_WORDS = frozenset({
      "tool", "helper", "utility", "stuff", "things", "various",
      "general", "generic", "simple", "basic", "easy", "nice",
      "good", "great", "awesome", "cool", "helpful", "useful",
      "important", "powerful", "efficient", "effective", "handles",
+     "seamless", "empowering",
 })
 
 # Common stop words excluded from keyword density calculation.

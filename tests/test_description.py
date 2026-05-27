@@ -46,6 +46,26 @@ def test_vague_description_penalized():
     assert score < 40
 
 
+def test_seamless_and_empowering_are_vague():
+    """`seamless` and `empowering` (AI tells from .github/CLAUDE.md) reduce
+    the specificity score relative to the same description without them.
+    """
+    base = "Validates SKILL.md files against agentskills.io specification."
+    with_seamless = "Validates SKILL.md files via seamless integration with CI."
+    with_empowering = "Validates SKILL.md files with an empowering authoring experience."
+    base_score, _, base_bd = score_description(base)
+    seamless_score, _, seamless_bd = score_description(with_seamless)
+    empowering_score, _, empowering_bd = score_description(with_empowering)
+    assert seamless_bd["specificity"] < base_bd["specificity"], (
+        f"`seamless` must lower the specificity dimension "
+        f"(base={base_bd['specificity']}, with={seamless_bd['specificity']})"
+    )
+    assert empowering_bd["specificity"] < base_bd["specificity"], (
+        f"`empowering` must lower the specificity dimension "
+        f"(base={base_bd['specificity']}, with={empowering_bd['specificity']})"
+    )
+
+
 def test_action_verb_at_start_boosts_score():
     desc = "Validates SKILL.md files against the agentskills.io specification."
     score_with_verb, _, _ = score_description(desc)
