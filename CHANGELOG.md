@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `--format` error message now lists `github` as a valid choice (`cli.py`). The argparse `choices=` set on the `--format` definition has accepted `github` since v1.2.3, but the post-parse runtime check still printed the pre-v1.2.3 four-value list.
+
 ### Removed
 
 - Empty `action/` directory and the stale `compileall ... action` step in `.github/workflows/ci.yml`. The Python entrypoint was deleted in v1.3.0; the empty directory and its CI reference lingered. No shipped behavior change (the compile step was already a no-op against an empty directory).

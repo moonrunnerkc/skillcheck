@@ -557,7 +557,7 @@ def main() -> None:
         args.strict_cursor = True
 
     if args.format not in {"text", "json", "md", "agent", "github"}:
-        parser.error("format must be one of: text, json, md, agent")
+        parser.error("format must be one of: text, json, md, agent, github")
     if args.target_agent not in {"claude", "vscode", "cursor", "all"}:
         parser.error("target-agent must be one of: claude, vscode, cursor, all")
     if args.critique_agent is not None and args.critique_agent not in {"claude", "codex", "cursor"}:
