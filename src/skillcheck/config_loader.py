@@ -36,6 +36,7 @@ class SkillcheckConfig:
     critique_agent: str | None = None
     graph_agent: str | None = None
     extension_fields: frozenset[str] = frozenset()
+    reserved_words: tuple[str, ...] | None = None
 
 
 class ConfigError(Exception):
@@ -181,11 +182,16 @@ def load_config(path: Path | None) -> SkillcheckConfig:
     if not isinstance(frontmatter, dict):
         raise ConfigError("Config section 'frontmatter' must be a table.")
     for raw_key, value in frontmatter.items():
-        if raw_key != "extension_fields":
+        if raw_key == "extension_fields":
+            if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+                raise ConfigError("Config key 'frontmatter.extension_fields' must be an array of strings.")
+            values["extension_fields"] = frozenset(value)
+        elif raw_key == "reserved_words":
+            if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+                raise ConfigError("Config key 'frontmatter.reserved_words' must be an array of strings.")
+            values["reserved_words"] = tuple(value)
+        else:
             raise ConfigError(f"Unknown config key 'frontmatter.{raw_key}' in {path}.")
-        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
-            raise ConfigError("Config key 'frontmatter.extension_fields' must be an array of strings.")
-        values["extension_fields"] = frozenset(value)
 
     for raw_key, value in data.items():
         field = _KEY_MAP.get(raw_key)

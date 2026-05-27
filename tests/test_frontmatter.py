@@ -133,6 +133,64 @@ def test_name_accepts_unreserved_name():
     assert check_name_reserved_words(skill) == []
 
 
+def test_reserved_words_configurable_via_config(tmp_path):
+    """[frontmatter] reserved_words in skillcheck.toml replaces the default
+    list. A name containing one of the configured words fires; the default
+    'claude'/'anthropic' list no longer applies when an explicit list is set.
+    """
+    from skillcheck import config as runtime_config
+    from skillcheck.config_loader import load_config
+
+    toml = tmp_path / "skillcheck.toml"
+    toml.write_text(
+        '[frontmatter]\nreserved_words = ["acme", "wile-e-coyote"]\n',
+        encoding="utf-8",
+    )
+    cfg = load_config(toml)
+    assert cfg.reserved_words == ("acme", "wile-e-coyote")
+
+    saved = runtime_config.reserved_words
+    try:
+        runtime_config.set_reserved_words(cfg.reserved_words)
+        skill_dir = tmp_path / "acme-helper"
+        skill_dir.mkdir()
+        skill_file = skill_dir / "SKILL.md"
+        skill_file.write_text(
+            "---\nname: acme-helper\ndescription: A test skill for ACME.\n---\n",
+            encoding="utf-8",
+        )
+        diagnostics = check_name_reserved_words(parse(skill_file))
+        assert len(diagnostics) == 1
+        assert "acme" in diagnostics[0].message
+
+        # The previously-default 'claude' no longer fires under the override.
+        claude_dir = tmp_path / "claude-helper"
+        claude_dir.mkdir()
+        claude_file = claude_dir / "SKILL.md"
+        claude_file.write_text(
+            "---\nname: claude-helper\ndescription: A test skill for claude.\n---\n",
+            encoding="utf-8",
+        )
+        assert check_name_reserved_words(parse(claude_file)) == []
+    finally:
+        runtime_config.set_reserved_words(saved)
+
+
+def test_reserved_words_empty_config_reverts_to_defaults(tmp_path):
+    """An empty [frontmatter] reserved_words list falls back to the
+    default ('anthropic', 'claude') so an empty array does not silently
+    disable the check.
+    """
+    from skillcheck import config as runtime_config
+
+    saved = runtime_config.reserved_words
+    try:
+        runtime_config.set_reserved_words(())
+        assert runtime_config.reserved_words == runtime_config.DEFAULT_RESERVED_WORDS
+    finally:
+        runtime_config.set_reserved_words(saved)
+
+
 # ---------------------------------------------------------------------------
 # description.required
 # ---------------------------------------------------------------------------

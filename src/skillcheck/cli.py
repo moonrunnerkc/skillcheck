@@ -505,6 +505,8 @@ def _apply_config(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
         parser.error(str(exc))
 
     runtime_config.set_extension_fields(loaded_config.extension_fields)
+    if loaded_config.reserved_words is not None:
+        runtime_config.set_reserved_words(loaded_config.reserved_words)
 
     if loaded_config.format is not None and args.format == "text":
         args.format = loaded_config.format

@@ -49,6 +49,21 @@ def set_extension_fields(fields: Iterable[str]) -> None:
     extension_fields = frozenset(fields)
 
 
+# Default name reserved-word list.  Skill name substrings that may collide
+# with platform-reserved namespaces.  Configurable via
+# [frontmatter] reserved_words in skillcheck.toml; the loader installs the
+# user's list via set_reserved_words.
+DEFAULT_RESERVED_WORDS: tuple[str, ...] = ("anthropic", "claude")
+
+reserved_words: tuple[str, ...] = DEFAULT_RESERVED_WORDS
+
+
+def set_reserved_words(words: Iterable[str]) -> None:
+    global reserved_words
+    coerced = tuple(w.lower() for w in words)
+    reserved_words = coerced if coerced else DEFAULT_RESERVED_WORDS
+
+
 # Cross-agent compatibility matrix.
 # Each field maps to a dict of agent -> support status.
 # Statuses: "supported", "ignored", "unknown"

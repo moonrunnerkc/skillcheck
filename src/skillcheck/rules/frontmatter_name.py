@@ -164,12 +164,14 @@ def check_name_directory_match(skill: ParsedSkill) -> list[Diagnostic]:
 
 
 def check_name_reserved_words(skill: ParsedSkill) -> list[Diagnostic]:
+    from skillcheck import config as runtime_config
     name = skill.frontmatter.get("name")
     if name is None:
         return []
     name = str(name)
-    for word in ("anthropic", "claude"):
-        if word in name:
+    lowered = name.lower()
+    for word in runtime_config.reserved_words:
+        if word in lowered:
             return [Diagnostic(
                 rule="frontmatter.name.reserved-word",
                 severity=Severity.WARNING,
