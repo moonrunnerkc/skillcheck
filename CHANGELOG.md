@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `references.broken-link` and `references.depth-exceeded` now also scan HTML anchor tags (`<a href="...">`) and inline backtick spans that contain a directory separator (e.g. `` `scripts/foo.py` ``). The backtick extractor is shared with the capability graph (`skillcheck.core.extract_backtick_refs`) so the two extractors agree on what counts as a path-like token. Fenced code blocks (```` ``` ```` blocks) are stripped before backtick scanning so command samples do not produce false positives, and bare filenames (`report.json` with no directory) are excluded because they are typically output mentions, not references.
 - `_VAGUE_WORDS` now includes `seamless` and `empowering`. Both lack a concrete-attribute reading in SKILL.md description context and appear on the project's own AI-tell ban list (`.github/CLAUDE.md`). `robust` and `comprehensive` remain excluded because they can describe concrete attributes when qualified (per the v1.1.0 rubric decision).
 
 ### Fixed

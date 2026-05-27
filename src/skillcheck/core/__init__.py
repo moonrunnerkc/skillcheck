@@ -30,6 +30,7 @@ from .graph import (
     Edge,
     Input,
     Output,
+    extract_backtick_refs,
     extract_graph_agent,
     extract_graph_heuristic,
 )
@@ -55,6 +56,7 @@ __all__ = [
     "ingest_critique_response",
     "merge_critique_diagnostics",
     "merge_diagnostics",
+    "extract_backtick_refs",
     "extract_graph_heuristic",
     "extract_graph_agent",
     "run_graph_analyzers",

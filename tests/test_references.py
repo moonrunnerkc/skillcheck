@@ -59,6 +59,43 @@ def test_deduplicates_references():
     assert refs.count("file.txt") == 1
 
 
+def test_extracts_backtick_paths_with_separator():
+    """Inline backtick spans with a directory separator are treated as
+    references; bare filenames without a separator are not (those are
+    usually output mentions, e.g. `report.json`).
+    """
+    body = "Run `scripts/foo.py` and read `docs/howto.md`. Output is `report.json`."
+    refs = _extract_references(body)
+    assert "scripts/foo.py" in refs
+    assert "docs/howto.md" in refs
+    assert "report.json" not in refs
+
+
+def test_backtick_skips_code_block_content():
+    """Triple-backtick code blocks are NOT misinterpreted as backtick refs.
+    The non-greedy match catches the block content; the multi-line / space
+    filter then drops it.
+    """
+    body = "```bash\nskillcheck scripts/foo.py --help\n```\nSee `scripts/bar.py`."
+    refs = _extract_references(body)
+    assert "scripts/bar.py" in refs
+    # The block body must not slip through.
+    assert all("\n" not in r for r in refs)
+
+
+def test_extracts_html_anchor_hrefs():
+    """<a href="..."> with a relative path is captured; URL schemes are not."""
+    body = (
+        '<a href="docs/setup.md">setup</a> '
+        '<a href=\'scripts/run.sh\'>run</a> '
+        '<a href="https://example.com">external</a>'
+    )
+    refs = _extract_references(body)
+    assert "docs/setup.md" in refs
+    assert "scripts/run.sh" in refs
+    assert "https://example.com" not in refs
+
+
 def test_empty_body_returns_no_refs():
     assert _extract_references("") == []
 

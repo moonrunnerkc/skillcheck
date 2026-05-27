@@ -315,7 +315,7 @@ def _infer_output_kind(
     return "artifact"
 
 
-def _extract_backtick_refs(text: str) -> list[str]:
+def extract_backtick_refs(text: str) -> list[str]:
     """Return all backtick-quoted strings found in text, in order.
 
     Args:
@@ -476,7 +476,7 @@ def extract_graph_heuristic(skill: ParsedSkill) -> CapabilityGraph:
     for cap, content in capability_sections:
         content_text = "\n".join(line for _, line in content)
         seen_edge_keys: set[tuple[str, str]] = set()
-        for ref in _extract_backtick_refs(content_text):
+        for ref in extract_backtick_refs(content_text):
             if ref in input_name_map:
                 key = (cap.id, input_name_map[ref])
                 if key not in seen_edge_keys:

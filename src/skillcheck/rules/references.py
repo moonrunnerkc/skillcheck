@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from skillcheck.core.graph import extract_backtick_refs
 from skillcheck.parser import ParsedSkill
 from skillcheck.result import Diagnostic, Severity
 
@@ -26,12 +27,47 @@ _DIRECTIVE_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Matches HTML anchor tags: <a href="path">text</a>.  Excludes URL schemes
+# the same way _MD_LINK_RE does.  href= may be single- or double-quoted.
+_HTML_LINK_RE = re.compile(
+    r"""<a\s+[^>]*?href\s*=\s*['"](?!https?://|mailto:)([^'"#\s]+)(?:#[^'"]*)?['"]""",
+    re.IGNORECASE,
+)
+
+# Matches fenced code blocks, stripped before backtick-reference scanning so
+# code samples that mention paths do not get flagged.  The regex matches both
+# bare ``` and ```language fences; DOTALL allows the body to span newlines.
+_FENCED_CODE_BLOCK_RE = re.compile(r"```.*?```", re.DOTALL)
+
+# A backtick span looks like a *reference* only when it contains a directory
+# separator: `scripts/foo.py` is clearly a file path, but `report.json`
+# (without a directory) is more likely a generated output the SKILL.md
+# names rather than a file that must already exist.  The graph extractor
+# at core/graph.py harvests both shapes for capability inputs and outputs;
+# the references rule keeps to the stricter shape to avoid flagging output
+# mentions as broken file links.
+
 
 def _extract_references(body: str) -> list[str]:
     """Extract all file reference paths from the markdown body."""
     refs: list[str] = []
     refs.extend(_MD_LINK_RE.findall(body))
     refs.extend(_DIRECTIVE_RE.findall(body))
+    refs.extend(_HTML_LINK_RE.findall(body))
+    code_free_body = _FENCED_CODE_BLOCK_RE.sub("", body)
+    for candidate in extract_backtick_refs(code_free_body):
+        candidate = candidate.strip()
+        if not candidate or candidate.startswith(("http://", "https://", "mailto:")):
+            continue
+        # Reject content that is not a single path token: multi-line code-block
+        # bodies (contain '\n'), command snippets (spaces), and template
+        # placeholders (<path>, <name>, etc.).
+        if any(ch in candidate for ch in " \n<>"):
+            continue
+        # A backtick span often holds an identifier, command, or option; only
+        # treat it as a reference when it contains a directory separator.
+        if "/" in candidate:
+            refs.append(candidate)
     # Deduplicate while preserving order
     seen: set[str] = set()
     unique: list[str] = []
