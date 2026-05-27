@@ -72,6 +72,48 @@ def test_history_run_twice_creates_two_entries(tmp_path: Path):
     assert len(data["runs"]) == 2
 
 
+def test_history_fans_out_across_multiple_paths(tmp_path: Path):
+    """--history with multiple SKILL.md paths writes one ledger per target.
+    Previously the CLI silently skipped multi-file invocations.
+    """
+    skill_a = tmp_path / "a" / "SKILL.md"
+    skill_b = tmp_path / "b" / "SKILL.md"
+    skill_a.parent.mkdir()
+    skill_b.parent.mkdir()
+    shutil.copy(FIXTURES_DIR / "valid_basic.md", skill_a)
+    shutil.copy(FIXTURES_DIR / "valid_basic.md", skill_b)
+    result = run(str(skill_a), str(skill_b), "--history")
+    assert result.returncode == 0
+    ledger_a = _ledger_path(skill_a)
+    ledger_b = _ledger_path(skill_b)
+    assert ledger_a.exists(), "Ledger A must be created"
+    assert ledger_b.exists(), "Ledger B must be created"
+    data_a = json.loads(ledger_a.read_text(encoding="utf-8"))
+    data_b = json.loads(ledger_b.read_text(encoding="utf-8"))
+    assert len(data_a["runs"]) == 1
+    assert len(data_b["runs"]) == 1
+
+
+def test_show_history_warns_on_extra_paths(tmp_path: Path):
+    """--show-history reads only the first path's ledger; extra paths are
+    surfaced via stderr instead of being silently skipped.
+    """
+    skill_a = tmp_path / "a" / "SKILL.md"
+    skill_b = tmp_path / "b" / "SKILL.md"
+    skill_a.parent.mkdir()
+    skill_b.parent.mkdir()
+    shutil.copy(FIXTURES_DIR / "valid_basic.md", skill_a)
+    shutil.copy(FIXTURES_DIR / "valid_basic.md", skill_b)
+    run(str(skill_a), "--history")
+    run(str(skill_b), "--history")
+    result = run(str(skill_a), str(skill_b), "--show-history")
+    assert result.returncode == 0
+    assert "ignoring extra paths" in result.stderr.lower(), (
+        f"expected fan-out warning in stderr, got: {result.stderr!r}"
+    )
+    assert str(skill_b) in result.stderr
+
+
 def test_history_records_correct_modes_symbolic_only(tmp_path: Path):
     skill = tmp_path / "SKILL.md"
     shutil.copy(FIXTURES_DIR / "valid_basic.md", skill)

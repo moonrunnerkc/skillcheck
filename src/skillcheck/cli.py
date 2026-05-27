@@ -730,9 +730,17 @@ def main() -> None:
     paths = _resolve_paths(args)
 
     # --show-history: read the ledger for the first path, print it, and exit.
-    # Directory mode is not supported for show-history because each skill has
-    # its own ledger; run per-skill instead.
+    # Each skill has its own per-skill ledger, so multi-target invocations
+    # cannot map onto a single ledger render; the additional paths are
+    # ignored with a stderr warning so the silent skip is visible.
     if args.show_history:
+        if len(paths) > 1:
+            print(
+                f"warning: --show-history reads one ledger; ignoring extra paths: "
+                f"{', '.join(str(p) for p in paths[1:])}. "
+                f"Run --show-history once per skill to read its ledger.",
+                file=sys.stderr,
+            )
         target_path = paths[0]
         lp = ledger_path_for(target_path)
         if not lp.exists():
@@ -888,10 +896,13 @@ def main() -> None:
     else:
         final_exit_code = 0
 
-    # --history: run regression check against prior runs, then append the ledger entry.
-    # This must happen BEFORE the final print so regression diagnostics appear in output.
-    if args.history and len(paths) == 1:
-        skill_for_history = _parse_skill(paths[0])
+    # --history: for each target, run a regression check against prior runs in
+    # that target's own ledger and append the ledger entry. Each SKILL.md has
+    # its own per-skill .skillcheck-history.json next to it (see
+    # ledger_path_for), so the per-file loop writes one ledger per target. This
+    # must happen BEFORE the final print so regression diagnostics appear in
+    # output. --fail-on-regression escalates when any target regressed.
+    if args.history:
         modes = ValidationModes(
             symbolic=True,
             critique=args.ingest_critique is not None,
@@ -901,59 +912,60 @@ def main() -> None:
             critique_agent=agent_id if args.ingest_critique is not None else None,
             graph_agent=graph_agent_id if args.ingest_graph is not None else None,
         )
-        # Preliminary entry: used only to evaluate regression against prior runs.
-        preliminary_entry = build_entry(
-            skill_for_history,
-            results[0],
-            modes,
-            run_agents,
-            final_exit_code,
-            __version__,
-        )
-        lp = ledger_path_for(paths[0])
-        try:
-            prior_ledger = load_ledger(lp)
-            prior_runs = prior_ledger.runs if prior_ledger is not None else ()
-            regression_diags = check_regression(prior_runs, preliminary_entry)
-        except LedgerError as exc:
-            regression_diags = [
-                Diagnostic(
-                    rule="history.read.failed",
-                    severity=Severity.WARNING,
-                    message=f"Could not read history ledger: {exc}",
-                )
-            ]
-        if regression_diags:
-            results[0] = merge_diagnostics(results[0], regression_diags)
-            # Regression is WARNING by default; does not change the exit code.
-            # --fail-on-regression promotes it to exit 1.
-            if args.fail_on_regression:
-                has_regression = any(
+        for index, path in enumerate(paths):
+            skill_for_history = _parse_skill(path)
+            preliminary_entry = build_entry(
+                skill_for_history,
+                results[index],
+                modes,
+                run_agents,
+                final_exit_code,
+                __version__,
+            )
+            lp = ledger_path_for(path)
+            try:
+                prior_ledger = load_ledger(lp)
+                prior_runs = prior_ledger.runs if prior_ledger is not None else ()
+                regression_diags = check_regression(prior_runs, preliminary_entry)
+            except LedgerError as exc:
+                regression_diags = [
+                    Diagnostic(
+                        rule="history.read.failed",
+                        severity=Severity.WARNING,
+                        message=f"Could not read history ledger: {exc}",
+                    )
+                ]
+            if regression_diags:
+                results[index] = merge_diagnostics(results[index], regression_diags)
+                # Regression is WARNING by default; does not change the exit
+                # code.  --fail-on-regression promotes it to exit 1 the first
+                # time any target regresses, and that escalated code is what
+                # subsequent ledger entries (and the global exit) record.
+                if args.fail_on_regression and any(
                     d.rule == "history.skill.regressed" for d in regression_diags
-                )
-                if has_regression:
+                ):
                     final_exit_code = 1
 
-        # Build final entry with all diagnostics included (regression if any).
-        final_entry = build_entry(
-            skill_for_history,
-            results[0],
-            modes,
-            run_agents,
-            final_exit_code,
-            __version__,
-        )
-        try:
-            append_run(lp, skill_for_history, final_entry)
-        except LedgerError as exc:
-            results[0] = merge_diagnostics(results[0], [
-                Diagnostic(
-                    rule="history.write.failed",
-                    severity=Severity.WARNING,
-                    message=f"Could not write history ledger to {lp}: {exc}",
-                )
-            ])
-            # Write failure is a warning; validation exit code stands.
+            # Build final entry with all diagnostics included (regression if any).
+            final_entry = build_entry(
+                skill_for_history,
+                results[index],
+                modes,
+                run_agents,
+                final_exit_code,
+                __version__,
+            )
+            try:
+                append_run(lp, skill_for_history, final_entry)
+            except LedgerError as exc:
+                results[index] = merge_diagnostics(results[index], [
+                    Diagnostic(
+                        rule="history.write.failed",
+                        severity=Severity.WARNING,
+                        message=f"Could not write history ledger to {lp}: {exc}",
+                    )
+                ])
+                # Write failure is a warning; validation exit code stands.
 
     # Compute description quality score breakdowns when relevant.
     score_breakdowns: dict[str, dict[str, int]] = {}
