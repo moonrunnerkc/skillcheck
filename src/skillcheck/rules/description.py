@@ -53,11 +53,15 @@ _ACTION_VERBS = frozenset({
 
 
 def _is_action_verb(word: str) -> bool:
-    """Match `word` against `_ACTION_VERBS`, normalizing 3rd-person singular forms.
+    """Match `word` against `_ACTION_VERBS`, normalizing common inflections.
 
-    Handles three patterns: bare base ("generate"), -s ("scans"), and -ies -> -y
-    ("identifies" -> "identify"). The cheaper -s strip is tried first so most
-    third-person verbs resolve in one extra lookup.
+    Recognized forms, all reducing back to a base entry in _ACTION_VERBS:
+    bare base ("generate"), -s/-es/-ies ("scans", "patches", "identifies"),
+    -ed/-d/-ied ("scanned", "validated", "identified"), -ing ("scanning",
+    "validating", "identifying"). The -ing and -ed branches also undo the
+    common e-drop ("validate" -> "validating") and the doubled-consonant
+    inflection ("scan" -> "scanning" / "scanned"). Cheaper -s checks are
+    tried first.
     """
     w = word.lower()
     if w in _ACTION_VERBS:
@@ -68,6 +72,22 @@ def _is_action_verb(word: str) -> bool:
         return True
     if w.endswith("s") and w[:-1] in _ACTION_VERBS:
         return True
+    if w.endswith("ied") and (w[:-3] + "y") in _ACTION_VERBS:
+        return True
+    if w.endswith("ed"):
+        if w[:-1] in _ACTION_VERBS:
+            return True  # validated -> validate
+        if w[:-2] in _ACTION_VERBS:
+            return True  # worked -> work
+        if len(w) >= 5 and w[-3] == w[-4] and w[:-3] in _ACTION_VERBS:
+            return True  # scanned -> scan, tagged -> tag
+    if w.endswith("ing"):
+        if w[:-3] in _ACTION_VERBS:
+            return True  # identifying -> identify
+        if (w[:-3] + "e") in _ACTION_VERBS:
+            return True  # validating -> validate
+        if len(w) >= 6 and w[-4] == w[-5] and w[:-4] in _ACTION_VERBS:
+            return True  # scanning -> scan, tagging -> tag
     return False
 
 # Trigger phrases that signal when a skill should activate.

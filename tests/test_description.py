@@ -217,6 +217,39 @@ def test_issue_2_regression_investigate_description():
        assert score >= 90, f"Expected high score for issue #2 description, got {score}"
 
 
+def test_ing_form_counts_as_action_verb():
+    """Present-participle / gerund forms must register via stem normalization:
+    -ing alone ('Validating'), e-drop -ing ('Validating' -> 'validate'),
+    and doubled-consonant -ing ('Scanning' -> 'scan').
+    """
+    for desc in (
+        "Validating skills before deployment.",
+        "Identifying cyclic dependencies in plan graphs.",
+        "Scanning SKILL.md files for compliance.",
+        "Generating critique prompts for agent self-review.",
+    ):
+        score, suggestion = _score_action_verbs(desc)
+        assert score >= 20, f"-ing form should score >=20: {desc!r} got {score}"
+        assert suggestion is None or "action verb" not in suggestion.lower(), (
+            f"-ing form must not trigger action-verb suggestion: {desc!r} -> {suggestion}"
+        )
+
+
+def test_ed_form_counts_as_action_verb():
+    """Past-tense / past-participle forms must register: -d ('Validated'),
+    -ed ('Worked'), -ied ('Identified'), doubled-consonant -ed ('Scanned').
+    """
+    for desc in (
+        "Validated skills before deployment.",
+        "Identified cyclic dependencies in plan graphs.",
+        "Scanned SKILL.md files for compliance.",
+        "Generated critique prompts for agent self-review.",
+        "Used for validating SKILL.md files at lint time.",
+    ):
+        score, suggestion = _score_action_verbs(desc)
+        assert score >= 10, f"-ed form should count as a verb: {desc!r} got {score}"
+
+
 def test_negative_handles_still_excluded():
        """Handles must NOT count as action verb (deliberate exclusion:
     already in _VAGUE_WORDS)."""
