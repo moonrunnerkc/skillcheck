@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `.pre-commit-hooks.yaml` now passes `--no-color` by default. The captured pre-commit log is plain text instead of carrying ANSI escapes from a TTY-less invocation. Consumers who want color back can override `args:` in their own `.pre-commit-config.yaml`.
+
 ### Fixed
 
 - `--format` error message now lists `github` as a valid choice (`cli.py`). The argparse `choices=` set on the `--format` definition has accepted `github` since v1.2.3, but the post-parse runtime check still printed the pre-v1.2.3 four-value list.

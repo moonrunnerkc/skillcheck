@@ -67,6 +67,8 @@ repos:
       - id: skillcheck
 ```
 
+The hook passes `--no-color` by default so the captured pre-commit log stays clean. Override or extend with `args:` in your `.pre-commit-config.yaml` (for example, `args: ["--no-color", "--strict"]`).
+
 ## What it checks
 
 - **Frontmatter**: required fields, types, name and description length limits, reserved-word collisions.
