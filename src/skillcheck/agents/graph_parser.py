@@ -11,6 +11,7 @@ critique parser; see agents/_response_text.py.
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from typing import Literal
 
 from skillcheck.agents._response_text import strip_response_noise
@@ -102,7 +103,7 @@ _EDGE_FIELDS: dict[str, type] = {
 
 
 def _require_field(
-    obj: dict,
+    obj: dict[str, object],
     key: str,
     expected_type: type | tuple[type, ...],
     context: str = "",
@@ -140,7 +141,7 @@ def _require_field(
         raise GraphSchemaError(
             f"Field '{full_key}' must be int or null, got bool: {value!r}"
         )
-    if not isinstance(value, expected_type):  # type: ignore[arg-type]
+    if not isinstance(value, expected_type):
         if isinstance(expected_type, tuple):
             type_name = " or ".join(
                 "null" if t is type(None) else t.__name__ for t in expected_type
@@ -154,7 +155,7 @@ def _require_field(
     return value
 
 
-def _check_no_extra_fields(obj: dict, allowed: dict, context: str) -> None:
+def _check_no_extra_fields(obj: Mapping[str, object], allowed: Mapping[str, object], context: str) -> None:
     extra = set(obj) - set(allowed)
     if extra:
         raise GraphSchemaError(

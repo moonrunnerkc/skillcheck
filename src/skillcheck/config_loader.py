@@ -9,7 +9,7 @@ from typing import Any
 try:  # Python 3.11+
     import tomllib
 except ModuleNotFoundError:  # pragma: no cover, exercised only on Python 3.10
-    tomllib = None  # type: ignore[assignment]
+    tomllib = None
 
 
 @dataclass(frozen=True, slots=True)

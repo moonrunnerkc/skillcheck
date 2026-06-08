@@ -15,7 +15,6 @@ from skillcheck.core.history import (
     Ledger,
     LedgerEntry,
     LedgerError,
-    ResultCounts,
     RunAgents,
     ValidationModes,
     append_run,
@@ -25,7 +24,6 @@ from skillcheck.core.history import (
 )
 from skillcheck.parser import ParsedSkill
 from skillcheck.result import ValidationResult
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -137,7 +135,6 @@ def test_save_writes_valid_json(tmp_path: Path):
 @pytest.mark.skipif(sys.platform == "win32", reason="chmod restrictions differ on Windows")
 def test_save_atomic_original_intact_on_failure(tmp_path: Path):
     """Original ledger survives a failed write (read-only directory)."""
-    import json
 
     skill_path = tmp_path / "SKILL.md"
     entry = _fixed_entry(skill_path)

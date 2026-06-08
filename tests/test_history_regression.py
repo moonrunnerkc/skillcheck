@@ -16,7 +16,6 @@ from skillcheck.core.history import (
 from skillcheck.parser import ParsedSkill
 from skillcheck.result import Severity, ValidationResult
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -51,7 +50,6 @@ def _entry(raw: str, valid: bool, ts: str) -> LedgerEntry:
     entry = build_entry(skill, result, _MODES, _AGENTS, exit_code=0 if valid else 1, version="0.2.0", now=now)
     # Override the result.valid since build_entry counts diagnostics (all zero here).
     # Build a new entry with the right valid flag by patching ResultCounts.
-    from dataclasses import replace  # type: ignore[attr-defined]
     patched_result = ResultCounts(
         error=0 if valid else 1,
         warning=entry.result.warning,

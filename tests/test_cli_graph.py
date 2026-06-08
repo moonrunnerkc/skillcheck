@@ -7,16 +7,15 @@ directory emit, and backward-compat smoke tests.
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
 
-from tests.conftest import FIXTURES_DIR
+from tests.conftest import CLI_AVAILABLE, FIXTURES_DIR, SKILLCHECK_CMD
 
 pytestmark = pytest.mark.skipif(
-    shutil.which("skillcheck") is None,
+    not CLI_AVAILABLE,
     reason="skillcheck not installed; run `pip install -e .` first",
 )
 
@@ -25,7 +24,7 @@ GRAPH_FIXTURES = Path(__file__).parent / "fixtures" / "graph"
 
 def _run(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
-        ["skillcheck", "--skip-dirname-check", *args],
+        [*SKILLCHECK_CMD, "--skip-dirname-check", *args],
         capture_output=True,
         text=True,
         encoding="utf-8",

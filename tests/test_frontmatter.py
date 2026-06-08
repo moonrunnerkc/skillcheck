@@ -1,4 +1,3 @@
-import pytest
 
 from skillcheck.parser import parse
 from skillcheck.result import Severity
@@ -9,16 +8,12 @@ from skillcheck.rules.frontmatter import (
     check_description_person_voice,
     check_description_required,
     check_name_charset,
-    check_name_consecutive_hyphens,
-    check_name_directory_match,
-    check_name_leading_trailing_hyphen,
     check_name_max_length,
     check_name_required,
     check_name_reserved_words,
     check_unknown_fields,
 )
 from tests.conftest import FIXTURES_DIR
-
 
 # ---------------------------------------------------------------------------
 # name.required

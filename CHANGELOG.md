@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `[tool.ruff]` and `[tool.mypy]` configuration in `pyproject.toml`. Ruff lints `src` and `tests` with an explicit `E, F, I, UP, B` selection at line length 127 (`E501` ignored for unavoidable long string literals in JSON fixtures and schema text). Mypy runs `strict` against `src/skillcheck` under `python_version = "3.10"`, with an `ignore_missing_imports` override for the untyped `tiktoken` dependency and the `tomllib` 3.11+ stdlib backport branch. The source was brought clean under both with real annotations, not blanket ignores.
+- Test coverage measurement via `pytest-cov` (added to the `dev` extra). `[tool.coverage.run]` and `[tool.coverage.report]` configure the run, and `addopts` in `[tool.pytest.ini_options]` adds `--cov=skillcheck --cov-report=term-missing --cov-fail-under=68`, so the floor is enforced on every local run and in CI (which runs the same `pytest`). The floor sits a few points under the ~72% measured on CPython 3.10 to absorb matrix variance: the CLI modules run in subprocesses the in-process tracer does not see, the `tomllib` vs fallback-parser branch flips between Python 3.10 and 3.11+, and a few tests skip on Windows.
+
+### Changed
+
+- CI `lint` job now enforces `ruff check src tests` and `mypy src/skillcheck` (strict) on every push and pull request, replacing the prior `compileall`-only check. Either tool reporting a finding fails the job.
+- `cli.py` split to separate argument wiring from command execution. Parser construction, `skillcheck.toml` application, mode-conflict dispatch, and `main` stay in `cli.py`; the per-mode handlers (emit prompts and graphs, `--show-history`, the default validation pipeline) and the path and ingest IO helpers move to a new `skillcheck.commands` module. `skillcheck.cli:main` and the `skillcheck` console script are unchanged. Pure refactor, no behavior change.
+
 ## [1.4.0] - 2026-05-27
 
 ### Changed

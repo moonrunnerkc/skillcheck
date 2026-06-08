@@ -9,8 +9,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from skillcheck.core.graph import CapabilityGraph, extract_graph_heuristic
 from skillcheck.core.graph_analyzers import (
     GRAPH_ANALYZERS,
@@ -22,7 +20,6 @@ from skillcheck.core.graph_analyzers import (
     run_graph_analyzers,
 )
 from skillcheck.result import Severity
-
 
 FIXTURES = Path(__file__).parent / "fixtures" / "graph"
 

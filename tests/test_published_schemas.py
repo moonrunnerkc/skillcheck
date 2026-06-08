@@ -15,9 +15,11 @@ from pathlib import Path
 from skillcheck.agents import SCHEMAS
 from skillcheck.agents.graph_parser import (
     _TOP_LEVEL_FIELDS as _GRAPH_TOP_LEVEL_FIELDS,
+)
+from skillcheck.agents.graph_parser import (
+    _VALID_EDGE_KINDS,
     _VALID_INPUT_KINDS,
     _VALID_OUTPUT_KINDS,
-    _VALID_EDGE_KINDS,
 )
 from skillcheck.agents.parser import _REQUIRED_FIELDS as _CRITIQUE_REQUIRED_FIELDS
 from skillcheck.result import Severity

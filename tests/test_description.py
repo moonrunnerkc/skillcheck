@@ -1,16 +1,16 @@
 """Tests for Feature 2: Description quality scoring."""
 
-import pytest
 
 from skillcheck.parser import parse
 from skillcheck.result import Severity
 from skillcheck.rules.description import (
+    _ACTION_VERBS,
+    _score_action_verbs,
     check_description_quality,
     make_min_score_rule,
     score_description,
 )
 from tests.conftest import FIXTURES_DIR
-
 
 # ---------------------------------------------------------------------------
 # score_description: scoring ranges
@@ -186,9 +186,6 @@ def test_third_person_verb_forms_count_via_stem_normalization():
 # ---------------------------------------------------------------------------
 # Issue #2: action-verb allowlist expansion (1.0.2)
 # ---------------------------------------------------------------------------
-
-from skillcheck.rules.description import _ACTION_VERBS, _score_action_verbs
-
 
 def test_newly_added_verbs_all_count_as_action_verbs():
        """Every verb added in the #2 expansion (170 total) must register as an

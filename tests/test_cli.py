@@ -1,22 +1,20 @@
 import json
-import shutil
 import subprocess
-import sys
 
 import pytest
 
-from tests.conftest import FIXTURES_DIR
+from tests.conftest import CLI_AVAILABLE, FIXTURES_DIR, SKILLCHECK_CMD
 
-# Skip all CLI tests if the package is not installed as a command.
+# Skip all CLI tests if the package is not importable in this interpreter.
 pytestmark = pytest.mark.skipif(
-    shutil.which("skillcheck") is None,
+    not CLI_AVAILABLE,
     reason="skillcheck not installed; run `pip install -e .` first",
 )
 
 
 def run(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
-        ["skillcheck", *args],
+        [*SKILLCHECK_CMD, *args],
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -26,7 +24,7 @@ def run(*args: str) -> subprocess.CompletedProcess:
 def run_fixture(*args: str) -> subprocess.CompletedProcess:
     """Run skillcheck with --skip-dirname-check for fixture files."""
     return subprocess.run(
-        ["skillcheck", "--skip-dirname-check", *args],
+        [*SKILLCHECK_CMD, "--skip-dirname-check", *args],
         capture_output=True,
         text=True,
         encoding="utf-8",

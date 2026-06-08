@@ -7,9 +7,12 @@ dist/
 build/
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
 *.egg
 CLAUDE.md
-copilot-instructions.md
 # Field test artifacts (kept locally, not in git)
 runs/
 

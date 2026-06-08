@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-from skillcheck.parser import parse as _parse
 from skillcheck.rules.description import score_description
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"

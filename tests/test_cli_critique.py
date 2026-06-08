@@ -3,26 +3,24 @@
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
 
-from tests.conftest import FIXTURES_DIR
+from tests.conftest import CLI_AVAILABLE, FIXTURES_DIR, SKILLCHECK_CMD
 
 CRITIQUE_DIR = FIXTURES_DIR / "critique"
 
 pytestmark = pytest.mark.skipif(
-    shutil.which("skillcheck") is None,
+    not CLI_AVAILABLE,
     reason="skillcheck not installed; run `pip install -e .` first",
 )
 
 
 def run(*args: str, stdin: str | None = None) -> subprocess.CompletedProcess:
     return subprocess.run(
-        ["skillcheck", *args],
+        [*SKILLCHECK_CMD, *args],
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -32,7 +30,7 @@ def run(*args: str, stdin: str | None = None) -> subprocess.CompletedProcess:
 
 def run_fixture(*args: str, stdin: str | None = None) -> subprocess.CompletedProcess:
     return subprocess.run(
-        ["skillcheck", "--skip-dirname-check", *args],
+        [*SKILLCHECK_CMD, "--skip-dirname-check", *args],
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -117,7 +115,7 @@ def test_emit_critique_prompt_directory_contains_delimiters(tmp_path: Path) -> N
         )
 
     result = subprocess.run(
-        ["skillcheck", "--skip-dirname-check", str(tmp_path), "--emit-critique-prompt"],
+        [*SKILLCHECK_CMD, "--skip-dirname-check", str(tmp_path), "--emit-critique-prompt"],
         capture_output=True,
         text=True,
         encoding="utf-8",

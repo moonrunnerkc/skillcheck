@@ -13,7 +13,6 @@ from skillcheck.agents.schema import (
 )
 from skillcheck.result import Severity
 
-
 # ---------------------------------------------------------------------------
 # CritiqueFinding
 # ---------------------------------------------------------------------------

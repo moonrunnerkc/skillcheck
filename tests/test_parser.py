@@ -1,8 +1,7 @@
-from pathlib import Path
 
 import pytest
 
-from skillcheck.parser import ParseError, ParsedSkill, parse
+from skillcheck.parser import ParseError, parse
 from tests.conftest import FIXTURES_DIR
 
 

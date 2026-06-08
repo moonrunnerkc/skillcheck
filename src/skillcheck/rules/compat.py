@@ -20,8 +20,7 @@ import re
 from collections.abc import Callable
 
 from skillcheck import config
-from skillcheck.parser import _FRONTMATTER_RE
-from skillcheck.parser import ParsedSkill
+from skillcheck.parser import _FRONTMATTER_RE, ParsedSkill
 from skillcheck.result import Diagnostic, Severity
 from skillcheck.template_detection import is_template
 

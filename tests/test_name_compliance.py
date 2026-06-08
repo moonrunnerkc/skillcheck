@@ -3,7 +3,6 @@
 Covers leading/trailing hyphens, consecutive hyphens, and directory-name matching.
 """
 
-import pytest
 
 from skillcheck.parser import parse
 from skillcheck.result import Severity
@@ -13,7 +12,6 @@ from skillcheck.rules.frontmatter import (
     check_name_leading_trailing_hyphen,
 )
 from tests.conftest import FIXTURES_DIR
-
 
 # ---------------------------------------------------------------------------
 # name.leading-trailing-hyphen

@@ -7,7 +7,6 @@ from pathlib import Path
 import pytest
 
 from skillcheck.agents import GRAPH_AGENTS, get_graph_prompt
-from skillcheck.agents.graph_base import GraphExtractionPrompt
 from skillcheck.agents.graph_claude import ClaudeGraphPrompt
 from skillcheck.agents.graph_codex import CodexGraphPrompt
 from skillcheck.agents.graph_cursor import CursorGraphPrompt

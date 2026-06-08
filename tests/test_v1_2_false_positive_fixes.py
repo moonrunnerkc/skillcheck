@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 from pathlib import Path
 
@@ -17,7 +16,7 @@ from skillcheck.rules.frontmatter import (
     check_name_reserved_words,
     check_unknown_fields,
 )
-from tests.conftest import FIXTURES_DIR
+from tests.conftest import CLI_AVAILABLE, FIXTURES_DIR, SKILLCHECK_CMD
 
 
 @pytest.fixture(autouse=True)
@@ -143,14 +142,11 @@ def test_non_template_placeholder_word_documents_false_positive() -> None:
     )
 
 
-CLI_AVAILABLE = shutil.which("skillcheck") is not None
-
-
 @pytest.mark.skipif(not CLI_AVAILABLE, reason="skillcheck command is not installed")
 def test_claude_api_name_cli_exit_code_zero() -> None:
     result = subprocess.run(
         [
-            "skillcheck",
+            *SKILLCHECK_CMD,
             "--skip-dirname-check",
             str(FIXTURES_DIR / "claude_api_name.md"),
             "--format",
@@ -171,7 +167,7 @@ def test_claude_api_name_cli_exit_code_zero() -> None:
 def test_canvas_design_pattern_cli_exit_code_zero() -> None:
     result = subprocess.run(
         [
-            "skillcheck",
+            *SKILLCHECK_CMD,
             "--skip-dirname-check",
             str(FIXTURES_DIR / "canvas_design_pattern.md"),
             "--format",

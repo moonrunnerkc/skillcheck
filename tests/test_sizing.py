@@ -1,11 +1,9 @@
-import pytest
 
 from skillcheck.parser import parse
 from skillcheck.result import Severity
 from skillcheck.rules.sizing import make_line_count_rule, make_token_estimate_rule
 from skillcheck.tokenizer import estimate_tokens
 from tests.conftest import FIXTURES_DIR
-
 
 # ---------------------------------------------------------------------------
 # sizing.body.line-count

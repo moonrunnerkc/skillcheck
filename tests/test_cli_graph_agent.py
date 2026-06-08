@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
+
+from tests.conftest import CLI_AVAILABLE, SKILLCHECK_CMD
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 GR_DIR = FIXTURES_DIR / "graph_responses"
@@ -15,7 +16,7 @@ GRAPH_DIR = FIXTURES_DIR / "graph"
 CRITIQUE_DIR = FIXTURES_DIR / "critique"
 
 pytestmark = pytest.mark.skipif(
-    shutil.which("skillcheck") is None,
+    not CLI_AVAILABLE,
     reason="skillcheck not installed; run `pip install -e .` first",
 )
 
@@ -31,7 +32,7 @@ _FLAGS = ["--skip-dirname-check"]
 
 def run(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
-        ["skillcheck", *_FLAGS, *args],
+        [*SKILLCHECK_CMD, *_FLAGS, *args],
         capture_output=True,
         text=True,
         encoding="utf-8",

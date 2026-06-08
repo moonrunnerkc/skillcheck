@@ -5,8 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from skillcheck.core.semantic import (
     INFO_THRESHOLD,
     WARNING_THRESHOLD,

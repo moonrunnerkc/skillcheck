@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from skillcheck.agents.graph_parser import parse_graph_response
 from skillcheck.core.graph import (
     Capability,
@@ -119,7 +117,6 @@ def test_requires_contradiction_fires_error() -> None:
     """Agent claims cap -requires-> input where heuristic has both but no edge."""
     # Build a custom agent graph where cap "Generate report" requires "DB_URL"
     # (heuristic has both but no requires edge).
-    skill = _skill()
     h = _heuristic()
     cap = Capability(id="c1", name="Generate report", description="desc", line=8)
     inp = Input(id="i1", name="DB_URL", kind="env", line=5)

@@ -1,6 +1,5 @@
 """Tests for Fix 6: YAML anchor/alias detection in frontmatter."""
 
-import pytest
 
 from skillcheck.parser import parse
 from skillcheck.result import Severity

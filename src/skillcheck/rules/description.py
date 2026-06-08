@@ -245,7 +245,7 @@ def score_description(desc: str) -> tuple[int, list[str], dict[str, int]]:
     total = 0
     suggestions: list[str] = []
     breakdown: dict[str, int] = {}
-    for name, max_pts, scorer in scorers:
+    for name, _max_pts, scorer in scorers:
         points, suggestion = scorer(desc)
         total += points
         breakdown[name] = points
