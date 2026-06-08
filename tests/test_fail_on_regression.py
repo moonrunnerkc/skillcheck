@@ -193,7 +193,7 @@ class TestFailOnRegressionCLI:
         # If the skill passes (no --strict), exit should be 0 even if regression fires
         result = _run_cli("--history", "--format", "json")
         # The skill passes validation normally, so exit 0.
-        # If regression fires, it's a WARNING only — no exit code change.
+        # If regression fires, it's a WARNING only, no exit code change.
         assert result.returncode == 0, (
             f"Expected exit 0 without --fail-on-regression, got {result.returncode}. "
             f"stdout: {result.stdout[:200]} stderr: {result.stderr[:200]}"
