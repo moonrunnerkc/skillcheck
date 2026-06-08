@@ -15,7 +15,6 @@ from skillcheck.core.graph import CapabilityGraph, extract_graph_heuristic
 from skillcheck.core.graph_render import render_graph_json, render_graph_text
 from skillcheck.parser import parse as _parse
 
-
 FIXTURES = Path(__file__).parent / "fixtures" / "graph"
 
 

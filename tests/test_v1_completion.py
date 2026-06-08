@@ -9,17 +9,17 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import FIXTURES_DIR
+from tests.conftest import CLI_AVAILABLE, FIXTURES_DIR, SKILLCHECK_CMD
 
 pytestmark = pytest.mark.skipif(
-    shutil.which("skillcheck") is None,
+    not CLI_AVAILABLE,
     reason="skillcheck not installed; run `pip install -e .` first",
 )
 
 
 def run(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
-        ["skillcheck", "--skip-dirname-check", *args],
+        [*SKILLCHECK_CMD, "--skip-dirname-check", *args],
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -71,7 +71,7 @@ def test_skillcheck_toml_applies_defaults(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     result = subprocess.run(
-        ["skillcheck", str(skill)],
+        [*SKILLCHECK_CMD, str(skill)],
         capture_output=True,
         text=True,
         encoding="utf-8",

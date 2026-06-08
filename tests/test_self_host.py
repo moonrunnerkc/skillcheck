@@ -12,8 +12,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
-
 from skillcheck import validate
 from skillcheck.core.graph import extract_graph_agent, extract_graph_heuristic
 from skillcheck.core.graph_analyzers import run_divergence_analyzers, run_graph_analyzers

@@ -4,11 +4,18 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 from skillcheck import __version__
 from skillcheck import config as runtime_config
+from skillcheck.agents import get_graph_prompt
+from skillcheck.agents.graph_parser import GraphParseError
+from skillcheck.agents.parser import CritiqueParseError
 from skillcheck.config_loader import ConfigError, find_config, load_config
 from skillcheck.core import (
+    LedgerError,
+    RunAgents,
+    ValidationModes,
     append_run,
     build_entry,
     check_regression,
@@ -20,10 +27,10 @@ from skillcheck.core import (
     load_ledger,
     merge_critique_diagnostics,
     merge_diagnostics,
-    render_critique_prompt,
     render_activation_json,
     render_activation_markdown,
     render_activation_text,
+    render_critique_prompt,
     render_graph_json,
     render_graph_text,
     render_ledger_json,
@@ -31,13 +38,7 @@ from skillcheck.core import (
     run_divergence_analyzers,
     run_graph_analyzers,
     validate,
-    LedgerError,
-    RunAgents,
-    ValidationModes,
 )
-from skillcheck.agents import get_graph_prompt
-from skillcheck.agents.graph_parser import GraphParseError
-from skillcheck.agents.parser import CritiqueParseError
 from skillcheck.formatters import (
     _format_agent,
     _format_github,
@@ -487,7 +488,7 @@ def _do_emit_activation(paths: list[Path], fmt: str) -> None:
             print(render_activation_json(reports[0]))
         return
 
-    for path, report in zip(paths, reports):
+    for path, report in zip(paths, reports, strict=True):
         if multiple:
             print(f"# === skillcheck:activation:{path} ===")
         if fmt == "md":
@@ -794,7 +795,7 @@ def main() -> None:
 
     critique_source: str | None = None
     graph_source_text: str | None = None
-    graph_source_json: dict | None = None
+    graph_source_json: dict[str, Any] | None = None
     any_ingest_failed = False
 
     if args.ingest_critique is not None:
@@ -842,7 +843,7 @@ def main() -> None:
             results[i] = merge_diagnostics(result, all_graph_diags)
 
     elif args.analyze_graph:
-        for i, (path, result) in enumerate(zip(paths, results)):
+        for i, (path, result) in enumerate(zip(paths, results, strict=True)):
             skill = _parse_skill(path)
             graph = extract_graph_heuristic(skill)
             graph_diags = run_graph_analyzers(graph)

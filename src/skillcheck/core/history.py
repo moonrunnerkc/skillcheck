@@ -26,6 +26,7 @@ import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from skillcheck.parser import ParsedSkill
 from skillcheck.result import Diagnostic, Severity, ValidationResult
@@ -245,7 +246,7 @@ def check_regression(
 # ---------------------------------------------------------------------------
 
 
-def _entry_to_dict(entry: LedgerEntry) -> dict:
+def _entry_to_dict(entry: LedgerEntry) -> dict[str, object]:
     """Serialize a LedgerEntry to an ordered dict. Field order matches dataclass."""
     return {
         "timestamp_utc": entry.timestamp_utc,
@@ -270,7 +271,7 @@ def _entry_to_dict(entry: LedgerEntry) -> dict:
     }
 
 
-def _entry_from_dict(data: dict, path: Path) -> LedgerEntry:
+def _entry_from_dict(data: dict[str, Any], path: Path) -> LedgerEntry:
     """Deserialize a LedgerEntry from a dict. Raises LedgerError on missing keys."""
     try:
         modes_d = data["validation_modes"]

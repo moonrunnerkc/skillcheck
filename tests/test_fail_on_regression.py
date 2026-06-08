@@ -1,28 +1,22 @@
 """Tests for --fail-on-regression: exit code escalation on history.skill.regressed."""
 
-import json
 import subprocess
 import sys
 from pathlib import Path
 
-import pytest
-
 from skillcheck.core.history import (
+    LEDGER_SCHEMA_VERSION,
     Ledger,
     LedgerEntry,
     ResultCounts,
     RunAgents,
     ValidationModes,
-    LEDGER_SCHEMA_VERSION,
-    append_run,
-    build_entry,
     check_regression,
     ledger_path_for,
-    load_ledger,
     save_ledger,
 )
 from skillcheck.parser import parse as _parse
-from skillcheck.result import Diagnostic, Severity
+from skillcheck.result import Severity
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 GOOD_SKILL = FIXTURES_DIR / "valid_good_desc.md"

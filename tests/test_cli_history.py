@@ -12,13 +12,15 @@ from pathlib import Path
 
 import pytest
 
+from tests.conftest import CLI_AVAILABLE, SKILLCHECK_CMD
+
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 CRITIQUE_DIR = FIXTURES_DIR / "critique"
 GR_DIR = FIXTURES_DIR / "graph_responses"
 HISTORY_DIR = FIXTURES_DIR / "history"
 
 pytestmark = pytest.mark.skipif(
-    shutil.which("skillcheck") is None,
+    not CLI_AVAILABLE,
     reason="skillcheck not installed; run `pip install -e .` first",
 )
 
@@ -27,7 +29,7 @@ _BASE_FLAGS = ["--skip-dirname-check"]
 
 def run(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
-        ["skillcheck", *_BASE_FLAGS, *args],
+        [*SKILLCHECK_CMD, *_BASE_FLAGS, *args],
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -130,7 +132,7 @@ def test_history_records_both_critique_and_graph_agents(tmp_path: Path):
     shutil.copy(FIXTURES_DIR / "valid_basic.md", skill)
     critique_response = str(CRITIQUE_DIR / "response_clean.json")
     graph_response = str(GR_DIR / "response_clean.json")
-    result = run(
+    run(
         str(skill),
         "--history",
         "--ingest-critique", critique_response,
@@ -281,7 +283,7 @@ def test_history_regression_emits_warning(tmp_path: Path):
 
     # Now run with --history on the same bad_desc_empty.md which will fail.
     result = subprocess.run(
-        ["skillcheck", "--skip-dirname-check", str(bad_skill), "--history"],
+        [*SKILLCHECK_CMD, "--skip-dirname-check", str(bad_skill), "--history"],
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -352,7 +354,7 @@ def test_history_write_failure_warns_but_keeps_exit_code(tmp_path: Path):
     try:
         os.chmod(tmp_path, stat.S_IRUSR | stat.S_IXUSR)
         result = subprocess.run(
-            ["skillcheck", "--skip-dirname-check", str(skill), "--history"],
+            [*SKILLCHECK_CMD, "--skip-dirname-check", str(skill), "--history"],
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -376,14 +378,14 @@ def test_text_output_unchanged_no_history_flag(tmp_path: Path):
     skill = tmp_path / "SKILL.md"
     shutil.copy(FIXTURES_DIR / "valid_basic.md", skill)
     result_with = subprocess.run(
-        ["skillcheck", "--skip-dirname-check", str(skill)],
+        [*SKILLCHECK_CMD, "--skip-dirname-check", str(skill)],
         capture_output=True,
         text=True,
         encoding="utf-8",
     )
     # Baseline: run twice without --history and confirm output is stable.
     result_again = subprocess.run(
-        ["skillcheck", "--skip-dirname-check", str(skill)],
+        [*SKILLCHECK_CMD, "--skip-dirname-check", str(skill)],
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -396,11 +398,11 @@ def test_json_output_unchanged_no_history_flag(tmp_path: Path):
     skill = tmp_path / "SKILL.md"
     shutil.copy(FIXTURES_DIR / "valid_basic.md", skill)
     r1 = subprocess.run(
-        ["skillcheck", "--skip-dirname-check", "--format", "json", str(skill)],
+        [*SKILLCHECK_CMD, "--skip-dirname-check", "--format", "json", str(skill)],
         capture_output=True, text=True, encoding="utf-8",
     )
     r2 = subprocess.run(
-        ["skillcheck", "--skip-dirname-check", "--format", "json", str(skill)],
+        [*SKILLCHECK_CMD, "--skip-dirname-check", "--format", "json", str(skill)],
         capture_output=True, text=True, encoding="utf-8",
     )
     assert r1.stdout == r2.stdout
@@ -412,11 +414,11 @@ def test_ingest_critique_alone_unchanged(tmp_path: Path):
     shutil.copy(FIXTURES_DIR / "valid_basic.md", skill)
     critique = str(CRITIQUE_DIR / "response_clean.json")
     r1 = subprocess.run(
-        ["skillcheck", "--skip-dirname-check", str(skill), "--ingest-critique", critique],
+        [*SKILLCHECK_CMD, "--skip-dirname-check", str(skill), "--ingest-critique", critique],
         capture_output=True, text=True, encoding="utf-8",
     )
     r2 = subprocess.run(
-        ["skillcheck", "--skip-dirname-check", str(skill), "--ingest-critique", critique],
+        [*SKILLCHECK_CMD, "--skip-dirname-check", str(skill), "--ingest-critique", critique],
         capture_output=True, text=True, encoding="utf-8",
     )
     assert r1.returncode == r2.returncode
@@ -427,11 +429,11 @@ def test_ingest_graph_alone_unchanged(tmp_path: Path):
     shutil.copy(FIXTURES_DIR / "valid_basic.md", skill)
     graph_r = str(GR_DIR / "response_clean.json")
     r1 = subprocess.run(
-        ["skillcheck", "--skip-dirname-check", str(skill), "--ingest-graph", graph_r],
+        [*SKILLCHECK_CMD, "--skip-dirname-check", str(skill), "--ingest-graph", graph_r],
         capture_output=True, text=True, encoding="utf-8",
     )
     r2 = subprocess.run(
-        ["skillcheck", "--skip-dirname-check", str(skill), "--ingest-graph", graph_r],
+        [*SKILLCHECK_CMD, "--skip-dirname-check", str(skill), "--ingest-graph", graph_r],
         capture_output=True, text=True, encoding="utf-8",
     )
     assert r1.returncode == r2.returncode

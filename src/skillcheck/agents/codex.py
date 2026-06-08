@@ -18,10 +18,10 @@ from __future__ import annotations
 
 from skillcheck.agents.base import (
     SCHEMA_VERSION,
+    SelfCritiquePrompt,
     schema_reference,
     worked_example,
 )
-from skillcheck.agents.base import SelfCritiquePrompt
 from skillcheck.parser import ParsedSkill
 
 

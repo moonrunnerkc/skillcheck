@@ -48,3 +48,22 @@ packages = ["src/skillcheck"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 127
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]  # line-length in unchangeable string literals (JSON fixtures, base64, schema text)
+
+[tool.mypy]
+strict = true
+python_version = "3.10"
+files = ["src/skillcheck"]
+
+[[tool.mypy.overrides]]
+# tiktoken ships no type stubs; tomllib has no typeshed stubs under the pinned
+# python_version (3.10), where it is the optional 3.11+ stdlib backport branch.
+module = ["tiktoken", "tomllib"]
+ignore_missing_imports = true

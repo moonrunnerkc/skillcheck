@@ -3,19 +3,16 @@ from __future__ import annotations
 import inspect
 from pathlib import Path
 
-import pytest
-
 from skillcheck import (
     Diagnostic,
-    ParseError,
     ParsedSkill,
+    ParseError,
     Severity,
     ValidationResult,
     validate,
 )
 from skillcheck.agents.base import SelfCritiquePrompt
 from skillcheck.core import graph, history, reporter, semantic, symbolic
-
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 

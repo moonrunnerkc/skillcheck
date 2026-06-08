@@ -73,7 +73,7 @@ class CritiqueValueError(CritiqueParseError):
     """
 
 
-def _require_field(obj: dict, key: str, expected_type: type | tuple[type, ...], context: str = "") -> object:
+def _require_field(obj: dict[str, object], key: str, expected_type: type | tuple[type, ...], context: str = "") -> object:
     """Extract a required field with type checking.
 
     Args:
@@ -98,7 +98,7 @@ def _require_field(obj: dict, key: str, expected_type: type | tuple[type, ...], 
         raise CritiqueSchemaError(
             f"Field '{full_key}' must be int, got bool: {value!r}"
         )
-    if not isinstance(value, expected_type):  # type: ignore[arg-type]
+    if not isinstance(value, expected_type):
         type_name = (
             expected_type.__name__
             if isinstance(expected_type, type)

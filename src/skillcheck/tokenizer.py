@@ -37,7 +37,7 @@ def _get_tiktoken_enc() -> Any | None:
         # Re-check under the lock so the second arrival sees the cached value.
         if _tiktoken_available is None:
             try:
-                import tiktoken  # type: ignore[import-untyped]
+                import tiktoken
                 _tiktoken_enc = tiktoken.get_encoding("cl100k_base")
                 _tiktoken_available = True
             except ImportError:

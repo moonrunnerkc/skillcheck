@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from skillcheck.agents import AGENTS, get_agent_prompt
-from skillcheck.agents.base import SelfCritiquePrompt, worked_example
+from skillcheck.agents.base import worked_example
 from skillcheck.agents.claude import ClaudePrompt
 from skillcheck.agents.codex import CodexPrompt
 from skillcheck.agents.cursor import CursorPrompt
@@ -189,8 +189,6 @@ def test_different_agents_produce_different_output() -> None:
 
 def test_worked_example_is_valid_critique_json() -> None:
     # worked_example() is embedded in claude/codex prompts; it must be parseable.
-    from skillcheck.agents.parser import parse_critique_response
-    import json
 
     # Extract just the JSON object from the worked example.
     example_text = worked_example()

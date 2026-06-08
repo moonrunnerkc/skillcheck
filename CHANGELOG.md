@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `[tool.ruff]` and `[tool.mypy]` configuration in `pyproject.toml`. Ruff lints `src` and `tests` with an explicit `E, F, I, UP, B` selection at line length 127 (`E501` ignored for unavoidable long string literals in JSON fixtures and schema text). Mypy runs `strict` against `src/skillcheck` under `python_version = "3.10"`, with an `ignore_missing_imports` override for the untyped `tiktoken` dependency and the `tomllib` 3.11+ stdlib backport branch. The source was brought clean under both with real annotations, not blanket ignores.
+
 ## [1.4.0] - 2026-05-27
 
 ### Changed

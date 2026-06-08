@@ -6,9 +6,8 @@ import subprocess
 from pathlib import Path
 
 from skillcheck.formatters import _format_github, _gha_escape
-from skillcheck.result import Diagnostic, ValidationResult, Severity
-
-from tests.conftest import FIXTURES_DIR
+from skillcheck.result import Diagnostic, Severity, ValidationResult
+from tests.conftest import FIXTURES_DIR, SKILLCHECK_CMD
 
 
 class TestGhaEscape:
@@ -92,7 +91,7 @@ class TestFormatGithub:
 
 def _run(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
-        ["skillcheck", *args],
+        [*SKILLCHECK_CMD, *args],
         capture_output=True,
         text=True,
         encoding="utf-8",

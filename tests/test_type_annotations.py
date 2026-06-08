@@ -2,8 +2,6 @@
 
 from collections.abc import Callable
 
-from skillcheck.parser import ParsedSkill
-from skillcheck.result import Diagnostic
 from skillcheck.rules.compat import make_strict_vscode_rule
 from skillcheck.rules.description import make_min_score_rule
 

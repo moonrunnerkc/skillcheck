@@ -106,7 +106,7 @@ def _format_json(
     results: list[ValidationResult],
     version: str,
     critique_source: str | None = None,
-    graph_source: dict | None = None,
+    graph_source: dict[str, object] | None = None,
     score_breakdowns: dict[str, dict[str, int]] | None = None,
 ) -> str:
     passed = sum(1 for r in results if r.valid)

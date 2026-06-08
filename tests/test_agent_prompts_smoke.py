@@ -33,7 +33,6 @@ from skillcheck.agents import (
 from skillcheck.parser import parse
 from tests.conftest import FIXTURES_DIR
 
-
 _FIXTURE = FIXTURES_DIR / "valid_basic.md"
 
 

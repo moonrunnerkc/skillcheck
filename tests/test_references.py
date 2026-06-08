@@ -1,15 +1,8 @@
 """Tests for Feature 3: File reference validation."""
 
-import os
 import sys
 
 import pytest
-
-_WINDOWS = sys.platform == "win32"
-_skip_symlink = pytest.mark.skipif(
-    _WINDOWS,
-    reason="os.symlink requires developer mode or admin privileges on Windows",
-)
 
 from skillcheck.parser import parse
 from skillcheck.result import Severity
@@ -19,8 +12,12 @@ from skillcheck.rules.references import (
     check_broken_references,
     check_reference_depth,
 )
-from tests.conftest import FIXTURES_DIR
 
+_WINDOWS = sys.platform == "win32"
+_skip_symlink = pytest.mark.skipif(
+    _WINDOWS,
+    reason="os.symlink requires developer mode or admin privileges on Windows",
+)
 
 # ---------------------------------------------------------------------------
 # _extract_references

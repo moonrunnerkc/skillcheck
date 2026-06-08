@@ -16,7 +16,6 @@ from skillcheck.rules.compat import (
 )
 from tests.conftest import FIXTURES_DIR
 
-
 # ---------------------------------------------------------------------------
 # compat.claude-only
 # ---------------------------------------------------------------------------

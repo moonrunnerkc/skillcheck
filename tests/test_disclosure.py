@@ -1,6 +1,5 @@
 """Tests for Feature 4: Progressive disclosure budget validation."""
 
-import pytest
 
 from skillcheck.parser import parse
 from skillcheck.result import Severity
@@ -10,7 +9,6 @@ from skillcheck.rules.disclosure import (
     check_metadata_budget,
 )
 from tests.conftest import FIXTURES_DIR
-
 
 # ---------------------------------------------------------------------------
 # disclosure.metadata-budget
