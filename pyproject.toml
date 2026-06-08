@@ -33,6 +33,7 @@ classifiers = [
 dev = [
     "mypy>=1.10",
     "pytest>=8.0",
+    "pytest-cov>=5.0",
     "ruff>=0.6",
     "types-PyYAML>=6.0",
 ]
@@ -48,6 +49,11 @@ packages = ["src/skillcheck"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Coverage floor sits a few points under the ~72% measured on CPython 3.10 so it
+# survives matrix variance: the CLI modules (cli.py, commands.py) run in
+# subprocesses the in-process tracer does not see, the tomllib vs fallback-parser
+# branch flips between 3.10 and 3.11+, and a few tests skip on Windows.
+addopts = "--cov=skillcheck --cov-report=term-missing --cov-fail-under=68"
 
 [tool.ruff]
 target-version = "py310"
@@ -67,3 +73,17 @@ files = ["src/skillcheck"]
 # python_version (3.10), where it is the optional 3.11+ stdlib backport branch.
 module = ["tiktoken", "tomllib"]
 ignore_missing_imports = true
+
+[tool.coverage.run]
+source = ["skillcheck"]
+# __main__.py is the `python -m skillcheck` shim; it only runs in a subprocess,
+# so the in-process test run never executes it.
+omit = ["*/__main__.py"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]
