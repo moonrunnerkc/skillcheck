@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - CI `lint` job now enforces `ruff check src tests` and `mypy src/skillcheck` (strict) on every push and pull request, replacing the prior `compileall`-only check. Either tool reporting a finding fails the job.
+- `cli.py` split to separate argument wiring from command execution. Parser construction, `skillcheck.toml` application, mode-conflict dispatch, and `main` stay in `cli.py`; the per-mode handlers (emit prompts and graphs, `--show-history`, the default validation pipeline) and the path and ingest IO helpers move to a new `skillcheck.commands` module. `skillcheck.cli:main` and the `skillcheck` console script are unchanged. Pure refactor, no behavior change.
 
 ## [1.4.0] - 2026-05-27
 
