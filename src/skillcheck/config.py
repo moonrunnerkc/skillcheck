@@ -36,6 +36,7 @@ SPEC_FIELDS: frozenset[str] = frozenset({
 
 ECOSYSTEM_FIELDS: frozenset[str] = frozenset({
     "license",
+    "metadata",
     "repository",
     "homepage",
     "template",

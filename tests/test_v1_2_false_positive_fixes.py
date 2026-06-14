@@ -48,6 +48,10 @@ def test_license_field_is_ecosystem_info() -> None:
     _assert_ecosystem_field(FIXTURES_DIR / "license_field.md", "license")
 
 
+def test_metadata_field_is_ecosystem_info() -> None:
+    _assert_ecosystem_field(FIXTURES_DIR / "metadata_field.md", "metadata")
+
+
 def test_homepage_field_is_ecosystem_info() -> None:
     _assert_ecosystem_field(FIXTURES_DIR / "homepage_field.md", "homepage")
 
