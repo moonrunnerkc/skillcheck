@@ -16,6 +16,7 @@ import re
 from skillcheck import config
 from skillcheck.parser import ParsedSkill
 from skillcheck.result import Diagnostic, Severity
+from skillcheck.rules.frontmatter_common import _frontmatter_block
 from skillcheck.tokenizer import estimate_tokens
 
 # Matches fenced code blocks (``` or ~~~) and captures their content lines.
@@ -43,22 +44,9 @@ def _is_real_base64(text: str) -> bool:
     return has_upper and has_lower
 
 
-def _extract_frontmatter_text(raw_text: str) -> str:
-    """Extract the raw YAML frontmatter text (between --- delimiters)."""
-    lines = raw_text.splitlines()
-    if not lines or lines[0].strip() != "---":
-        return ""
-    fm_lines: list[str] = []
-    for line in lines[1:]:
-        if line.strip() == "---":
-            break
-        fm_lines.append(line)
-    return "\n".join(fm_lines)
-
-
 def check_metadata_budget(skill: ParsedSkill) -> list[Diagnostic]:
     """Warn when frontmatter exceeds the ~100 token metadata budget."""
-    fm_text = _extract_frontmatter_text(skill.raw_text)
+    fm_text = _frontmatter_block(skill.raw_text)
     if not fm_text:
         return []
 

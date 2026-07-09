@@ -453,3 +453,30 @@ $ /tmp/actionlint .github/workflows/*.yml
 actionlint OK   (v1.7.7, prebuilt binary downloaded to /tmp; not installable via package manager here)
 ```
 README test-count claim synced 808 -> 821.
+
+---
+
+## Phase 3: debt reduction (pure refactors, zero behavior change)
+
+Before Phase 3: full suite `821 passed`. Each item below re-ran the full suite green with no test modified
+(unless a moved-symbol import is noted).
+
+### 3.1 Frontmatter block extraction exists three times
+
+Finding: identical logic at `frontmatter_common.py:28` (`_frontmatter_block`), `frontmatter_fields.py:48`
+(`_extract_frontmatter_raw`), `disclosure.py:46` (`_extract_frontmatter_text`).
+
+FIX (files touched): deleted `_extract_frontmatter_raw` and `_extract_frontmatter_text`; both callers now use
+`_frontmatter_block` from `frontmatter_common`. The `if not fm:` guards handle its `None` return identically to
+the previous `""`. The indented-`---`-opener acceptance (`lines[0].strip() == "---"`) is preserved because
+`_frontmatter_block` already accepts it. No unterminated-frontmatter fixture exists and the rule pipeline only
+runs post-parse-success, so the `None`-vs-collected-lines difference on an unterminated block is unreachable.
+
+VERIFY:
+```
+$ grep -rn "_extract_frontmatter_raw\|_extract_frontmatter_text" src/ tests/
+OK: both deleted, no references
+$ python3 -m pytest tests/ -q   ->  821 passed
+$ ruff check src tests  ->  All checks passed!    $ mypy src/skillcheck  ->  Success
+```
+No test modified.

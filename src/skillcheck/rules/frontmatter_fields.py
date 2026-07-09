@@ -5,7 +5,7 @@ import re
 from skillcheck import config
 from skillcheck.parser import ParsedSkill
 from skillcheck.result import Diagnostic, Severity
-from skillcheck.rules.frontmatter_common import _field_line
+from skillcheck.rules.frontmatter_common import _field_line, _frontmatter_block
 
 _YAML_ANCHOR_RE = re.compile(r"&([A-Za-z_][A-Za-z0-9_-]*)")
 _YAML_ALIAS_RE = re.compile(r"\*([A-Za-z_][A-Za-z0-9_-]*)")
@@ -45,22 +45,9 @@ def check_unknown_fields(skill: ParsedSkill) -> list[Diagnostic]:
     return diagnostics
 
 
-def _extract_frontmatter_raw(raw_text: str) -> str:
-    """Return the raw frontmatter text between ``---`` delimiters."""
-    lines = raw_text.splitlines()
-    if not lines or lines[0].strip() != "---":
-        return ""
-    fm_lines: list[str] = []
-    for line in lines[1:]:
-        if line.strip() == "---":
-            break
-        fm_lines.append(line)
-    return "\n".join(fm_lines)
-
-
 def check_yaml_anchors(skill: ParsedSkill) -> list[Diagnostic]:
     """Warn when YAML anchors or aliases are used in frontmatter."""
-    fm_raw = _extract_frontmatter_raw(skill.raw_text)
+    fm_raw = _frontmatter_block(skill.raw_text)
     if not fm_raw:
         return []
 
