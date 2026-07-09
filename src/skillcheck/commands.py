@@ -33,7 +33,6 @@ from skillcheck.core import (
     ingest_critique_response,
     ledger_path_for,
     load_ledger,
-    merge_critique_diagnostics,
     merge_diagnostics,
     render_activation_json,
     render_activation_markdown,
@@ -392,7 +391,7 @@ def run_validation(
             ]
             any_ingest_failed = True
 
-        results = [merge_critique_diagnostics(r, critique_diags) for r in results]
+        results = [merge_diagnostics(r, critique_diags) for r in results]
         critique_source = agent_id
 
     if args.ingest_graph is not None:

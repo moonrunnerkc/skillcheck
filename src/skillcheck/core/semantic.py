@@ -188,22 +188,3 @@ def merge_diagnostics(
     """
     merged = list(result.diagnostics) + additional
     return ValidationResult(path=result.path, diagnostics=merged)
-
-
-def merge_critique_diagnostics(
-    result: ValidationResult,
-    critique_diagnostics: list[Diagnostic],
-) -> ValidationResult:
-    """Return a new ValidationResult with symbolic and semantic diagnostics merged.
-
-    Thin wrapper around ``merge_diagnostics`` kept for backward compatibility
-    with internal Phase 1B callers. Behavior is identical.
-
-    Args:
-        result: Existing symbolic validation result.
-        critique_diagnostics: Diagnostics from ``ingest_critique_response``.
-
-    Returns:
-        New ValidationResult combining both diagnostic lists.
-    """
-    return merge_diagnostics(result, critique_diagnostics)

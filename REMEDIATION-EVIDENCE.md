@@ -507,3 +507,42 @@ $ python3 -m pytest tests/ -q   ->  821 passed
 $ ruff check src tests  ->  All checks passed!    $ mypy src/skillcheck  ->  Success
 ```
 No test modified.
+
+### 3.3 Dead code removal
+
+**(a) cli.py post-parse re-validation of choices=-constrained args: NOT REPRODUCIBLE, kept.**
+The finding calls this unreachable. It is not: `_apply_config` sets `format`/`target_agent`/`critique_agent`/
+`graph_agent` from the config file *after* argparse, and `config_loader` only type-checks those fields (not
+against the choice sets). So a `skillcheck.toml` with an invalid value reaches and is caught by these checks:
+```
+$ printf 'format = "bogus"\n' > skillcheck.toml
+$ skillcheck SKILL.md --config skillcheck.toml
+skillcheck: error: format must be one of: text, json, md, agent, github
+EXIT=2
+```
+Deleting them would drop validation of config-injected values, a real regression. Left in place.
+
+**(b) core/reporter.py deleted.** Its `render_markdown_report`/`render_json_report` were unused outside the
+module (the CLI uses `formatters.py`); only `tests/test_v1_architecture.py` exercised them.
+Files touched: deleted `src/skillcheck/core/reporter.py`; removed `reporter` from `core/__init__.py` imports and
+`__all__`; deleted the 4 reporter tests and the `reporter` import/assertion from `test_v1_architecture.py`.
+```
+$ grep -rn "reporter" src/ | grep -v pyc   ->  (no output)   # zero remaining references
+```
+
+**(c) merge_critique_diagnostics shim inlined.** It was a thin wrapper identical to `merge_diagnostics`.
+Files touched: inlined `merge_diagnostics` at the one call site in `commands.py`; deleted the shim from
+`semantic.py`; removed it from `core/__init__.py`; repointed 5 tests in `test_semantic_bridge.py` and one
+assertion in `test_v1_architecture.py` to `merge_diagnostics` (moved-symbol; behavior identical).
+```
+$ grep -rn "merge_critique_diagnostics" src/ tests/ | grep -v pyc   ->  (no output)
+```
+
+VERIFY:
+```
+$ python3 -m pytest tests/ -q   ->  817 passed   (821 - 4 deleted reporter tests)
+$ ruff check src tests  ->  All checks passed!    $ mypy src/skillcheck  ->  Success (46 source files)
+```
+Test changes: 4 reporter tests deleted (module removed); `merge_critique_diagnostics` -> `merge_diagnostics`
+rename in `test_semantic_bridge.py` (5 sites) and `test_v1_architecture.py` (1 assertion) as moved-symbol updates.
+README test count synced 821 -> 817.

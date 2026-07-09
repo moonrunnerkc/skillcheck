@@ -10,7 +10,7 @@ from skillcheck.core.semantic import (
     WARNING_THRESHOLD,
     _find_section_line,
     ingest_critique_response,
-    merge_critique_diagnostics,
+    merge_diagnostics,
     render_critique_prompt,
 )
 from skillcheck.parser import parse as parse_skill
@@ -269,7 +269,7 @@ def test_finding_with_unknown_section_has_no_line() -> None:
 
 
 # ---------------------------------------------------------------------------
-# merge_critique_diagnostics
+# merge_diagnostics
 # ---------------------------------------------------------------------------
 
 
@@ -281,14 +281,14 @@ def test_merge_errors_only_critique_on_passing_symbolic_yields_invalid() -> None
         "nature": "Conflict.",
     }]
     critique_diags = ingest_critique_response(_valid_skill(), _make_raw(contradictions=contradiction))
-    merged = merge_critique_diagnostics(result, critique_diags)
+    merged = merge_diagnostics(result, critique_diags)
     assert not merged.valid
 
 
 def test_merge_warnings_only_critique_on_passing_symbolic_stays_valid() -> None:
     result = _empty_result()
     critique_diags = ingest_critique_response(_valid_skill(), _make_raw(missing_context=["auth token"]))
-    merged = merge_critique_diagnostics(result, critique_diags)
+    merged = merge_diagnostics(result, critique_diags)
     assert merged.valid
 
 
@@ -296,20 +296,20 @@ def test_merge_combines_all_diagnostics() -> None:
     base_diag = Diagnostic(rule="some.rule", severity=Severity.WARNING, message="symbolic warning")
     result = ValidationResult(path=FIXTURES_DIR / "valid_full.md", diagnostics=[base_diag])
     critique_diags = ingest_critique_response(_valid_skill(), _make_raw(missing_context=["x"]))
-    merged = merge_critique_diagnostics(result, critique_diags)
+    merged = merge_diagnostics(result, critique_diags)
     assert len(merged.diagnostics) == len(critique_diags) + 1
 
 
 def test_merge_does_not_mutate_original() -> None:
     result = _empty_result()
     critique_diags = ingest_critique_response(_valid_skill(), _make_raw(missing_context=["y"]))
-    _ = merge_critique_diagnostics(result, critique_diags)
+    _ = merge_diagnostics(result, critique_diags)
     assert result.diagnostics == []
 
 
 def test_merge_preserves_path() -> None:
     result = _empty_result()
-    merged = merge_critique_diagnostics(result, [])
+    merged = merge_diagnostics(result, [])
     assert merged.path == result.path
 
 
