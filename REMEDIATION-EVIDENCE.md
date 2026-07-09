@@ -238,3 +238,33 @@ $ mypy src/skillcheck
 Success: no issues found in 46 source files
 ```
 README test-count claim synced 786 -> 808 (guarded by `test_readme_test_count_matches_collected_count`).
+
+---
+
+## Phase 2: ingest and supply-chain hardening
+
+### 2.1 Terminal escape injection from untrusted agent responses
+
+Finding: strings from critique/graph JSON (missing_context, contradiction locations, findings, node names)
+printed raw at `formatters.py:63` and `core/graph_render.py:75`. A `missing_context` value carrying
+`\x1b[2K\x1b[1G\x1b[32mfake PASS\x1b[0m` rendered live ANSI to the terminal.
+
+BEFORE / AFTER (`tests/fixtures/critique/response_ansi_injection.json`, which JSON-encodes ESC as ``
+so the file looks benign but decodes to a real ESC):
+```
+=== BEFORE (no sanitization) ===
+raw ESC byte in stdout: True
+rendered: '... semantic.context.missing  Missing context: \x1b[2K\x1b[1G\x1b[32mfake PASS\x1b[0m'
+=== AFTER (sanitized) ===
+raw ESC byte in stdout: False
+rendered: '... semantic.context.missing  Missing context: \\x1b[2K\\x1b[1G\\x1b[32mfake PASS\\x1b[0m'
+```
+JSON output stays valid and safe: `raw ESC in JSON stdout: False`, message value `Missing context: \\x1b[...`.
+
+FIX (files touched):
+- `src/skillcheck/agents/_ingest.py` (new): `sanitize_ingested_text` escapes C0/DEL/C1 control chars to a visible inert form.
+- `src/skillcheck/core/semantic.py`: sanitize `missing_context`, contradiction fields, and finding fields at diagnostic construction.
+- `src/skillcheck/core/graph_render.py`: sanitize node names/descriptions in the text render only (JSON render left raw; `json.dumps` escapes control chars).
+- `tests/fixtures/critique/response_ansi_injection.json`, `tests/test_ingest_sanitization.py` (new).
+
+Tests added: `test_sanitize_escapes_ansi_escape_char`, `test_sanitize_escapes_newlines_and_tabs`, `test_sanitize_leaves_normal_text_unchanged`, `test_ingested_critique_message_has_no_control_chars`, `test_graph_text_render_escapes_node_names`, `test_graph_json_render_stays_safe_and_raw`.

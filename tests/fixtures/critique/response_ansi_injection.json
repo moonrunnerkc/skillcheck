@@ -1,0 +1,10 @@
+{
+  "clarity_score": 90,
+  "completeness_score": 90,
+  "executability_score": 90,
+  "findings": [],
+  "contradictions": [],
+  "missing_context": [
+    "\u001b[2K\u001b[1G\u001b[32mfake PASS\u001b[0m"
+  ]
+}

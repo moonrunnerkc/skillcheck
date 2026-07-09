@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Emit and re-parse modes no longer surface a traceback on a file that plain validation handles cleanly. `--emit-graph`, `--emit-critique-prompt`, `--emit-graph-prompt`, `--agent-reason`, `--activation-hypotheses`, `--analyze-graph`, `--history`, and the `--ingest-*` first-path re-parse now catch `ParseError`, print the message to stderr, and exit 1. `read_ingest_raw` additionally catches `UnicodeDecodeError`, so a non-UTF-8 ingest response file takes the clean exit-2 path instead of crashing.
 - Codex compatibility provenance now carries its own `_CODEX_DATA_DATE` constant instead of borrowing `_CLAUDE_DATA_DATE`. The mislabel was invisible because all three provenance dates were equal; the date reported for Codex is now sourced from and freshness-checked against the Codex constant independently.
 
+### Security
+
+- Ingested critique and graph responses are treated as untrusted input: strings taken from them (missing-context items, contradiction locations, findings, and graph node names) are stripped of terminal control characters before they reach the human-readable report. A response carrying raw ANSI escapes can no longer forge terminal output (a fake `PASS` line, a cleared screen). Control characters are rendered in a visible backslash-escaped form rather than dropped. The JSON output path is unchanged (`json.dumps` already escapes control characters).
+
 ## [1.4.0] - 2026-05-27
 
 ### Changed
