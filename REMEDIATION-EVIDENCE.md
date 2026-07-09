@@ -435,3 +435,21 @@ build importable -> build step WILL run
 Successfully built skillcheck-1.4.0.tar.gz and skillcheck-1.4.0-py3-none-any.whl
 ```
 (The full `make verify-release` run is in the final gate.)
+
+### Phase 2 gate
+
+```
+$ python3 -m pytest tests/ -q
+Required test coverage of 68% reached. Total coverage: 70.23%
+821 passed in 56.85s
+
+$ ruff check src tests
+All checks passed!
+
+$ mypy src/skillcheck
+Success: no issues found in 47 source files
+
+$ /tmp/actionlint .github/workflows/*.yml
+actionlint OK   (v1.7.7, prebuilt binary downloaded to /tmp; not installable via package manager here)
+```
+README test-count claim synced 808 -> 821.
