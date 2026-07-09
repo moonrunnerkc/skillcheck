@@ -53,6 +53,7 @@ from skillcheck.formatters import (
     _format_markdown,
     _format_text,
 )
+from skillcheck.parser import ParseError, ParsedSkill
 from skillcheck.parser import parse as _parse_skill
 from skillcheck.result import Diagnostic, Severity
 
@@ -107,9 +108,24 @@ def read_ingest_raw(ingest_path: str) -> str:
         sys.exit(2)
     try:
         return p.read_text(encoding="utf-8")
-    except OSError as exc:
+    except (OSError, UnicodeDecodeError) as exc:
         print(f"Error: cannot read {p}: {exc}", file=sys.stderr)
         sys.exit(2)
+
+
+def _parse_or_exit(path: Path) -> ParsedSkill:
+    """Parse a skill for an emit or history mode, or exit cleanly on failure.
+
+    Plain validation renders an unparseable file (non-UTF-8, non-mapping
+    frontmatter) as a clean ``parse.error`` diagnostic. The emit and history
+    modes bypass that pipeline, so they mirror the behavior here: print the
+    ParseError message to stderr and exit 1 instead of surfacing a traceback.
+    """
+    try:
+        return _parse_skill(path)
+    except ParseError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
 
 
 # ---------------------------------------------------------------------------
@@ -121,7 +137,7 @@ def emit_graph(paths: list[Path], fmt: str) -> None:
     """Print the capability graph for each path and exit 0."""
     multiple = len(paths) > 1
     for path in paths:
-        skill = _parse_skill(path)
+        skill = _parse_or_exit(path)
         graph = extract_graph_heuristic(skill)
         if multiple:
             print(_GRAPH_DELIMITER.format(path=path))
@@ -135,7 +151,7 @@ def emit_critique_prompts(paths: list[Path], fmt: str, agent_id: str = "claude")
     """Print critique prompts to stdout and exit 0."""
     multiple = len(paths) > 1
     for path in paths:
-        skill = _parse_skill(path)
+        skill = _parse_or_exit(path)
         prompt = render_critique_prompt(skill, agent_id=agent_id)
         if multiple:
             print(_PROMPT_DELIMITER.format(path=path))
@@ -155,7 +171,7 @@ def emit_graph_prompts(paths: list[Path], fmt: str, agent_id: str = "claude") ->
     """Print graph-extraction prompts to stdout and exit 0."""
     multiple = len(paths) > 1
     for path in paths:
-        skill = _parse_skill(path)
+        skill = _parse_or_exit(path)
         prompt = get_graph_prompt(agent_id).render(skill)
         if multiple:
             print(_GRAPH_PROMPT_DELIMITER.format(path=path))
@@ -175,7 +191,7 @@ def emit_agent_reason_packet(paths: list[Path], fmt: str, critique_agent: str, g
     """Print a combined critique and graph prompt packet for in-agent execution."""
     packets: list[dict[str, str]] = []
     for path in paths:
-        skill = _parse_skill(path)
+        skill = _parse_or_exit(path)
         packets.append({
             "path": str(path),
             "critique_prompt": render_critique_prompt(skill, agent_id=critique_agent),
@@ -214,7 +230,7 @@ def emit_agent_reason_packet(paths: list[Path], fmt: str, critique_agent: str, g
 def emit_activation(paths: list[Path], fmt: str) -> None:
     """Print activation hypotheses for each path and exit 0."""
     multiple = len(paths) > 1
-    reports = [generate_activation_hypotheses(_parse_skill(path)) for path in paths]
+    reports = [generate_activation_hypotheses(_parse_or_exit(path)) for path in paths]
     if fmt == "json":
         if multiple:
             payload = [json.loads(render_activation_json(report)) for report in reports]
@@ -342,7 +358,7 @@ def run_validation(
         raw = read_ingest_raw(args.ingest_critique)
 
         try:
-            first_skill = _parse_skill(paths[0])
+            first_skill = _parse_or_exit(paths[0])
             critique_diags = ingest_critique_response(first_skill, raw)
         except CritiqueParseError as exc:
             critique_diags = [
@@ -361,7 +377,7 @@ def run_validation(
         raw_graph = read_ingest_raw(args.ingest_graph)
 
         try:
-            first_skill = _parse_skill(paths[0])
+            first_skill = _parse_or_exit(paths[0])
             agent_graph = extract_graph_agent(first_skill, raw_graph)
             heuristic_graph = extract_graph_heuristic(first_skill)
             agent_graph_diags = run_graph_analyzers(agent_graph)
@@ -384,7 +400,7 @@ def run_validation(
 
     elif args.analyze_graph:
         for i, (path, result) in enumerate(zip(paths, results, strict=True)):
-            skill = _parse_skill(path)
+            skill = _parse_or_exit(path)
             graph = extract_graph_heuristic(skill)
             graph_diags = run_graph_analyzers(graph)
             results[i] = merge_diagnostics(result, graph_diags)
@@ -436,7 +452,7 @@ def run_validation(
             graph_agent=graph_agent_id if args.ingest_graph is not None else None,
         )
         for index, path in enumerate(paths):
-            skill_for_history = _parse_skill(path)
+            skill_for_history = _parse_or_exit(path)
             preliminary_entry = build_entry(
                 skill_for_history,
                 results[index],

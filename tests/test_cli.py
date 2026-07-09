@@ -340,3 +340,49 @@ def test_strict_passes_on_clean_skill():
         "--strict",
     )
     assert result.returncode == 0
+
+
+# ---------------------------------------------------------------------------
+# Emit/ingest modes handle unparseable files like plain validation does
+# ---------------------------------------------------------------------------
+
+
+def _write_non_utf8_skill(tmp_path) -> str:
+    p = tmp_path / "SKILL.md"
+    p.write_bytes(b"---\nname: bad\xff\xfe\ndescription: x\n---\nBody\n")
+    return str(p)
+
+
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "--emit-graph",
+        "--emit-critique-prompt",
+        "--emit-graph-prompt",
+        "--agent-reason",
+        "--activation-hypotheses",
+        "--analyze-graph",
+        "--history",
+    ],
+)
+def test_modes_exit_clean_on_non_utf8_file(tmp_path, mode):
+    """Every mode that re-parses must exit 1 with a message, not a traceback."""
+    target = _write_non_utf8_skill(tmp_path)
+    result = run("--skip-dirname-check", target, mode)
+    assert result.returncode == 1
+    assert "Traceback" not in result.stderr
+    assert "not valid UTF-8" in result.stderr
+
+
+def test_ingest_critique_non_utf8_response_exits_two(tmp_path):
+    """A non-UTF-8 ingest response file takes the clean exit-2 path."""
+    response = tmp_path / "response.json"
+    response.write_bytes(b"\xff\xfe not utf8")
+    result = run_fixture(
+        str(FIXTURES_DIR / "valid_basic.md"),
+        "--ingest-critique",
+        str(response),
+    )
+    assert result.returncode == 2
+    assert "Traceback" not in result.stderr
+    assert "cannot read" in result.stderr

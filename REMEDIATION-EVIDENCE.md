@@ -163,3 +163,44 @@ inputs: ['Bash']
 ```
 
 Tests added: `test_duplicate_allowed_tools_produce_single_input`.
+
+### 1.6 Emit modes crash on files plain validation handles
+
+Finding: emit loops in `commands.py` called `_parse_skill` without catching `ParseError`, so a non-UTF-8
+file (or non-mapping frontmatter from 1.1) surfaced a traceback where plain validation renders a clean FAIL.
+`read_ingest_raw` caught `OSError` but not `UnicodeDecodeError`.
+
+During reproduction I confirmed the same traceback in every mode that re-parses outside `validate()`:
+`--emit-graph`, `--emit-critique-prompt`, `--emit-graph-prompt`, `--agent-reason`, `--activation-hypotheses`,
+`--analyze-graph`, `--history`, and the `--ingest-*` re-parse of the first path. All are the same root cause;
+I fixed all of them rather than only the three cited emit lines.
+
+BEFORE (representative):
+```
+$ skillcheck /tmp/enc/SKILL.md --emit-graph
+  ...
+skillcheck.parser.ParseError: File is not valid UTF-8: /tmp/enc/SKILL.md   (traceback, exit 1)
+$ skillcheck valid_basic.md --ingest-critique /tmp/enc/response.json
+  ...
+UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte   (traceback)
+```
+
+FIX (files touched):
+- `src/skillcheck/commands.py`: new `_parse_or_exit(path)` helper (prints the ParseError to stderr, exit 1); routed all emit and re-parse sites through it (`emit_graph`, `emit_critique_prompts`, `emit_graph_prompts`, `emit_agent_reason_packet`, `emit_activation`, the `--ingest-*` and `--analyze-graph` re-parses, and the `--history` re-parse). `read_ingest_raw` now also catches `UnicodeDecodeError` (exit 2). The score-breakdown re-parse was already inside `try/except Exception`.
+- `tests/test_cli.py`: parametrized mode test plus an ingest-response test.
+
+AFTER:
+```
+--emit-graph           -> exit=1 : Error: File is not valid UTF-8: /tmp/enc/SKILL.md
+--emit-critique-prompt -> exit=1 : Error: File is not valid UTF-8: /tmp/enc/SKILL.md
+--emit-graph-prompt    -> exit=1 : Error: File is not valid UTF-8: /tmp/enc/SKILL.md
+--agent-reason         -> exit=1 : Error: File is not valid UTF-8: /tmp/enc/SKILL.md
+--activation-hypotheses-> exit=1 : Error: File is not valid UTF-8: /tmp/enc/SKILL.md
+--analyze-graph        -> exit=1 : Error: File is not valid UTF-8: /tmp/enc/SKILL.md
+--history              -> exit=1 : Error: File is not valid UTF-8: /tmp/enc/SKILL.md
+--ingest-critique      -> exit=1 : Error: File is not valid UTF-8: /tmp/enc/SKILL.md
+read_ingest_raw non-UTF-8 response -> exit=2 : Error: cannot read .../response.json: 'utf-8' codec can't decode ...
+```
+No traceback in any mode.
+
+Tests added: `test_modes_exit_clean_on_non_utf8_file` (parametrized over 7 modes), `test_ingest_critique_non_utf8_response_exits_two`.
