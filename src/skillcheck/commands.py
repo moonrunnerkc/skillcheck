@@ -289,6 +289,28 @@ def run_validation(
 ) -> None:
     """Run symbolic validation, merge any ingested diagnostics, record history,
     print the report, and exit with the computed code."""
+    # An ingested agent response describes exactly one skill, so it cannot be
+    # fanned out across multiple resolved paths without stamping the first
+    # skill's diagnostics onto every file. Reject the combination up front.
+    if len(paths) > 1:
+        active_ingest_flags = [
+            flag
+            for flag, value in (
+                ("--ingest-critique", args.ingest_critique),
+                ("--ingest-graph", args.ingest_graph),
+            )
+            if value is not None
+        ]
+        if active_ingest_flags:
+            flags = " and ".join(active_ingest_flags)
+            print(
+                f"Error: {flags} applies one agent response to one skill, but "
+                f"{len(paths)} SKILL.md paths were resolved. Run it once per skill, "
+                f"pointing at a single SKILL.md.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+
     # Run symbolic validation (always, including when ingesting)
     results = [
         validate(

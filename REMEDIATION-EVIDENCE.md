@@ -72,3 +72,35 @@ template.detected present: True
 ```
 
 Tests added: `test_bracketed_acronyms_are_not_template`, `test_literal_ellipsis_placeholder_is_template`.
+
+### 1.3 Multi-path ingest stamps the first skill's diagnostics onto every file
+
+Finding: `commands.py` parsed `paths[0]` only for critique/graph ingest, then merged those diagnostics
+into every result. A directory of two skills plus one agent response marked both files with the same findings.
+
+BEFORE:
+```
+$ skillcheck /tmp/multi --ingest-critique tests/fixtures/critique/response_warnings.json --format json
+/tmp/multi/skill-one/SKILL.md -> [..., 'semantic.clarity.low', 'semantic.completeness.low', ...]
+/tmp/multi/skill-two/SKILL.md -> [..., 'semantic.clarity.low', 'semantic.completeness.low', ...]   # same, wrong
+EXIT=0
+```
+
+FIX (files touched):
+- `src/skillcheck/commands.py`: `run_validation` rejects `--ingest-critique`/`--ingest-graph` combined with more than one resolved path, printing an error naming the active flag(s) and the path count, exit 2.
+- `README.md`: Agent-modes note plus exit-code `2` row updated.
+- `tests/test_cli_critique.py`: `test_ingest_critique_rejects_multiple_paths`.
+- `tests/test_cli_graph_agent.py`: `test_ingest_graph_rejects_multiple_paths`.
+
+AFTER:
+```
+$ skillcheck /tmp/multi --ingest-critique .../response_warnings.json
+Error: --ingest-critique applies one agent response to one skill, but 2 SKILL.md paths were resolved. Run it once per skill, pointing at a single SKILL.md.
+EXIT=2
+$ skillcheck /tmp/multi --ingest-graph .../response_clean.json
+Error: --ingest-graph applies one agent response to one skill, but 2 SKILL.md paths were resolved. ...
+EXIT=2
+$ skillcheck /tmp/multi/skill-one/SKILL.md --ingest-critique .../response_warnings.json   # single path still works, EXIT=0
+```
+
+Tests added: `test_ingest_critique_rejects_multiple_paths`, `test_ingest_graph_rejects_multiple_paths`.

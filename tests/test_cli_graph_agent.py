@@ -285,3 +285,19 @@ def test_ingest_critique_alone_baseline() -> None:
     assert result.returncode == 0
     assert "Critique source:" in result.stdout
     assert "Graph source:" not in result.stdout
+
+
+def test_ingest_graph_rejects_multiple_paths(tmp_path: Path) -> None:
+    # One graph response describes one skill; fanning it out would stamp the
+    # first skill's graph diagnostics onto every file.
+    for name in ("skill-a", "skill-b"):
+        d = tmp_path / name
+        d.mkdir()
+        (d / "SKILL.md").write_text(
+            "---\nname: " + name + "\ndescription: A test skill for " + name + " processing tasks.\n---\n\nBody.\n",
+            encoding="utf-8",
+        )
+    result = run(str(tmp_path), "--ingest-graph", _CLEAN_GRAPH)
+    assert result.returncode == 2
+    assert "--ingest-graph" in result.stderr
+    assert "2 SKILL.md paths" in result.stderr
