@@ -49,6 +49,8 @@ def test_license_field_is_ecosystem_info() -> None:
 
 
 def test_metadata_field_is_ecosystem_info() -> None:
+    skill = parse(FIXTURES_DIR / "metadata_field.md")
+    assert skill.frontmatter["metadata"]["marketplace-example"]["featured"] is True
     _assert_ecosystem_field(FIXTURES_DIR / "metadata_field.md", "metadata")
 
 
