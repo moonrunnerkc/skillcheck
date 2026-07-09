@@ -408,3 +408,30 @@ AFTER (`pip install -e .[dev]` now installs pre-commit into the environment):
 $ env PATH=".venv/bin:/usr/bin:/bin" pytest tests/test_pre_commit.py -rs
 2 passed in 1.19s
 ```
+
+### 2.8 Makefile verify-release build check never runs
+
+Finding: `@command -v python3 -c "import build" ...` was meant to gate the sdist/wheel build on the `build`
+module being importable, but `command -v` only resolves the path of `python3` and ignores the rest, so it never
+tested the module. Also: the README pre-commit `rev:` was `v1.3.0` against a pyproject version of `1.4.0`, and
+no drift grep caught it.
+
+BEFORE:
+```
+$ command -v python3 -c "import build"    ->  /usr/bin/python3   (exit 0, resolves python3, ignores 'import build')
+README rev: v1.3.0  vs  pyproject version 1.4.0   (drifted, ungated)
+```
+
+FIX (files touched):
+- `Makefile`: replace the guard with `@python3 -c "import build" 2>/dev/null && python3 -m build --sdist --wheel || echo "INFO: ..."`, which correctly gates on the module. Add a `VERSION` make variable read from pyproject and a drift grep asserting `README.md` contains `rev: v$(VERSION)`.
+- `README.md`: bump the pre-commit `rev:` to `v1.4.0`.
+
+AFTER:
+```
+VERSION=1.4.0
+OK: README rev matches v1.4.0
+build importable -> build step WILL run
+* Building wheel...
+Successfully built skillcheck-1.4.0.tar.gz and skillcheck-1.4.0-py3-none-any.whl
+```
+(The full `make verify-release` run is in the final gate.)

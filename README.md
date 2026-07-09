@@ -62,7 +62,7 @@ Diagnostics appear as inline PR annotations. Inputs documented in [`action.yml`]
 ```yaml
 repos:
   - repo: https://github.com/moonrunnerkc/skillcheck
-    rev: v1.3.0
+    rev: v1.4.0
     hooks:
       - id: skillcheck
 ```

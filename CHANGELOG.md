@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Release automation moved to a dedicated tag-triggered `release.yml`. It builds the wheel and sdist, verifies the built version matches the tag, attests build provenance, and publishes to PyPI through trusted publishing. The dead attest step in `ci.yml` (gated on tags but on a workflow that never runs on tags) was removed, so the README's provenance claim is now backed by a workflow that actually runs. `CONTRIBUTING.md` documents the one-time PyPI trusted-publishing setup.
 - Every third-party GitHub Action is now pinned to a full commit SHA (with a trailing version comment) across all workflows and `action.yml`, replacing floating major-version tags. This closes the supply-chain window where a compromised or force-moved tag could run with the workflows' write permissions.
 - `pre-commit` is now part of the `dev` extra, so the two `test_pre_commit.py` end-to-end hook tests actually run in CI instead of silently skipping.
+- `make verify-release` actually builds the sdist and wheel now. The old guard used `command -v python3 -c "import build"`, which only resolved the `python3` path and never tested the `build` module, so the build verification was effectively meaningless. The target also gained a drift grep asserting the README's pre-commit `rev:` matches the pyproject version, and the README `rev:` was corrected from `v1.3.0` to `v1.4.0`.
 
 ## [1.4.0] - 2026-05-27
 
