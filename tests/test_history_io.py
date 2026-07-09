@@ -113,6 +113,29 @@ def test_load_from_fixture_malformed_raises():
         load_ledger(lp)
 
 
+_HISTORY_FIXTURES = Path(__file__).parent / "fixtures" / "history"
+
+
+def test_load_raises_when_root_is_not_object():
+    with pytest.raises(LedgerError, match="must be a JSON object, got list"):
+        load_ledger(_HISTORY_FIXTURES / "ledger_root_list.json")
+
+
+def test_load_raises_when_runs_is_not_a_list():
+    with pytest.raises(LedgerError, match="field 'runs' must be a list, got str"):
+        load_ledger(_HISTORY_FIXTURES / "ledger_runs_not_list.json")
+
+
+def test_load_raises_on_schema_version_mismatch():
+    with pytest.raises(LedgerError, match="schema version 999, but this skillcheck expects version 1"):
+        load_ledger(_HISTORY_FIXTURES / "ledger_bad_version.json")
+
+
+def test_load_raises_on_malformed_run_entry():
+    with pytest.raises(LedgerError, match="malformed run entry"):
+        load_ledger(_HISTORY_FIXTURES / "ledger_malformed_entry.json")
+
+
 # ---------------------------------------------------------------------------
 # save_ledger (atomic write)
 # ---------------------------------------------------------------------------

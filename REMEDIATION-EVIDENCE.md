@@ -104,3 +104,31 @@ $ skillcheck /tmp/multi/skill-one/SKILL.md --ingest-critique .../response_warnin
 ```
 
 Tests added: `test_ingest_critique_rejects_multiple_paths`, `test_ingest_graph_rejects_multiple_paths`.
+
+### 1.4 Malformed history ledger escapes as TypeError
+
+Finding: `core/history.py` `load_ledger` guarded `KeyError` only. A non-object root (`[1,2,3]`) and a
+non-list `runs` (`{"runs":"oops",...}`) both escaped as uncaught `TypeError`. The `version` field was read
+but never validated against `LEDGER_SCHEMA_VERSION`.
+
+BEFORE:
+```
+root [1,2,3]                 -> TypeError : list indices must be integers or slices, not str
+{"runs":"oops","version":1}  -> TypeError : string indices must be integers, not 'str'
+```
+
+FIX (files touched):
+- `src/skillcheck/core/history.py`: after `json.loads`, assert root is a dict; validate `version == LEDGER_SCHEMA_VERSION` (naming both versions on mismatch); assert `runs` is a list; wrap the per-entry loop in `except TypeError` so a malformed entry raises `LedgerError` with the "delete it and re-run" remediation.
+- `tests/fixtures/history/ledger_root_list.json`, `ledger_runs_not_list.json`, `ledger_bad_version.json`, `ledger_malformed_entry.json` (new).
+- `tests/test_history_io.py`: four new tests.
+
+AFTER:
+```
+ledger_root_list      -> LedgerError: ... must be a JSON object, got list. ... Delete it and re-run ...
+ledger_runs_not_list  -> LedgerError: ... field 'runs' must be a list, got str. ...
+ledger_bad_version    -> LedgerError: ... has schema version 999, but this skillcheck expects version 1. ...
+ledger_malformed_entry-> LedgerError: ... contains a malformed run entry: 'int' object is not subscriptable. ...
+$ skillcheck /tmp/hist/SKILL.md --show-history   # EXIT=1, clean stderr, no traceback
+```
+
+Tests added: `test_load_raises_when_root_is_not_object`, `test_load_raises_when_runs_is_not_a_list`, `test_load_raises_on_schema_version_mismatch`, `test_load_raises_on_malformed_run_entry`.

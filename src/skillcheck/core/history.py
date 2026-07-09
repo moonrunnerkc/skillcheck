@@ -335,6 +335,12 @@ def load_ledger(path: Path) -> Ledger | None:
             f"The file may be corrupt. Delete it and re-run with --history to start fresh."
         ) from exc
 
+    if not isinstance(data, dict):
+        raise LedgerError(
+            f"Ledger at {path} must be a JSON object, got {type(data).__name__}. "
+            f"The file is corrupt. Delete it and re-run with --history to start fresh."
+        )
+
     try:
         version = data["version"]
         skill_path = data["skill_path"]
@@ -345,7 +351,26 @@ def load_ledger(path: Path) -> Ledger | None:
             f"The file may be incomplete or from an incompatible schema version."
         ) from exc
 
-    runs = tuple(_entry_from_dict(r, path) for r in runs_raw)
+    if version != LEDGER_SCHEMA_VERSION:
+        raise LedgerError(
+            f"Ledger at {path} has schema version {version!r}, but this skillcheck "
+            f"expects version {LEDGER_SCHEMA_VERSION}. Delete it and re-run with "
+            f"--history to start fresh under the current schema."
+        )
+
+    if not isinstance(runs_raw, list):
+        raise LedgerError(
+            f"Ledger at {path} field 'runs' must be a list, got {type(runs_raw).__name__}. "
+            f"The file is corrupt. Delete it and re-run with --history to start fresh."
+        )
+
+    try:
+        runs = tuple(_entry_from_dict(r, path) for r in runs_raw)
+    except TypeError as exc:
+        raise LedgerError(
+            f"Ledger at {path} contains a malformed run entry: {exc}. "
+            f"The file is corrupt. Delete it and re-run with --history to start fresh."
+        ) from exc
     return Ledger(version=version, skill_path=skill_path, runs=runs)
 
 
