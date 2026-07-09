@@ -292,3 +292,32 @@ FIX (files touched):
 - `tests/test_critique_parser.py`, `tests/test_graph_parser.py`, `tests/test_cli.py`.
 
 Tests added: `test_missing_context_over_cap_rejected`, `test_findings_over_cap_rejected`, `test_list_exactly_at_cap_is_accepted`, `test_capabilities_over_cap_rejected`, `test_ingest_response_over_size_cap_exits_two`.
+
+### 2.3 Published schemas looser than the parsers
+
+Finding: `schemas/critique-v1.json` and `graph-v1.json` lacked `additionalProperties: false`, so a
+schema-valid agent response with an extra field could still fail ingest (the parsers reject unknown fields).
+
+BEFORE:
+```
+$ grep -c additionalProperties src/skillcheck/schemas/*.json   ->  critique: 0, graph: 0
+parser REJECTED: Response has unexpected top-level fields: ['evil']   # schema-valid, parser-rejected
+```
+
+FIX (files touched):
+- `src/skillcheck/schemas/critique-v1.json`: `additionalProperties: false` on the top-level object, findings items, contradictions items (3 total).
+- `src/skillcheck/schemas/graph-v1.json`: same on the top-level object and all four node-collection items (5 total).
+- `tests/test_published_schemas.py`: recursive object-subschema walk asserting each declares `additionalProperties: false`.
+
+AFTER:
+```
+$ grep -c '"additionalProperties": false' src/skillcheck/schemas/*.json  ->  critique: 3, graph: 5
+schemas still valid JSON: OK
+```
+
+Note on the enum sub-item: the finding says "graph does not" have a test asserting the graph kind enums equal
+`_VALID_INPUT_KINDS/_VALID_OUTPUT_KINDS/_VALID_EDGE_KINDS`. That test already exists on HEAD
+(`test_graph_schema_kind_enums_match_parser`, test_published_schemas.py:82-99), so no new enum test was needed;
+this sub-item was already satisfied.
+
+Tests added: `test_critique_schema_forbids_additional_properties`, `test_graph_schema_forbids_additional_properties`.

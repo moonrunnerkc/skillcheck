@@ -4,6 +4,7 @@
   "title": "skillcheck agent self-critique response",
   "description": "JSON shape that skillcheck's --ingest-critique mode expects from a calling agent. Severity values use the lowercased Severity enum names (error, warning, info). Scores are integers in the inclusive 0-100 range.",
   "type": "object",
+  "additionalProperties": false,
   "required": [
     "clarity_score",
     "completeness_score",
@@ -36,6 +37,7 @@
       "description": "Per-section structured critique items.",
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["section", "issue", "severity", "suggestion"],
         "properties": {
           "section": {"type": "string"},
@@ -58,6 +60,7 @@
       "description": "Pairs of contradicting locations within the skill body.",
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["location_a", "location_b", "nature"],
         "properties": {
           "location_a": {"type": "string"},
