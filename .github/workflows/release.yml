@@ -54,4 +54,9 @@ jobs:
             dist/skillcheck-*.tar.gz
 
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@7f25271a4aa483500f742f9492b2ab5648d61011 # v1.12.4
+        # Pinned to a version tag, not a commit SHA: this action runs a Docker
+        # container whose image (ghcr.io/pypa/gh-action-pypi-publish) is tagged
+        # by release version, never by commit SHA. A SHA ref makes the inner
+        # pull request an image tag that does not exist (manifest unknown), and
+        # would pin nothing anyway since the image is fetched by tag regardless.
+        uses: pypa/gh-action-pypi-publish@v1.12.4
