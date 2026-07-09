@@ -155,6 +155,18 @@ def test_save_writes_valid_json(tmp_path: Path):
     assert len(data["runs"]) == 1
 
 
+def test_load_sweeps_stale_tmp_files(tmp_path: Path):
+    """A leftover .skillcheck-tmp-* from an interrupted write is removed on load."""
+    lp = tmp_path / ".skillcheck-history.json"
+    save_ledger(lp, Ledger(version=1, skill_path="SKILL.md", runs=()))
+    orphan = tmp_path / ".skillcheck-tmp-orphan"
+    orphan.write_text("partial write", encoding="utf-8")
+    load_ledger(lp)
+    assert not orphan.exists()
+    # The real ledger is untouched.
+    assert load_ledger(lp) is not None
+
+
 @pytest.mark.skipif(sys.platform == "win32", reason="chmod restrictions differ on Windows")
 def test_save_atomic_original_intact_on_failure(tmp_path: Path):
     """Original ledger survives a failed write (read-only directory)."""

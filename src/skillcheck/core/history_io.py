@@ -5,6 +5,13 @@ live here, separated from the model, regression, and rendering logic in
 ``history.py``. ``history.py`` re-exports ``load_ledger``, ``save_ledger``, and
 ``append_run`` so ``from skillcheck.core.history import load_ledger`` still works.
 
+Concurrency: single-writer. A ledger sits next to its SKILL.md and is written by
+one ``skillcheck ... --history`` process at a time (typically a pre-commit hook
+or a CI step). There is no file locking; two processes writing the same ledger
+concurrently is unsupported and can lose the interleaved run. Writes are atomic
+per process (temp file, ``flush`` + ``fsync``, then ``os.replace``), and stale
+temp files from an interrupted write are swept on the next load.
+
 Module dependency rule: imports only from stdlib plus the ``history`` model and
 the ``parser`` sibling module. No ``agents`` imports. No ``cli`` imports.
 """
@@ -65,6 +72,25 @@ def _entry_from_dict(data: dict[str, Any], path: Path) -> LedgerEntry:
         ) from exc
 
 
+def _sweep_stale_tmp_files(directory: Path) -> None:
+    """Remove leftover ``.skillcheck-tmp-*`` files from an interrupted write.
+
+    ``save_ledger`` writes to a temp file and renames it into place; if the
+    process is killed between ``mkstemp`` and ``os.replace``, the temp file is
+    orphaned. Under the single-writer assumption these are always stale, so they
+    are removed on the next load. Errors (permissions, races) are ignored.
+    """
+    try:
+        stale = directory.glob(".skillcheck-tmp-*")
+    except OSError:
+        return
+    for tmp in stale:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+
+
 def load_ledger(path: Path) -> Ledger | None:
     """Load and parse the ledger file at *path*.
 
@@ -77,6 +103,7 @@ def load_ledger(path: Path) -> Ledger | None:
     Raises:
         LedgerError: If the file exists but cannot be read or parsed.
     """
+    _sweep_stale_tmp_files(path.parent)
     if not path.exists():
         return None
     try:
@@ -160,6 +187,11 @@ def save_ledger(path: Path, ledger: Ledger) -> None:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(serialized)
                 f.write("\n")
+                # Force the bytes to disk before the rename so a crash between
+                # replace and the OS flushing its cache cannot leave a truncated
+                # ledger. The temp fd is fsynced while still open.
+                f.flush()
+                os.fsync(f.fileno())
             os.replace(tmp_path, path)
         except Exception:
             try:

@@ -650,3 +650,22 @@ AFTER: the R&D/`*only*` description is not flagged; real `&anchor`/`*alias` fron
 (existing tests pass).
 
 Tests added: `test_ampersand_and_asterisk_in_quoted_value_not_flagged`.
+
+### 4.3 Ledger durability
+
+Finding: `save_ledger` did not `fsync` before `os.replace`, no stale-temp sweep on load, and the single-writer
+assumption was undocumented.
+
+FIX (files touched):
+- `src/skillcheck/core/history_io.py`: `save_ledger` now `flush()` + `os.fsync(f.fileno())` before `os.replace`;
+  `load_ledger` sweeps `.skillcheck-tmp-*` via `_sweep_stale_tmp_files`; the module docstring documents the
+  single-writer assumption (no file locking, per scope).
+- `tests/test_history_io.py`: `test_load_sweeps_stale_tmp_files`.
+
+VERIFY:
+```
+stale tmp swept on load: True
+ledger still loads: True
+```
+
+Tests added: `test_load_sweeps_stale_tmp_files`.
