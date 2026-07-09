@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added the `Typing :: Typed` classifier so PyPI reflects the shipped `py.typed` marker.
+
+### Fixed
+
+- Empty frontmatter (`---\n---`) is now recognized instead of leaking the delimiters into the body and its line count.
+- Directory scanning uses `os.walk(followlinks=False)` instead of `Path.rglob`, so a directory symlink cannot pull in files from another tree or hang the scan on a symlink cycle.
+- `disclosure.body-bloat` sizes each markdown table independently. Previously every `|`-row in the body was summed as one table, so several small tables could report a false oversized-table count.
+- Broken-reference and reference-escape diagnostics now show the resolved path relative to the skill directory (`scripts/foo.py`, or `../..` for an escape) instead of the absolute host path, so CI logs no longer leak the build machine's directory layout.
+- Corrected the `estimate_tokens` docstring: tiktoken downloads its vocabulary on first use, so it is not "fully offline" until the cache is warm; the whitespace fallback is always offline.
+- `skillcheck.toml` handling improved: config type errors now name the offending value; the Python 3.10 fallback parser no longer truncates a value at a `#` inside quotes; `find_config` stops ascending at a `.git` repository root or the user's home instead of walking to the filesystem root; and the CLI prints which config file it loaded (to stderr) when one is found.
+- History ledger writes are more durable: `save_ledger` now flushes and `fsync`s the temp file before the atomic `os.replace`, and `load_ledger` sweeps stale `.skillcheck-tmp-*` files left behind by an interrupted write. The module documents its single-writer assumption (no file locking).
+- `frontmatter.yaml-anchors` no longer false-positives on `&` or `*` inside quoted string values. A description like `"Reviews R&D notes and *only* flags risky items"` used to match the anchor/alias regexes; detection now walks the YAML event stream, so only real anchors and aliases are reported.
+- `--format github` no longer over-escapes diagnostic message text. Message data now escapes only `%`, CR, and LF (per the GitHub Actions toolkit), so a colon or comma in a message renders literally instead of as `%3A`/`%2C`. Property values (`file`, `title`) still escape `:` and `,` as required, which also fixes the previously unescaped colon in the annotation title.
+
+## [1.4.1] - 2026-07-09
+
+### Added
+
 - `[tool.ruff]` and `[tool.mypy]` configuration in `pyproject.toml`. Ruff lints `src` and `tests` with an explicit `E, F, I, UP, B` selection at line length 127 (`E501` ignored for unavoidable long string literals in JSON fixtures and schema text). Mypy runs `strict` against `src/skillcheck` under `python_version = "3.10"`, with an `ignore_missing_imports` override for the untyped `tiktoken` dependency and the `tomllib` 3.11+ stdlib backport branch. The source was brought clean under both with real annotations, not blanket ignores.
 - Test coverage measurement via `pytest-cov` (added to the `dev` extra). `[tool.coverage.run]` and `[tool.coverage.report]` configure the run, and `addopts` in `[tool.pytest.ini_options]` adds `--cov=skillcheck --cov-report=term-missing --cov-fail-under=68`, so the floor is enforced on every local run and in CI (which runs the same `pytest`). The floor sits a few points under the ~72% measured on CPython 3.10 to absorb matrix variance: the CLI modules run in subprocesses the in-process tracer does not see, the `tomllib` vs fallback-parser branch flips between Python 3.10 and 3.11+, and a few tests skip on Windows.
 
@@ -16,6 +34,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - CI `lint` job now enforces `ruff check src tests` and `mypy src/skillcheck` (strict) on every push and pull request, replacing the prior `compileall`-only check. Either tool reporting a finding fails the job.
 - `cli.py` split to separate argument wiring from command execution. Parser construction, `skillcheck.toml` application, mode-conflict dispatch, and `main` stay in `cli.py`; the per-mode handlers (emit prompts and graphs, `--show-history`, the default validation pipeline) and the path and ingest IO helpers move to a new `skillcheck.commands` module. `skillcheck.cli:main` and the `skillcheck` console script are unchanged. Pure refactor, no behavior change.
+- The published JSON Schemas (`critique-v1.json`, `graph-v1.json`) now set `additionalProperties: false` on every object, matching the parsers, which already reject unknown fields. An agent that validates its output against the schema no longer produces responses that pass the schema but fail ingest.
+- Release automation moved to a dedicated tag-triggered `release.yml`. It builds the wheel and sdist, verifies the built version matches the tag, attests build provenance, and publishes to PyPI through trusted publishing. The dead attest step in `ci.yml` (gated on tags but on a workflow that never runs on tags) was removed, so the README's provenance claim is now backed by a workflow that actually runs. `CONTRIBUTING.md` documents the one-time PyPI trusted-publishing setup.
+- Every third-party GitHub Action is now pinned to a full commit SHA (with a trailing version comment) across all workflows and `action.yml`, replacing floating major-version tags. This closes the supply-chain window where a compromised or force-moved tag could run with the workflows' write permissions.
+- `pre-commit` is now part of the `dev` extra, so the two `test_pre_commit.py` end-to-end hook tests actually run in CI instead of silently skipping.
+- `make verify-release` actually builds the sdist and wheel now. The old guard used `command -v python3 -c "import build"`, which only resolved the `python3` path and never tested the `build` module, so the build verification was effectively meaningless. The target also gained a drift grep asserting the README's pre-commit `rev:` matches the pyproject version, and the README `rev:` was corrected from `v1.3.0` to `v1.4.0`.
+- Internal refactors, no behavior change: the three copies of frontmatter-block extraction (`_frontmatter_block`, `_extract_frontmatter_raw`, `_extract_frontmatter_text`) are deduplicated to the single `frontmatter_common._frontmatter_block`.
+- The critique and graph parsers now share `require_field` and `decode_json_or_raise` from `agents/_ingest.py` instead of each carrying its own copy. As a side effect the critique JSON-decode error message adopts the graph parser's wording (exception type and diagnostic content unchanged).
+- Dead code removed: the unused `core/reporter.py` module (the CLI renders through `formatters.py`) and the `merge_critique_diagnostics` shim (identical to `merge_diagnostics`, now called directly). No public CLI or `skillcheck.validate` behavior changes.
+- Oversized modules decomposed with no behavior change: the CLI mode-conflict table and checker are hoisted to module level; `run_validation` is split into `_compute_exit_code`, `_record_history`, and `_print_report`; the capability-graph data model moves to `core/graph_model.py`; and the ledger filesystem I/O moves to `core/history_io.py`. All original import paths still resolve via re-exports.
+- Quality gates extended to `scripts/`: CI and the `Makefile` now run `ruff check src tests scripts`, and mypy's `files` list includes the checked-in utility scripts so they are type-gated alongside the package. `scripts/summarize_batch.py` was brought clean under both.
+
+### Fixed
+
+- Non-dict frontmatter (a bare scalar or list between the `---` delimiters) no longer crashes with an `AttributeError` traceback. `parser.parse` now raises `ParseError` naming the actual YAML type and the path, which the validation pipeline renders as a clean `parse.error` diagnostic and exit 1.
+- Template detection no longer misreads bracketed acronyms as placeholders. The `[...]` branch of the placeholder pattern was unescaped, so `[ISO]`, `[API]`, and `[CLI]` in a real description matched and silently suppressed the deployment-blocking ERROR checks (`frontmatter.name.directory-mismatch`, `compat.vscode-dirname`, description scoring). The literal three-dot placeholder is now matched exactly.
+- `--ingest-critique` and `--ingest-graph` now reject a multi-skill target instead of stamping the first skill's ingested diagnostics onto every file. An agent response describes one skill, so pointing an ingest flag at a directory that resolves to more than one SKILL.md exits `2` with an error naming the flag and the path count.
+- A malformed history ledger now raises a clean `LedgerError` instead of an uncaught `TypeError`. `load_ledger` validates that the JSON root is an object, that `runs` is a list, and that each run entry is well-formed, and it now checks the `version` field against `LEDGER_SCHEMA_VERSION` (previously read but never enforced), naming both versions on mismatch. Every failure carries the "delete it and re-run with --history" remediation.
+- `--analyze-graph` no longer crashes on a repeated tool. `allowed-tools: [Bash, Bash]` minted two graph nodes with the same content-hash ID, tripping the duplicate-node-ID guard with an uncaught `ValueError`. The heuristic extractor now dedupes tool names before building nodes.
+- Emit and re-parse modes no longer surface a traceback on a file that plain validation handles cleanly. `--emit-graph`, `--emit-critique-prompt`, `--emit-graph-prompt`, `--agent-reason`, `--activation-hypotheses`, `--analyze-graph`, `--history`, and the `--ingest-*` first-path re-parse now catch `ParseError`, print the message to stderr, and exit 1. `read_ingest_raw` additionally catches `UnicodeDecodeError`, so a non-UTF-8 ingest response file takes the clean exit-2 path instead of crashing.
+- Codex compatibility provenance now carries its own `_CODEX_DATA_DATE` constant instead of borrowing `_CLAUDE_DATA_DATE`. The mislabel was invisible because all three provenance dates were equal; the date reported for Codex is now sourced from and freshness-checked against the Codex constant independently.
+
+### Security
+
+- `action.yml` no longer interpolates user-controlled inputs into the shell script. Every input is passed through an `env:` mapping and referenced as `"$INPUT_*"`, so a crafted input value cannot break out of the `run:` block and execute arbitrary commands. Behavior is otherwise identical.
+- Ingested critique and graph responses are treated as untrusted input: strings taken from them (missing-context items, contradiction locations, findings, and graph node names) are stripped of terminal control characters before they reach the human-readable report. A response carrying raw ANSI escapes can no longer forge terminal output (a fake `PASS` line, a cleared screen). Control characters are rendered in a visible backslash-escaped form rather than dropped. The JSON output path is unchanged (`json.dumps` already escapes control characters).
+- Ingested responses are size-bounded. A response file or stdin payload over 5 MiB (`MAX_INGEST_BYTES`) is rejected with exit 2 before it is read into memory, and any single response list (findings, missing_context, contradictions, capabilities, inputs, outputs, edges) over 10,000 items (`MAX_INGEST_LIST_ITEMS`) is rejected with a clear error. Both messages name the actual size/count and the cap.
 
 ## [1.4.0] - 2026-05-27
 

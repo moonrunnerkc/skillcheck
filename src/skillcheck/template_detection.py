@@ -11,7 +11,7 @@ _PLACEHOLDER_PATTERNS = [
     re.compile(r"\b(TODO|FIXME)\b"),
     re.compile(r"\byour (skill|description|name|tool)\b", re.IGNORECASE),
     re.compile(r"<[a-z][a-z0-9_-]*>"),
-    re.compile(r"\[(description|name|skill name|placeholder|TODO|...)\]", re.IGNORECASE),
+    re.compile(r"\[(description|name|skill name|placeholder|TODO|\.\.\.)\]", re.IGNORECASE),
     re.compile(r"\{[a-z][a-z0-9_]*\}"),
     re.compile(r"\b(lorem ipsum|placeholder|sample description)\b", re.IGNORECASE),
 ]

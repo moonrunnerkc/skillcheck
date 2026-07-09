@@ -2,16 +2,17 @@
 """Summarize skillcheck batch-run artifacts."""
 from __future__ import annotations
 
-from collections import Counter
 import argparse
 import csv
 import json
+from collections import Counter
 from pathlib import Path
+from typing import Any
 
 SEVERITIES = ("error", "warning", "info")
 
 
-def load_json_report(path: Path) -> tuple[dict | None, str]:
+def load_json_report(path: Path) -> tuple[dict[str, Any] | None, str]:
     if not path.is_file():
         return None, "missing"
     try:
@@ -23,9 +24,9 @@ def load_json_report(path: Path) -> tuple[dict | None, str]:
     return data, "ok"
 
 
-def iter_diagnostics(report: dict) -> list[dict]:
+def iter_diagnostics(report: dict[str, Any]) -> list[dict[str, Any]]:
     """Return diagnostics from both legacy and CLI report JSON shapes."""
-    diagnostics: list[dict] = []
+    diagnostics: list[dict[str, Any]] = []
     top_level = report.get("diagnostics")
     if isinstance(top_level, list):
         diagnostics.extend(d for d in top_level if isinstance(d, dict))
@@ -42,7 +43,7 @@ def iter_diagnostics(report: dict) -> list[dict]:
     return diagnostics
 
 
-def severity_counts(report: dict | None) -> dict[str, int] | None:
+def severity_counts(report: dict[str, Any] | None) -> dict[str, int] | None:
     if report is None:
         return None
     counts = dict.fromkeys(SEVERITIES, 0)
@@ -53,7 +54,7 @@ def severity_counts(report: dict | None) -> dict[str, int] | None:
     return counts
 
 
-def rule_counts(report: dict | None, severity: str | None = None) -> Counter[str]:
+def rule_counts(report: dict[str, Any] | None, severity: str | None = None) -> Counter[str]:
     counts: Counter[str] = Counter()
     if report is None:
         return counts
@@ -74,7 +75,7 @@ def collection_len(value: object) -> int:
     return len(value) if isinstance(value, list) else 0
 
 
-def graph_shape(graph: dict | None) -> tuple[int | None, int | None, int | None, int | None]:
+def graph_shape(graph: dict[str, Any] | None) -> tuple[int | None, int | None, int | None, int | None]:
     if graph is None:
         return None, None, None, None
     return (
@@ -126,15 +127,15 @@ def fmt_count_pair(errors: int | None, warnings: int | None) -> str:
     return f"{errors}/{warnings}"
 
 
-def fmt_graph_shape(row: dict) -> str:
+def fmt_graph_shape(row: dict[str, Any]) -> str:
     values = (row["caps"], row["ins"], row["outs"], row["edges"])
     if any(v is None for v in values):
         return "n/a"
     return "/".join(str(v) for v in values)
 
 
-def collect_rows(batch_dir: Path) -> list[dict]:
-    rows: list[dict] = []
+def collect_rows(batch_dir: Path) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
     for repo_dir in sorted(batch_dir.iterdir()):
         if not repo_dir.is_dir():
             continue
@@ -212,7 +213,7 @@ def collect_rows(batch_dir: Path) -> list[dict]:
     return rows
 
 
-def write_csv(rows: list[dict], batch_dir: Path) -> Path:
+def write_csv(rows: list[dict[str, Any]], batch_dir: Path) -> Path:
     csv_path = batch_dir / "summary.csv"
     if not rows:
         csv_path.write_text("")
@@ -224,7 +225,7 @@ def write_csv(rows: list[dict], batch_dir: Path) -> Path:
     return csv_path
 
 
-def write_findings(rows: list[dict], batch_dir: Path) -> Path:
+def write_findings(rows: list[dict[str, Any]], batch_dir: Path) -> Path:
     md = batch_dir / "findings.md"
     lines = [f"# {batch_dir.name} findings", ""]
     lines.append(f"Skills evaluated: {len(rows)}")

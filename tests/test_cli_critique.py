@@ -132,6 +132,22 @@ def test_emit_critique_prompt_single_file_no_delimiter() -> None:
     assert "skillcheck:critique-prompt:" not in result.stdout
 
 
+def test_ingest_critique_rejects_multiple_paths(tmp_path: Path) -> None:
+    # A single agent response cannot be fanned out across skills without
+    # stamping the first skill's diagnostics onto every file.
+    for name in ("skill-a", "skill-b"):
+        d = tmp_path / name
+        d.mkdir()
+        (d / "SKILL.md").write_text(
+            "---\nname: " + name + "\ndescription: A test skill for " + name + " processing tasks.\n---\n\nBody.\n",
+            encoding="utf-8",
+        )
+    result = run("--skip-dirname-check", str(tmp_path), "--ingest-critique", _CLEAN_RESPONSE)
+    assert result.returncode == 2
+    assert "--ingest-critique" in result.stderr
+    assert "2 SKILL.md paths" in result.stderr
+
+
 # ---------------------------------------------------------------------------
 # --ingest-critique: clean response on passing skill
 # ---------------------------------------------------------------------------

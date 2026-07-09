@@ -82,18 +82,46 @@ _STR_FIELDS = {"format", "target_agent", "critique_agent", "graph_agent"}
 def find_config(start: Path) -> Path | None:
     """Find skillcheck.toml from a path or one of its parents.
 
+    The upward walk stops at a repository root (a directory containing ``.git``)
+    or the user's home directory, whichever is reached first. This keeps the
+    search from escaping the project into a parent or a system directory and
+    picking up an unrelated config.
+
     Args:
         start: File or directory path used as the search anchor.
 
     Returns:
         Path to skillcheck.toml, or None when not found.
     """
+    try:
+        home = Path.home()
+    except RuntimeError:
+        home = None
     current = start if start.is_dir() else start.parent
     for directory in (current, *current.parents):
         candidate = directory / "skillcheck.toml"
         if candidate.exists():
             return candidate
+        # Do not ascend past a repo root or the user's home directory.
+        if (directory / ".git").exists() or directory == home:
+            break
     return None
+
+
+def _strip_inline_comment(line: str) -> str:
+    """Drop a ``#`` comment from a TOML line, ignoring ``#`` inside a quoted value.
+
+    The fallback parser only handles double-quoted basic strings, so tracking a
+    single quote state is enough: a ``#`` outside quotes starts a comment; one
+    inside quotes (e.g. ``format = "a#b"``) is part of the value.
+    """
+    in_quotes = False
+    for index, char in enumerate(line):
+        if char == '"':
+            in_quotes = not in_quotes
+        elif char == "#" and not in_quotes:
+            return line[:index]
+    return line
 
 
 def _parse_without_tomllib(raw: str) -> dict[str, Any]:
@@ -106,7 +134,7 @@ def _parse_without_tomllib(raw: str) -> dict[str, Any]:
     parsed: dict[str, Any] = {}
     current = parsed
     for line_no, raw_line in enumerate(raw.splitlines(), start=1):
-        line = raw_line.split("#", 1)[0].strip()
+        line = _strip_inline_comment(raw_line).strip()
         if not line:
             continue
         if line.startswith("["):
@@ -199,15 +227,15 @@ def load_config(path: Path | None) -> SkillcheckConfig:
             raise ConfigError(f"Unknown config key '{raw_key}' in {path}; remove it or use a supported skillcheck option.")
         if field in _INT_FIELDS:
             if not isinstance(value, int) or isinstance(value, bool):
-                raise ConfigError(f"Config key '{raw_key}' must be an integer.")
+                raise ConfigError(f"Config key '{raw_key}' must be an integer (got {value!r}).")
             values[field] = value
         elif field in _BOOL_FIELDS:
             if not isinstance(value, bool):
-                raise ConfigError(f"Config key '{raw_key}' must be true or false.")
+                raise ConfigError(f"Config key '{raw_key}' must be true or false (got {value!r}).")
             values[field] = value
         elif field in _STR_FIELDS:
             if not isinstance(value, str):
-                raise ConfigError(f"Config key '{raw_key}' must be a string.")
+                raise ConfigError(f"Config key '{raw_key}' must be a string (got {value!r}).")
             values[field] = value
         elif field == "ignore":
             if not isinstance(value, list) or not all(isinstance(item, str) for item in value):

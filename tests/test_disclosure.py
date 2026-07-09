@@ -102,6 +102,26 @@ def test_body_bloat_flags_large_table(tmp_path):
     assert any("table" in d.message.lower() for d in diagnostics)
 
 
+def test_body_bloat_does_not_sum_separate_small_tables(tmp_path):
+    """Three separate small tables must not be summed into one false count."""
+    from skillcheck import config
+
+    rows_each = config.BLOAT_TABLE_ROWS // 2 + 1  # under threshold individually
+
+    def table() -> str:
+        body_rows = "\n".join(f"| r{i} | v{i} |" for i in range(rows_each))
+        return f"| A | B |\n|---|---|\n{body_rows}"
+
+    content = (
+        "---\nname: many-tables\ndescription: Several small tables.\n---\n"
+        f"\n{table()}\n\nprose\n\n{table()}\n\nprose\n\n{table()}\n"
+    )
+    f = tmp_path / "SKILL.md"
+    f.write_text(content)
+    diagnostics = check_body_bloat(parse(f))
+    assert not any("table" in d.message.lower() for d in diagnostics)
+
+
 def test_body_bloat_flags_base64(tmp_path):
     # Real base64 has mixed upper/lower characters.
     import base64

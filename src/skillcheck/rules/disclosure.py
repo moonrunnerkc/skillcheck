@@ -16,6 +16,7 @@ import re
 from skillcheck import config
 from skillcheck.parser import ParsedSkill
 from skillcheck.result import Diagnostic, Severity
+from skillcheck.rules.frontmatter_common import _frontmatter_block
 from skillcheck.tokenizer import estimate_tokens
 
 # Matches fenced code blocks (``` or ~~~) and captures their content lines.
@@ -43,22 +44,29 @@ def _is_real_base64(text: str) -> bool:
     return has_upper and has_lower
 
 
-def _extract_frontmatter_text(raw_text: str) -> str:
-    """Extract the raw YAML frontmatter text (between --- delimiters)."""
-    lines = raw_text.splitlines()
-    if not lines or lines[0].strip() != "---":
-        return ""
-    fm_lines: list[str] = []
-    for line in lines[1:]:
-        if line.strip() == "---":
-            break
-        fm_lines.append(line)
-    return "\n".join(fm_lines)
+def _contiguous_table_runs(body: str) -> list[list[str]]:
+    """Group the body's lines into runs of consecutive markdown table rows.
+
+    A markdown table is an uninterrupted block of ``|...|`` lines; a blank line
+    or prose ends it. Returning one list per table lets the caller size each
+    table on its own instead of summing rows across unrelated tables.
+    """
+    runs: list[list[str]] = []
+    current: list[str] = []
+    for line in body.splitlines():
+        if _TABLE_ROW_RE.match(line):
+            current.append(line)
+        elif current:
+            runs.append(current)
+            current = []
+    if current:
+        runs.append(current)
+    return runs
 
 
 def check_metadata_budget(skill: ParsedSkill) -> list[Diagnostic]:
     """Warn when frontmatter exceeds the ~100 token metadata budget."""
-    fm_text = _extract_frontmatter_text(skill.raw_text)
+    fm_text = _frontmatter_block(skill.raw_text)
     if not fm_text:
         return []
 
@@ -117,20 +125,21 @@ def check_body_bloat(skill: ParsedSkill) -> list[Diagnostic]:
                 ),
             ))
 
-    # Check for large tables
-    table_rows = _TABLE_ROW_RE.findall(skill.body)
-    # Subtract separator rows (containing only |, -, :, and spaces)
-    data_rows = [r for r in table_rows if not re.match(r"^\|[\s:|-]+\|$", r)]
-    if len(data_rows) > config.BLOAT_TABLE_ROWS:
-        diagnostics.append(Diagnostic(
-            rule="disclosure.body-bloat",
-            severity=Severity.INFO,
-            message=(
-                f"Table with {len(data_rows)} data rows found in body. "
-                f"Tables over {config.BLOAT_TABLE_ROWS} rows should be "
-                f"moved to a referenced file."
-            ),
-        ))
+    # Check for large tables. Each contiguous run of |-rows is one table; the
+    # runs are checked independently so several small tables are not summed into
+    # one false "N data rows" count.
+    for run in _contiguous_table_runs(skill.body):
+        data_rows = [r for r in run if not re.match(r"^\|[\s:|-]+\|$", r)]
+        if len(data_rows) > config.BLOAT_TABLE_ROWS:
+            diagnostics.append(Diagnostic(
+                rule="disclosure.body-bloat",
+                severity=Severity.INFO,
+                message=(
+                    f"Table with {len(data_rows)} data rows found in body. "
+                    f"Tables over {config.BLOAT_TABLE_ROWS} rows should be "
+                    f"moved to a referenced file."
+                ),
+            ))
 
     # Check for base64 content (two-step: candidate match + mixed-case validation)
     base64_match = _BASE64_CANDIDATE_RE.search(skill.body)

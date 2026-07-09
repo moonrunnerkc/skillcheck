@@ -49,8 +49,11 @@ def estimate_tokens(text: str) -> int:
     """Estimate the BPE token count of a text string.
 
     Priority:
-    1. tiktoken (cl100k_base) if installed: ~5% error, fully offline.
-    2. Word-run + punctuation-run heuristic: ~15% error, no dependencies.
+    1. tiktoken (cl100k_base) if installed: ~5% error. tiktoken downloads the
+       cl100k_base vocabulary from the internet on first use and caches it, so
+       the very first run needs network access (or a pre-warmed cache); later
+       runs are offline.
+    2. Word-run + punctuation-run heuristic: ~15% error, no dependencies, always offline.
 
     Neither gives exact Claude token counts (Anthropic's vocabulary is not
     publicly released), but both are accurate enough for a WARNING-level

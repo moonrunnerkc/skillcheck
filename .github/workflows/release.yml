@@ -1,0 +1,57 @@
+name: Release
+
+# Publishes to PyPI and attests build provenance when an immutable version tag
+# is pushed. The v*.*.* filter matches patch tags (v1.2.3) but not the moving
+# major tag (v1), so the moving tag does not trigger a duplicate publish.
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # Trusted publishing resolves against this environment on the PyPI side.
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write # PyPI trusted publishing (OIDC) and provenance signing
+      attestations: write # actions/attest-build-provenance
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: pip install hatchling
+
+      - name: Build sdist and wheel
+        run: python -m hatchling build
+
+      - name: Verify wheel installs and version matches the tag
+        run: |
+          set -euo pipefail
+          pip install dist/skillcheck-*.whl
+          installed="$(skillcheck --version | awk '{print $NF}')"
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$installed" != "$tag" ]; then
+            echo "Built version '$installed' does not match tag '$tag'." >&2
+            echo "Bump the version in pyproject.toml and __init__.py before tagging." >&2
+            exit 1
+          fi
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-path: |
+            dist/skillcheck-*.whl
+            dist/skillcheck-*.tar.gz
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@7f25271a4aa483500f742f9492b2ab5648d61011 # v1.12.4

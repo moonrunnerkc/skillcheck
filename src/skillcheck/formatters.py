@@ -195,14 +195,24 @@ def _format_markdown(
     return "\n".join(lines).rstrip()
 
 
-def _gha_escape(value: str) -> str:
-    """Escape a string for use in GitHub Actions workflow command property values."""
-    value = value.replace("%", "%25")
-    value = value.replace("\r", "%0D")
-    value = value.replace("\n", "%0A")
-    value = value.replace(":", "%3A")
-    value = value.replace(",", "%2C")
-    return value
+def _escape_data(value: str) -> str:
+    """Escape a GitHub Actions workflow-command message (the text after ``::``).
+
+    Per the Actions toolkit, message data escapes only ``%``, CR, and LF. Colons
+    and commas are literal here, so a diagnostic message like ``got 82): 'name'``
+    renders as written instead of showing ``%3A``.
+    """
+    return value.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
+def _escape_property(value: str) -> str:
+    """Escape a GitHub Actions workflow-command property value (``file``, ``title``).
+
+    Property values additionally escape ``:`` and ``,`` because a comma separates
+    properties and a colon ends the property section. GitHub decodes them for
+    display, so the annotation still reads normally.
+    """
+    return _escape_data(value).replace(":", "%3A").replace(",", "%2C")
 
 
 def _format_github(results: list[ValidationResult]) -> str:
@@ -214,15 +224,16 @@ def _format_github(results: list[ValidationResult]) -> str:
     }
     lines: list[str] = []
     for result in results:
-        filepath = _gha_escape(str(result.path).replace("\\", "/"))
+        filepath = _escape_property(str(result.path).replace("\\", "/"))
         for d in result.diagnostics:
             gh_level = severity_map.get(d.severity, "notice")
             parts = [f"file={filepath}"]
             if d.line is not None:
                 parts.append(f"line={d.line}")
-            loc = ",".join(parts)
-            message = _gha_escape(d.message)
-            lines.append(f"::{gh_level} {loc},title=skillcheck: {d.rule}::{message}")
+            parts.append(f"title={_escape_property(f'skillcheck: {d.rule}')}")
+            props = ",".join(parts)
+            message = _escape_data(d.message)
+            lines.append(f"::{gh_level} {props}::{message}")
     return "\n".join(lines)
 
 
@@ -275,6 +286,7 @@ __all__ = [
     "_format_markdown",
     "_format_github",
     "_format_agent",
-    "_gha_escape",
+    "_escape_data",
+    "_escape_property",
     "_style",
 ]
