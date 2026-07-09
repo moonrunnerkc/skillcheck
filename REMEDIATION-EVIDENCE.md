@@ -385,3 +385,26 @@ $ grep -rnE 'uses:\s*\S+@' .github/workflows/ | grep -vE '@[0-9a-f]{40}'
 (no output)  ->  OK: all SHA-pinned
 $ /tmp/actionlint .github/workflows/*.yml   ->  actionlint OK
 ```
+
+### 2.7 Pre-commit tests skip everywhere including CI
+
+Finding: CONTRIBUTING says CI installs `pre-commit`, but the dev extra did not include it, so both tests in
+`test_pre_commit.py` skipped on every run (they skip when `shutil.which("pre-commit")` is None).
+
+BEFORE (dev extra had no pre-commit; simulate CI PATH without a global pre-commit):
+```
+$ grep pre-commit pyproject.toml   ->  NO (not in dev extra)
+$ env PATH=".venv/bin:/usr/bin:/bin" pytest tests/test_pre_commit.py -rs
+SKIPPED [1] tests/test_pre_commit.py:60: pre-commit not installed
+SKIPPED [1] tests/test_pre_commit.py:74: pre-commit not installed
+2 skipped in 0.02s
+```
+
+FIX (files touched):
+- `pyproject.toml`: add `pre-commit>=3.5` to the `dev` extra.
+
+AFTER (`pip install -e .[dev]` now installs pre-commit into the environment):
+```
+$ env PATH=".venv/bin:/usr/bin:/bin" pytest tests/test_pre_commit.py -rs
+2 passed in 1.19s
+```
