@@ -21,6 +21,10 @@ launch-post/
 LAUNCH_CHECKLIST.md
 LAUNCH_POST_*.md
 
+# Per-skill history ledgers written by `skillcheck --history`; running the tool
+# against a file in the repo drops one next to it and it must never be committed.
+.skillcheck-history.json
+
 # Verification venvs (created by end-to-end verification runs)
 .venv-verify/
 
