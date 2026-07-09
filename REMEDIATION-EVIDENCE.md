@@ -339,3 +339,29 @@ OK: no ${{ interpolation anywhere after run: |
 ```
 `grep '${{ inputs.'` now matches only the `env:` mapping lines (the safe form), never the run block.
 `action.yml` parses as valid YAML; behavior is identical (same flags built from the same inputs).
+
+### 2.5 Attestation claim is false; no publish pipeline
+
+Finding: `ci.yml` triggers only on push-to-main and pull_request; its attest step is gated on `refs/tags/v*`
+and never runs. The README claimed tagged releases carry SLSA provenance. CONTRIBUTING's release process ended
+at `gh release create` with manual PyPI upload.
+
+FIX (files touched):
+- `.github/workflows/release.yml` (new): tag-triggered (`v*.*.*`, so the moving `v1` tag does not double-publish),
+  builds the wheel and sdist, verifies the built version matches the tag, attests with
+  `actions/attest-build-provenance` (SHA-pinned `e8998f9...` v2.4.0), and publishes via PyPI trusted publishing
+  (`pypa/gh-action-pypi-publish` SHA-pinned `7f25271...` v1.12.4). Least-privilege: `id-token: write`,
+  `attestations: write`, `contents: read`; `environment: pypi`.
+- `.github/workflows/ci.yml`: removed the dead attest step and the now-unneeded `id-token`/`attestations`
+  job permissions; the package job stays a read-only build/install smoke check.
+- `README.md`: Releases section now describes the real workflow.
+- `CONTRIBUTING.md`: Releasing section rewritten; added the exact one-time PyPI trusted-publishing settings.
+
+Trusted publishing requires a one-time PyPI-side configuration by the maintainer (documented in CONTRIBUTING):
+Owner `moonrunnerkc`, Repository `skillcheck`, Workflow filename `release.yml`, Environment `pypi`.
+
+VERIFY:
+```
+$ /tmp/actionlint .github/workflows/*.yml
+actionlint EXIT=0
+```

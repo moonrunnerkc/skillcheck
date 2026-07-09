@@ -21,21 +21,34 @@ A handful of tests skip on Windows because the underlying OS feature is unavaila
 
 ## Releasing
 
+Publishing is automated. Pushing an immutable patch tag (`v1.2.3`) triggers `.github/workflows/release.yml`, which builds the wheel and sdist, attests build provenance with `actions/attest-build-provenance`, and publishes to PyPI via trusted publishing (`pypa/gh-action-pypi-publish`). No manual `twine upload` or API token is involved. The moving `v1` tag is filtered out (`v*.*.*`) so it does not trigger a second publish.
+
 Every release pushes two tags pointing to the same commit:
 
-1. An immutable patch tag (e.g., `v1.2.3`).
+1. An immutable patch tag (e.g., `v1.2.3`) that drives the release workflow.
 2. A force-updated `v1` moving major tag pointing to the same commit.
 
 Steps:
 
 ```bash
-# Bump version in pyproject.toml, commit, push to main.
+# Bump version in pyproject.toml, __init__.py, and CHANGELOG.md together, commit, push to main.
 git push origin main
 git tag v1.2.3
-git push origin v1.2.3
+git push origin v1.2.3          # release.yml builds, attests, and publishes to PyPI
 git tag -f v1
-git push origin v1 --force
+git push origin v1 --force      # moving tag; filtered out of release.yml
 gh release create v1.2.3 --title "v1.2.3" --notes-file CHANGELOG_ENTRY.md
 ```
 
 The `v1` tag always tracks the latest patch in the v1.x line. This lets GitHub Action users pin `@v1` for automatic updates or `@v1.2.3` for an immutable pin.
+
+### One-time PyPI trusted-publishing setup
+
+Trusted publishing must be configured once on the PyPI side before the first automated release. In the `skillcheck` project settings on PyPI, add a GitHub Actions publisher with:
+
+- Owner: `moonrunnerkc`
+- Repository: `skillcheck`
+- Workflow filename: `release.yml`
+- Environment: `pypi`
+
+Until this is configured, the `Publish to PyPI` step will fail with an OIDC trust error; the build and attestation steps still run.

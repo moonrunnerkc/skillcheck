@@ -119,13 +119,13 @@ Defaults live in a `skillcheck.toml` discovered upward from the validated path. 
 
 ## Releases
 
-Tagged releases (`v*`) carry a SLSA build provenance attestation issued by `actions/attest-build-provenance@v1`. To verify a release artifact before installing:
+Pushing a version tag (`v1.2.3`) runs `.github/workflows/release.yml`, which builds the wheel and sdist, issues a SLSA build provenance attestation via `actions/attest-build-provenance`, and publishes to PyPI through trusted publishing. To verify a release artifact before installing:
 
 ```bash
 gh attestation verify dist/skillcheck-*.whl --owner moonrunnerkc
 ```
 
-This confirms the wheel was built by `moonrunnerkc/skillcheck` CI from the source at the tagged commit. Untagged builds (PR and main-branch CI) are not attested.
+This confirms the wheel was built by `moonrunnerkc/skillcheck` CI from the source at the tagged commit. Untagged builds (PR and main-branch CI) are not attested or published.
 
 ## License
 
