@@ -55,7 +55,7 @@ from skillcheck.formatters import (
 )
 from skillcheck.parser import ParsedSkill, ParseError
 from skillcheck.parser import parse as _parse_skill
-from skillcheck.result import Diagnostic, Severity
+from skillcheck.result import Diagnostic, Severity, ValidationResult
 
 # Delimiter used between prompts when emitting for multiple skills.
 _PROMPT_DELIMITER = "# === skillcheck:critique-prompt:{path} ==="
@@ -318,6 +318,190 @@ def run_show_history(args: argparse.Namespace, paths: list[Path]) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _compute_exit_code(
+    results: list[ValidationResult],
+    *,
+    symbolic_errors_before_ingest: bool,
+    any_ingest_failed: bool,
+    strict_all: bool,
+) -> int:
+    """Return the process exit code from the merged results.
+
+    Priority: symbolic/ingest failure (1) beats a semantic-only contradiction (3);
+    a remaining error (e.g. an agent-graph contradiction) is 1; a warning-only run
+    is 0 unless ``--strict`` escalates it to 1; otherwise 0.
+    """
+    if symbolic_errors_before_ingest or any_ingest_failed:
+        return 1
+    if any(
+        d.severity == Severity.ERROR
+        for r in results
+        for d in r.diagnostics
+        if d.rule.startswith("semantic.")
+    ):
+        # Symbolic passed, all parses succeeded, but a critique ingest added a
+        # semantic-namespace contradiction (semantic.*).
+        return 3
+    if any(not r.valid for r in results):
+        # Any remaining errors (e.g. graph.contradiction from agent ingest).
+        return 1
+    if any(d.severity == Severity.WARNING for r in results for d in r.diagnostics):
+        # Warning-only runs are a clean pass by default; --strict escalates
+        # them to exit 1. Exit 2 stays reserved for tool-misuse / input errors.
+        return 1 if strict_all else 0
+    return 0
+
+
+def _record_history(
+    args: argparse.Namespace,
+    paths: list[Path],
+    results: list[ValidationResult],
+    agent_id: str,
+    graph_agent_id: str,
+    final_exit_code: int,
+) -> int:
+    """Append a ledger entry per target and merge any regression diagnostics.
+
+    Mutates ``results`` in place (regression/write-failure diagnostics are
+    appended per target). Each SKILL.md has its own per-skill ledger next to it.
+    Returns the exit code, escalated to 1 the first time a target regresses when
+    ``--fail-on-regression`` is set.
+    """
+    modes = ValidationModes(
+        symbolic=True,
+        critique=args.ingest_critique is not None,
+        graph=args.ingest_graph is not None or args.analyze_graph,
+    )
+    run_agents = RunAgents(
+        critique_agent=agent_id if args.ingest_critique is not None else None,
+        graph_agent=graph_agent_id if args.ingest_graph is not None else None,
+    )
+    for index, path in enumerate(paths):
+        skill_for_history = _parse_or_exit(path)
+        preliminary_entry = build_entry(
+            skill_for_history,
+            results[index],
+            modes,
+            run_agents,
+            final_exit_code,
+            __version__,
+        )
+        lp = ledger_path_for(path)
+        try:
+            prior_ledger = load_ledger(lp)
+            prior_runs = prior_ledger.runs if prior_ledger is not None else ()
+            regression_diags = check_regression(prior_runs, preliminary_entry)
+        except LedgerError as exc:
+            regression_diags = [
+                Diagnostic(
+                    rule="history.read.failed",
+                    severity=Severity.WARNING,
+                    message=f"Could not read history ledger: {exc}",
+                )
+            ]
+        if regression_diags:
+            results[index] = merge_diagnostics(results[index], regression_diags)
+            # Regression is WARNING by default; does not change the exit code.
+            # --fail-on-regression promotes it to exit 1 the first time any
+            # target regresses, and that escalated code is what subsequent
+            # ledger entries (and the global exit) record.
+            if args.fail_on_regression and any(
+                d.rule == "history.skill.regressed" for d in regression_diags
+            ):
+                final_exit_code = 1
+
+        # Build final entry with all diagnostics included (regression if any).
+        final_entry = build_entry(
+            skill_for_history,
+            results[index],
+            modes,
+            run_agents,
+            final_exit_code,
+            __version__,
+        )
+        try:
+            append_run(lp, skill_for_history, final_entry)
+        except LedgerError as exc:
+            results[index] = merge_diagnostics(results[index], [
+                Diagnostic(
+                    rule="history.write.failed",
+                    severity=Severity.WARNING,
+                    message=f"Could not write history ledger to {lp}: {exc}",
+                )
+            ])
+            # Write failure is a warning; validation exit code stands.
+    return final_exit_code
+
+
+def _print_report(
+    args: argparse.Namespace,
+    results: list[ValidationResult],
+    *,
+    critique_source: str | None,
+    graph_source_json: dict[str, Any] | None,
+    graph_source_text: str | None,
+) -> None:
+    """Print the report in the requested format (no-op under --quiet)."""
+    # Compute description quality score breakdowns when relevant.
+    score_breakdowns: dict[str, dict[str, int]] = {}
+    has_quality_diag = any(
+        d.rule == "description.quality-score"
+        for r in results
+        for d in r.diagnostics
+    )
+    if has_quality_diag:
+        from skillcheck.rules.description import score_description as _score
+        from skillcheck.template_detection import is_template
+        for r in results:
+            for d in r.diagnostics:
+                if d.rule == "description.quality-score":
+                    try:
+                        skill = _parse_skill(r.path)
+                        desc = skill.frontmatter.get("description")
+                        if desc and isinstance(desc, str) and desc.strip() and not is_template(skill):
+                            _, _, bd = _score(desc)
+                            score_breakdowns[str(r.path)] = bd
+                    except Exception:
+                        pass
+                    break  # one description per file
+
+    if args.quiet:
+        return
+
+    if args.format == "json":
+        print(_format_json(
+            results,
+            __version__,
+            critique_source=critique_source,
+            graph_source=graph_source_json,
+            score_breakdowns=score_breakdowns or None,
+        ))
+    elif args.format == "md":
+        print(_format_markdown(
+            results,
+            critique_source=critique_source,
+            graph_source=graph_source_text,
+        ))
+    elif args.format == "agent":
+        print(_format_agent(
+            results,
+            critique_source=critique_source,
+            graph_source=graph_source_text,
+        ))
+    elif args.format == "github":
+        print(_format_github(results))
+    else:
+        use_color = not args.no_color and sys.stdout.isatty()
+        print(_format_text(
+            results,
+            color=use_color,
+            critique_source=critique_source,
+            graph_source=graph_source_text,
+            score_breakdowns=score_breakdowns or None,
+            explain_score=args.explain_score,
+        ))
+
+
 def run_validation(
     args: argparse.Namespace,
     paths: list[Path],
@@ -428,161 +612,27 @@ def run_validation(
         graph_source_text = "heuristic"
         graph_source_json = {"mode": "heuristic"}
 
-    # Determine exit code based on current results (before history processing).
-    # Exit 1: symbolic rules failed before any ingest, or an ingest parse failed.
-    if symbolic_errors_before_ingest or any_ingest_failed:
-        final_exit_code = 1
-    elif any(
-        d.severity == Severity.ERROR
-        for r in results
-        for d in r.diagnostics
-        if d.rule.startswith("semantic.")
-    ):
-        # Exit 3: symbolic passed, all parses succeeded, but a critique ingest added a
-        # semantic-namespace contradiction (semantic.*).
-        final_exit_code = 3
-    elif any(not r.valid for r in results):
-        # Exit 1: any remaining errors (e.g. graph.contradiction from agent ingest).
-        final_exit_code = 1
-    elif any(
-        d.severity == Severity.WARNING
-        for r in results
-        for d in r.diagnostics
-    ):
-        # Warning-only runs are a clean pass by default; --strict
-        # escalates them to exit 1 for stricter CI gates. Exit 2 stays
-        # reserved for tool-misuse / input errors so CI can distinguish them.
-        final_exit_code = 1 if args.strict_all else 0
-    else:
-        final_exit_code = 0
-
-    # --history: for each target, run a regression check against prior runs in
-    # that target's own ledger and append the ledger entry. Each SKILL.md has
-    # its own per-skill .skillcheck-history.json next to it (see
-    # ledger_path_for), so the per-file loop writes one ledger per target. This
-    # must happen BEFORE the final print so regression diagnostics appear in
-    # output. --fail-on-regression escalates when any target regressed.
-    if args.history:
-        modes = ValidationModes(
-            symbolic=True,
-            critique=args.ingest_critique is not None,
-            graph=args.ingest_graph is not None or args.analyze_graph,
-        )
-        run_agents = RunAgents(
-            critique_agent=agent_id if args.ingest_critique is not None else None,
-            graph_agent=graph_agent_id if args.ingest_graph is not None else None,
-        )
-        for index, path in enumerate(paths):
-            skill_for_history = _parse_or_exit(path)
-            preliminary_entry = build_entry(
-                skill_for_history,
-                results[index],
-                modes,
-                run_agents,
-                final_exit_code,
-                __version__,
-            )
-            lp = ledger_path_for(path)
-            try:
-                prior_ledger = load_ledger(lp)
-                prior_runs = prior_ledger.runs if prior_ledger is not None else ()
-                regression_diags = check_regression(prior_runs, preliminary_entry)
-            except LedgerError as exc:
-                regression_diags = [
-                    Diagnostic(
-                        rule="history.read.failed",
-                        severity=Severity.WARNING,
-                        message=f"Could not read history ledger: {exc}",
-                    )
-                ]
-            if regression_diags:
-                results[index] = merge_diagnostics(results[index], regression_diags)
-                # Regression is WARNING by default; does not change the exit
-                # code.  --fail-on-regression promotes it to exit 1 the first
-                # time any target regresses, and that escalated code is what
-                # subsequent ledger entries (and the global exit) record.
-                if args.fail_on_regression and any(
-                    d.rule == "history.skill.regressed" for d in regression_diags
-                ):
-                    final_exit_code = 1
-
-            # Build final entry with all diagnostics included (regression if any).
-            final_entry = build_entry(
-                skill_for_history,
-                results[index],
-                modes,
-                run_agents,
-                final_exit_code,
-                __version__,
-            )
-            try:
-                append_run(lp, skill_for_history, final_entry)
-            except LedgerError as exc:
-                results[index] = merge_diagnostics(results[index], [
-                    Diagnostic(
-                        rule="history.write.failed",
-                        severity=Severity.WARNING,
-                        message=f"Could not write history ledger to {lp}: {exc}",
-                    )
-                ])
-                # Write failure is a warning; validation exit code stands.
-
-    # Compute description quality score breakdowns when relevant.
-    score_breakdowns: dict[str, dict[str, int]] = {}
-    has_quality_diag = any(
-        d.rule == "description.quality-score"
-        for r in results
-        for d in r.diagnostics
+    # Determine exit code from current results (before history processing).
+    final_exit_code = _compute_exit_code(
+        results,
+        symbolic_errors_before_ingest=symbolic_errors_before_ingest,
+        any_ingest_failed=any_ingest_failed,
+        strict_all=args.strict_all,
     )
-    if has_quality_diag:
-        from skillcheck.rules.description import score_description as _score
-        from skillcheck.template_detection import is_template
-        for r in results:
-            for d in r.diagnostics:
-                if d.rule == "description.quality-score":
-                    try:
-                        skill = _parse_skill(r.path)
-                        desc = skill.frontmatter.get("description")
-                        if desc and isinstance(desc, str) and desc.strip() and not is_template(skill):
-                            _, _, bd = _score(desc)
-                            score_breakdowns[str(r.path)] = bd
-                    except Exception:
-                        pass
-                    break  # one description per file
 
-    # Print report (after history processing so regression/write-fail diagnostics appear).
-    if not args.quiet:
-        if args.format == "json":
-            print(_format_json(
-                results,
-                __version__,
-                critique_source=critique_source,
-                graph_source=graph_source_json,
-                score_breakdowns=score_breakdowns or None,
-            ))
-        elif args.format == "md":
-            print(_format_markdown(
-                results,
-                critique_source=critique_source,
-                graph_source=graph_source_text,
-            ))
-        elif args.format == "agent":
-            print(_format_agent(
-                results,
-                critique_source=critique_source,
-                graph_source=graph_source_text,
-            ))
-        elif args.format == "github":
-            print(_format_github(results))
-        else:
-            use_color = not args.no_color and sys.stdout.isatty()
-            print(_format_text(
-                results,
-                color=use_color,
-                critique_source=critique_source,
-                graph_source=graph_source_text,
-                score_breakdowns=score_breakdowns or None,
-                explain_score=args.explain_score,
-            ))
+    # --history runs before the final print so regression/write-fail diagnostics
+    # appear in the report, and it may escalate the exit code.
+    if args.history:
+        final_exit_code = _record_history(
+            args, paths, results, agent_id, graph_agent_id, final_exit_code
+        )
+
+    _print_report(
+        args,
+        results,
+        critique_source=critique_source,
+        graph_source_json=graph_source_json,
+        graph_source_text=graph_source_text,
+    )
 
     sys.exit(final_exit_code)

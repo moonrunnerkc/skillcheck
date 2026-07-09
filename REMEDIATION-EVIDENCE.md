@@ -546,3 +546,30 @@ $ ruff check src tests  ->  All checks passed!    $ mypy src/skillcheck  ->  Suc
 Test changes: 4 reporter tests deleted (module removed); `merge_critique_diagnostics` -> `merge_diagnostics`
 rename in `test_semantic_bridge.py` (5 sites) and `test_v1_architecture.py` (1 assertion) as moved-symbol updates.
 README test count synced 821 -> 817.
+
+### 3.4 Decompose the oversized modules
+
+Required moves, all behavior-preserving (full suite `817 passed` before and after each; no test modified):
+- **cli.py**: `_PAIRWISE_CONFLICTS` and the checker were rebuilt inside `main()` on every call. Hoisted the
+  static table and `_die_on_mode_conflict(args)` to module level (built once at import).
+- **commands.py**: `run_validation` split into `_compute_exit_code`, `_record_history`, and `_print_report`;
+  `run_validation` now reads as a short pipeline.
+- **core/graph.py**: split into model (`graph_model.py`) vs heuristic extractor (`graph.py`, re-exporting the model).
+- **core/history.py**: split into model/regression/render (`history.py`) vs filesystem I/O (`history_io.py`,
+  re-exported).
+
+Final line counts (six original files + the two new split targets):
+```
+core/graph.py           547 -> 469     core/graph_model.py     (new) 110
+cli.py                  546 -> 553     (hoist relocates code; ~same size, table now built once)
+commands.py             529 -> 638     (run_validation decomposed into 3 named phases; docstrings add lines)
+core/history.py         514 -> 370     core/history_io.py      (new) 231
+agents/graph_parser.py  354 -> 312     (reduced by 3.2; left as-is per scope)
+core/graph_analyzers.py 349 -> 349     (left as-is per scope)
+```
+Note: `cli.py` and `commands.py` did not drop under 300; the required move for each was a specific
+hoist/decomposition (done), not a full multi-module split. `graph.py` (469) is the extractor after the model
+was moved out. The counts are reported honestly rather than forced under the soft limit.
+
+VERIFY (each split): `python3 -m pytest tests/ -q -> 817 passed`; `ruff check src tests -> All checks passed!`;
+`mypy src/skillcheck -> Success`.

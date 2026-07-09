@@ -43,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Internal refactors, no behavior change: the three copies of frontmatter-block extraction (`_frontmatter_block`, `_extract_frontmatter_raw`, `_extract_frontmatter_text`) are deduplicated to the single `frontmatter_common._frontmatter_block`.
 - The critique and graph parsers now share `require_field` and `decode_json_or_raise` from `agents/_ingest.py` instead of each carrying its own copy. As a side effect the critique JSON-decode error message adopts the graph parser's wording (exception type and diagnostic content unchanged).
 - Dead code removed: the unused `core/reporter.py` module (the CLI renders through `formatters.py`) and the `merge_critique_diagnostics` shim (identical to `merge_diagnostics`, now called directly). No public CLI or `skillcheck.validate` behavior changes.
+- Oversized modules decomposed with no behavior change: the CLI mode-conflict table and checker are hoisted to module level; `run_validation` is split into `_compute_exit_code`, `_record_history`, and `_print_report`; the capability-graph data model moves to `core/graph_model.py`; and the ledger filesystem I/O moves to `core/history_io.py`. All original import paths still resolve via re-exports.
 
 ## [1.4.0] - 2026-05-27
 
