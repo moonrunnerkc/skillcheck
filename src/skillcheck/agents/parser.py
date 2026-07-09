@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 
+from skillcheck.agents._ingest import enforce_list_cap
 from skillcheck.agents._response_text import strip_response_noise
 from skillcheck.agents.schema import (
     Contradiction,
@@ -247,10 +248,12 @@ def parse_critique_response(raw: str) -> SemanticCritique:
 
     raw_findings = _require_field(payload, "findings", list)
     assert isinstance(raw_findings, list)
+    enforce_list_cap(len(raw_findings), "findings", CritiqueSchemaError)
     findings = tuple(_parse_finding(item, i) for i, item in enumerate(raw_findings))
 
     raw_missing = _require_field(payload, "missing_context", list)
     assert isinstance(raw_missing, list)
+    enforce_list_cap(len(raw_missing), "missing_context", CritiqueSchemaError)
     for i, item in enumerate(raw_missing):
         if not isinstance(item, str):
             raise CritiqueSchemaError(
@@ -260,6 +263,7 @@ def parse_critique_response(raw: str) -> SemanticCritique:
 
     raw_contradictions = _require_field(payload, "contradictions", list)
     assert isinstance(raw_contradictions, list)
+    enforce_list_cap(len(raw_contradictions), "contradictions", CritiqueSchemaError)
     contradictions = tuple(
         _parse_contradiction(item, i) for i, item in enumerate(raw_contradictions)
     )

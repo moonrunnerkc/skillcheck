@@ -268,3 +268,27 @@ FIX (files touched):
 - `tests/fixtures/critique/response_ansi_injection.json`, `tests/test_ingest_sanitization.py` (new).
 
 Tests added: `test_sanitize_escapes_ansi_escape_char`, `test_sanitize_escapes_newlines_and_tabs`, `test_sanitize_leaves_normal_text_unchanged`, `test_ingested_critique_message_has_no_control_chars`, `test_graph_text_render_escapes_node_names`, `test_graph_json_render_stays_safe_and_raw`.
+
+### 2.2 No size bound on ingested responses
+
+Finding: `read_ingest_raw` read stdin/file fully with no cap; the parsers put no limit on
+findings/capabilities/edges counts.
+
+BEFORE / AFTER:
+```
+=== BEFORE list cap ===  ACCEPTED 10001 items (no cap)
+=== BEFORE byte cap (CLI) === Checked 1 file: 1 passed, 0 failed   (6 MB file, exit 0)
+=== AFTER list cap ===   REJECTED: Ingested 'missing_context' has 10001 items, over the 10000-item cap. ...
+=== AFTER byte cap (CLI) === Error: ingest response /tmp/big_file.json is 6291580 bytes, over the 5242880-byte cap. ...  exit=2
+=== AFTER stdin cap ===  Error: ingest payload from stdin exceeds the 5242880-byte cap. ...  exit=2
+=== AFTER graph cap ===  Ingested 'capabilities' has 10001 items, over the 10000-item cap. ...
+```
+
+FIX (files touched):
+- `src/skillcheck/agents/_ingest.py`: `MAX_INGEST_BYTES` (5 MiB), `MAX_INGEST_LIST_ITEMS` (10000), `enforce_list_cap`.
+- `src/skillcheck/commands.py`: `read_ingest_raw` rejects payloads over the byte cap (file via `stat`, stdin via bounded read), naming the actual size and the cap, exit 2.
+- `src/skillcheck/agents/parser.py`: cap findings/missing_context/contradictions.
+- `src/skillcheck/agents/graph_parser.py`: cap capabilities/inputs/outputs/edges.
+- `tests/test_critique_parser.py`, `tests/test_graph_parser.py`, `tests/test_cli.py`.
+
+Tests added: `test_missing_context_over_cap_rejected`, `test_findings_over_cap_rejected`, `test_list_exactly_at_cap_is_accepted`, `test_capabilities_over_cap_rejected`, `test_ingest_response_over_size_cap_exits_two`.

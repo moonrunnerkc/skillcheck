@@ -386,3 +386,18 @@ def test_ingest_critique_non_utf8_response_exits_two(tmp_path):
     assert result.returncode == 2
     assert "Traceback" not in result.stderr
     assert "cannot read" in result.stderr
+
+
+def test_ingest_response_over_size_cap_exits_two(tmp_path):
+    """An oversized ingest response file is rejected with exit 2, not read fully."""
+    from skillcheck.agents._ingest import MAX_INGEST_BYTES
+    response = tmp_path / "response.json"
+    response.write_text("{" + " " * (MAX_INGEST_BYTES + 16), encoding="utf-8")
+    result = run_fixture(
+        str(FIXTURES_DIR / "valid_basic.md"),
+        "--ingest-critique",
+        str(response),
+    )
+    assert result.returncode == 2
+    assert "over the" in result.stderr
+    assert "byte cap" in result.stderr

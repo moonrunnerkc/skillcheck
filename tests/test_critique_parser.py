@@ -68,6 +68,28 @@ def test_parse_response_with_missing_context() -> None:
     assert result.missing_context == ("auth token", "file path")
 
 
+def test_missing_context_over_cap_rejected() -> None:
+    from skillcheck.agents._ingest import MAX_INGEST_LIST_ITEMS
+    payload = dict(_MINIMAL_VALID, missing_context=["x"] * (MAX_INGEST_LIST_ITEMS + 1))
+    with pytest.raises(CritiqueSchemaError, match="missing_context.*over the .*-item cap"):
+        parse_critique_response(_json(payload))
+
+
+def test_findings_over_cap_rejected() -> None:
+    from skillcheck.agents._ingest import MAX_INGEST_LIST_ITEMS
+    finding = {"section": "s", "issue": "i", "severity": "info", "suggestion": "x"}
+    payload = dict(_MINIMAL_VALID, findings=[finding] * (MAX_INGEST_LIST_ITEMS + 1))
+    with pytest.raises(CritiqueSchemaError, match="findings.*over the .*-item cap"):
+        parse_critique_response(_json(payload))
+
+
+def test_list_exactly_at_cap_is_accepted() -> None:
+    from skillcheck.agents._ingest import MAX_INGEST_LIST_ITEMS
+    payload = dict(_MINIMAL_VALID, missing_context=["x"] * MAX_INGEST_LIST_ITEMS)
+    result = parse_critique_response(_json(payload))
+    assert len(result.missing_context) == MAX_INGEST_LIST_ITEMS
+
+
 def test_parse_response_with_contradictions() -> None:
     payload = dict(_MINIMAL_VALID, contradictions=[{
         "location_a": "Sec A",

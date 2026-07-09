@@ -17,6 +17,7 @@ from typing import Any
 
 from skillcheck import __version__
 from skillcheck.agents import get_graph_prompt
+from skillcheck.agents._ingest import MAX_INGEST_BYTES
 from skillcheck.agents.graph_parser import GraphParseError
 from skillcheck.agents.parser import CritiqueParseError
 from skillcheck.core import (
@@ -99,12 +100,33 @@ def resolve_paths(args: argparse.Namespace) -> list[Path]:
 
 
 def read_ingest_raw(ingest_path: str) -> str:
-    """Read the raw critique response from PATH or stdin, exiting on error."""
+    """Read the raw critique response from PATH or stdin, exiting on error.
+
+    Rejects payloads over ``MAX_INGEST_BYTES`` (exit 2). The stdin read is
+    bounded so a runaway pipe cannot exhaust memory before the check fires.
+    """
     if ingest_path == "-":
-        return sys.stdin.read()
+        raw = sys.stdin.read(MAX_INGEST_BYTES + 1)
+        size = len(raw.encode("utf-8"))
+        if size > MAX_INGEST_BYTES:
+            print(
+                f"Error: ingest payload from stdin exceeds the {MAX_INGEST_BYTES}-byte cap. "
+                f"Trim the response or split the run into smaller batches.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        return raw
     p = Path(ingest_path)
     if not p.exists():
         print(f"Error: critique response file not found: {p}", file=sys.stderr)
+        sys.exit(2)
+    size = p.stat().st_size
+    if size > MAX_INGEST_BYTES:
+        print(
+            f"Error: ingest response {p} is {size} bytes, over the {MAX_INGEST_BYTES}-byte cap. "
+            f"Trim the response or split the run into smaller batches.",
+            file=sys.stderr,
+        )
         sys.exit(2)
     try:
         return p.read_text(encoding="utf-8")

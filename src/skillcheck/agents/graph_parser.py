@@ -14,6 +14,7 @@ import json
 from collections.abc import Mapping
 from typing import Literal
 
+from skillcheck.agents._ingest import enforce_list_cap
 from skillcheck.agents._response_text import strip_response_noise
 from skillcheck.core.graph import Capability, CapabilityGraph, Edge, Input, Output
 from skillcheck.parser import ParsedSkill
@@ -297,6 +298,9 @@ def parse_graph_response(raw: str, skill: ParsedSkill) -> CapabilityGraph:
         )
     for key, expected_type in _TOP_LEVEL_FIELDS.items():
         _require_field(data, key, expected_type)
+
+    for key in _TOP_LEVEL_FIELDS:
+        enforce_list_cap(len(data[key]), key, GraphSchemaError)
 
     # Parse node collections.
     capabilities = tuple(
