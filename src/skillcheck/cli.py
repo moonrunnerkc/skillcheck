@@ -303,6 +303,8 @@ def _apply_config(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
         loaded_config = load_config(config_path)
     except ConfigError as exc:
         parser.error(str(exc))
+    if config_path is not None:
+        print(f"Loaded config from {config_path}", file=sys.stderr)
 
     runtime_config.set_extension_fields(loaded_config.extension_fields)
     if loaded_config.reserved_words is not None:

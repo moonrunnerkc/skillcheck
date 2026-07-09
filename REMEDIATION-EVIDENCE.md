@@ -669,3 +669,30 @@ ledger still loads: True
 ```
 
 Tests added: `test_load_sweeps_stale_tmp_files`.
+
+### 4.4 config_loader improvements
+
+Finding: four issues in `config_loader.py`.
+
+FIX (files touched):
+- `src/skillcheck/config_loader.py`:
+  1. The int/bool/str type-error messages now include `(got {value!r})`.
+  2. The 3.10 fallback parser strips inline comments with `_strip_inline_comment`, which ignores `#` inside a
+     double-quoted value (`format = "a#b"  # c` -> `a#b`).
+  3. `find_config` stops ascending at a directory containing `.git` or the user's home, so it cannot pick up an
+     unrelated config above the repo.
+- `src/skillcheck/cli.py`: `_apply_config` prints `Loaded config from {path}` to stderr when a config is found.
+- `tests/test_config_loader.py` (new module).
+
+VERIFY:
+```
+1. Config key 'max-lines' must be an integer (got 'notint').
+2. _strip_inline_comment('format = "a#b"  # real comment') -> 'format = "a#b"  '   ; parse -> {'format': 'a#b'}
+3. find_config(nested SKILL.md) with a config above a .git root -> None
+4. $ skillcheck /tmp/cfg2/SKILL.md ...  (stderr) Loaded config from /tmp/cfg2/skillcheck.toml
+```
+
+Tests added: `test_int_type_error_includes_offending_value`, `test_bool_type_error_includes_offending_value`,
+`test_str_type_error_includes_offending_value`, `test_strip_inline_comment_respects_quotes`,
+`test_fallback_parser_keeps_hash_inside_quotes`, `test_find_config_stops_at_git_root`,
+`test_find_config_finds_config_at_git_root`, `test_cli_reports_loaded_config_path`.
