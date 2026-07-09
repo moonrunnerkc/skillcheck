@@ -573,3 +573,35 @@ was moved out. The counts are reported honestly rather than forced under the sof
 
 VERIFY (each split): `python3 -m pytest tests/ -q -> 817 passed`; `ruff check src tests -> All checks passed!`;
 `mypy src/skillcheck -> Success`.
+
+### 3.5 Extend quality gates to scripts/
+
+Finding: CI ran `ruff check src tests` and mypy scoped to `src/skillcheck`, leaving
+`scripts/regen_self_host_fixtures.py` and `scripts/summarize_batch.py` ungated (summarize had import-order drift).
+
+BEFORE:
+```
+$ ruff check scripts    ->  I001 summarize_batch.py (import order)  + issues in an untracked script
+$ mypy scripts/summarize_batch.py  ->  11 "Missing type arguments for generic type dict" errors
+```
+
+FIX (files touched):
+- `scripts/summarize_batch.py`: import order fixed; bare `dict` annotations typed as `dict[str, Any]`
+  (explicit `Any` matches the JSON-parsed data and satisfies `disallow_any_generics`).
+- `pyproject.toml`: `[tool.mypy] files` now lists `src/skillcheck` plus the two checked-in scripts.
+- `.github/workflows/ci.yml`: `ruff check src tests scripts`; the mypy step now runs bare `mypy` (uses the files list).
+- `Makefile`: new `lint` target and `verify-release` now run `ruff check src tests scripts` and `mypy`.
+
+Note: `scripts/skillcheck_case_study_report.py` is an untracked, pre-existing session artifact (references
+`skillcheck 1.1.0`, clones a remote repo), outside this remediation's commit scope. Because the final-gate
+command is directory-scoped (`ruff check src tests scripts`), its ruff findings (import order, `capture_output`,
+`collections.abc.Iterable`) were fixed in place so the directory gate is green, but the file is left untracked
+and is not in the mypy `files` list.
+
+AFTER:
+```
+$ make lint
+ruff check src tests scripts   ->  All checks passed!
+mypy                           ->  Success: no issues found in 50 source files
+$ mypy src/skillcheck          ->  Success: no issues found in 48 source files
+```

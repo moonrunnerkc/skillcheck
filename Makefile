@@ -1,4 +1,4 @@
-.PHONY: regen-self-host-fixtures verify-release
+.PHONY: lint regen-self-host-fixtures verify-release
 
 # Pre-1.0 sentinel version. Stale references to this string must not appear in
 # shipped files; update only if a new major version creates a new legacy line.
@@ -11,7 +11,13 @@ VERSION := $(shell grep -m1 '^version' pyproject.toml | sed 's/.*"\(.*\)".*/\1/'
 regen-self-host-fixtures:
 	python3 scripts/regen_self_host_fixtures.py
 
+lint:
+	ruff check src tests scripts
+	mypy
+
 verify-release:
+	ruff check src tests scripts
+	mypy
 	python3 -m pytest tests/ -v
 	skillcheck --version
 	skillcheck skills/skillcheck/SKILL.md
