@@ -53,7 +53,7 @@ from skillcheck.formatters import (
     _format_markdown,
     _format_text,
 )
-from skillcheck.parser import ParseError, ParsedSkill
+from skillcheck.parser import ParsedSkill, ParseError
 from skillcheck.parser import parse as _parse_skill
 from skillcheck.result import Diagnostic, Severity
 

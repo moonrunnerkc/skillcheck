@@ -223,3 +223,18 @@ FIX (files touched):
 - `tests/test_compat_data_freshness.py`: `test_codex_data_is_fresh` (independent freshness assertion) and `test_codex_provenance_uses_codex_date_not_claude_date` (distinct sentinels prove the label tracks the Codex constant, not the Claude one).
 
 Tests added: `test_codex_data_is_fresh`, `test_codex_provenance_uses_codex_date_not_claude_date`.
+
+### Phase 1 gate
+
+```
+$ python3 -m pytest tests/ -q
+Required test coverage of 68% reached. Total coverage: 70.29%
+808 passed in 57.50s
+
+$ ruff check src tests
+All checks passed!
+
+$ mypy src/skillcheck
+Success: no issues found in 46 source files
+```
+README test-count claim synced 786 -> 808 (guarded by `test_readme_test_count_matches_collected_count`).
