@@ -82,3 +82,18 @@ def test_alias_in_body_not_flagged(tmp_path):
     skill = parse(f)
     diagnostics = check_yaml_anchors(skill)
     assert diagnostics == []
+
+
+def test_ampersand_and_asterisk_in_quoted_value_not_flagged(tmp_path):
+    """'&' and '*' inside a quoted scalar are text, not YAML anchors/aliases."""
+    content = (
+        "---\n"
+        "name: my-skill\n"
+        'description: "Reviews R&D notes and *only* flags risky items for the release."\n'
+        "---\n"
+        "Body.\n"
+    )
+    f = tmp_path / "SKILL.md"
+    f.write_text(content)
+    skill = parse(f)
+    assert check_yaml_anchors(skill) == []

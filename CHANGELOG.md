@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `frontmatter.yaml-anchors` no longer false-positives on `&` or `*` inside quoted string values. A description like `"Reviews R&D notes and *only* flags risky items"` used to match the anchor/alias regexes; detection now walks the YAML event stream, so only real anchors and aliases are reported.
 - `--format github` no longer over-escapes diagnostic message text. Message data now escapes only `%`, CR, and LF (per the GitHub Actions toolkit), so a colon or comma in a message renders literally instead of as `%3A`/`%2C`. Property values (`file`, `title`) still escape `:` and `,` as required, which also fixes the previously unescaped colon in the annotation title.
 - Non-dict frontmatter (a bare scalar or list between the `---` delimiters) no longer crashes with an `AttributeError` traceback. `parser.parse` now raises `ParseError` naming the actual YAML type and the path, which the validation pipeline renders as a clean `parse.error` diagnostic and exit 1.
 - Template detection no longer misreads bracketed acronyms as placeholders. The `[...]` branch of the placeholder pattern was unescaped, so `[ISO]`, `[API]`, and `[CLI]` in a real description matched and silently suppressed the deployment-blocking ERROR checks (`frontmatter.name.directory-mismatch`, `compat.vscode-dirname`, description scoring). The literal three-dot placeholder is now matched exactly.

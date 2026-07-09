@@ -633,3 +633,20 @@ AFTER:
 ```
 Message colon is literal; title colon is properly `%3A`. Tests changed (justified: renamed helper + corrected
 escaping): the escape-rule tests and title/message expectations.
+
+### 4.2 YAML anchor/alias regexes false-positive on `&`/`*emphasis*` in quoted strings
+
+Finding: the anchor/alias regexes ran over raw text, so `R&D` and `*only*` in a quoted description matched.
+
+BEFORE: `description: "Reviews R&D notes and *only* flags risky items..."` -> `frontmatter.yaml-anchors` warning (false).
+
+FIX (files touched):
+- `src/skillcheck/rules/frontmatter_fields.py`: replaced the regex scan with a YAML event walk
+  (`yaml.parse`), collecting `.anchor` from scalar/collection-start (declarations) and alias events
+  (references). A `&`/`*` inside a quoted scalar is part of the value and carries no anchor, so it is not reported.
+- `tests/test_yaml_anchors.py`: `test_ampersand_and_asterisk_in_quoted_value_not_flagged`.
+
+AFTER: the R&D/`*only*` description is not flagged; real `&anchor`/`*alias` frontmatter is still flagged
+(existing tests pass).
+
+Tests added: `test_ampersand_and_asterisk_in_quoted_value_not_flagged`.

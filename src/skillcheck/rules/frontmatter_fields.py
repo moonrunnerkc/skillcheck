@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-import re
+import yaml
 
 from skillcheck import config
 from skillcheck.parser import ParsedSkill
 from skillcheck.result import Diagnostic, Severity
 from skillcheck.rules.frontmatter_common import _field_line, _frontmatter_block
-
-_YAML_ANCHOR_RE = re.compile(r"&([A-Za-z_][A-Za-z0-9_-]*)")
-_YAML_ALIAS_RE = re.compile(r"\*([A-Za-z_][A-Za-z0-9_-]*)")
 
 
 def check_unknown_fields(skill: ParsedSkill) -> list[Diagnostic]:
@@ -45,26 +42,39 @@ def check_unknown_fields(skill: ParsedSkill) -> list[Diagnostic]:
     return diagnostics
 
 
+def _collect_anchor_names(fm_raw: str) -> list[str]:
+    """Return the anchor names declared or referenced in the frontmatter.
+
+    Uses the YAML event stream so only real anchors/aliases are seen. A ``&`` or
+    ``*`` inside a quoted scalar (e.g. ``"Reviews R&D notes and *only* flags..."``)
+    is part of the value, not an anchor, so it is not reported. Scalar and
+    collection-start events carry ``.anchor`` for a declaration; alias events
+    carry ``.anchor`` for a reference; both are collected.
+    """
+    try:
+        events = yaml.parse(fm_raw, Loader=yaml.SafeLoader)
+        anchors = [anchor for event in events if (anchor := getattr(event, "anchor", None))]
+    except yaml.YAMLError:
+        return []
+    return sorted(set(anchors))
+
+
 def check_yaml_anchors(skill: ParsedSkill) -> list[Diagnostic]:
     """Warn when YAML anchors or aliases are used in frontmatter."""
     fm_raw = _frontmatter_block(skill.raw_text)
     if not fm_raw:
         return []
 
-    diagnostics: list[Diagnostic] = []
-    anchors = _YAML_ANCHOR_RE.findall(fm_raw)
-    aliases = _YAML_ALIAS_RE.findall(fm_raw)
+    names = _collect_anchor_names(fm_raw)
+    if not names:
+        return []
 
-    if anchors or aliases:
-        names = sorted(set(anchors + aliases))
-        diagnostics.append(Diagnostic(
-            rule="frontmatter.yaml-anchors",
-            severity=Severity.WARNING,
-            message=(
-                f"YAML anchors/aliases detected in frontmatter ({', '.join(names)}). "
-                f"Anchors silently copy values between fields, which can bypass "
-                f"validation. Use explicit values instead."
-            ),
-        ))
-
-    return diagnostics
+    return [Diagnostic(
+        rule="frontmatter.yaml-anchors",
+        severity=Severity.WARNING,
+        message=(
+            f"YAML anchors/aliases detected in frontmatter ({', '.join(names)}). "
+            f"Anchors silently copy values between fields, which can bypass "
+            f"validation. Use explicit values instead."
+        ),
+    )]
