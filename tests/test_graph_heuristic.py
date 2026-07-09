@@ -546,3 +546,11 @@ def test_import_path_smoke() -> None:
         Output,
         extract_graph_heuristic,
     )
+
+
+def test_duplicate_allowed_tools_produce_single_input() -> None:
+    # allowed-tools: [Bash, Bash, Read] must not mint two nodes with the same
+    # content-hash ID and trip the duplicate-ID check.
+    g = extract_graph_heuristic(_parse("skill_duplicate_tools.md"))
+    tool_names = [i.name for i in g.inputs if i.kind == "tool"]
+    assert tool_names == ["Bash", "Read"]

@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Template detection no longer misreads bracketed acronyms as placeholders. The `[...]` branch of the placeholder pattern was unescaped, so `[ISO]`, `[API]`, and `[CLI]` in a real description matched and silently suppressed the deployment-blocking ERROR checks (`frontmatter.name.directory-mismatch`, `compat.vscode-dirname`, description scoring). The literal three-dot placeholder is now matched exactly.
 - `--ingest-critique` and `--ingest-graph` now reject a multi-skill target instead of stamping the first skill's ingested diagnostics onto every file. An agent response describes one skill, so pointing an ingest flag at a directory that resolves to more than one SKILL.md exits `2` with an error naming the flag and the path count.
 - A malformed history ledger now raises a clean `LedgerError` instead of an uncaught `TypeError`. `load_ledger` validates that the JSON root is an object, that `runs` is a list, and that each run entry is well-formed, and it now checks the `version` field against `LEDGER_SCHEMA_VERSION` (previously read but never enforced), naming both versions on mismatch. Every failure carries the "delete it and re-run with --history" remediation.
+- `--analyze-graph` no longer crashes on a repeated tool. `allowed-tools: [Bash, Bash]` minted two graph nodes with the same content-hash ID, tripping the duplicate-node-ID guard with an uncaught `ValueError`. The heuristic extractor now dedupes tool names before building nodes.
 
 ## [1.4.0] - 2026-05-27
 

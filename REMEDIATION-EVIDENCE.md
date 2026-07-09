@@ -132,3 +132,34 @@ $ skillcheck /tmp/hist/SKILL.md --show-history   # EXIT=1, clean stderr, no trac
 ```
 
 Tests added: `test_load_raises_when_root_is_not_object`, `test_load_raises_when_runs_is_not_a_list`, `test_load_raises_on_schema_version_mismatch`, `test_load_raises_on_malformed_run_entry`.
+
+### 1.5 Duplicate allowed-tools crashes --analyze-graph
+
+Finding: the heuristic extractor content-hashes tool nodes on the name alone, so `allowed-tools: [Bash, Bash]`
+minted two nodes with the same ID and `CapabilityGraph.__post_init__` raised `ValueError: Duplicate node ID`.
+
+BEFORE:
+```
+$ skillcheck /tmp/dup/SKILL.md --analyze-graph   # allowed-tools: [Bash, Bash]
+  ...
+  File ".../core/graph.py", line 165, in __post_init__
+    raise ValueError(
+ValueError: Duplicate node ID 'f062fdee' appears in multiple capability graph collections.
+EXIT=1
+```
+
+FIX (files touched):
+- `src/skillcheck/core/graph.py`: dedupe tool names with `dict.fromkeys()` (order-preserving) before node creation, filtering non-str items first so nested YAML cannot break the dedupe.
+- `tests/fixtures/graph/skill_duplicate_tools.md` (`allowed-tools: [Bash, Bash, Read]`).
+- `tests/test_graph_heuristic.py`: `test_duplicate_allowed_tools_produce_single_input`.
+
+AFTER:
+```
+=== analyze-graph now clean ===
+Checked 1 file: 1 passed, 0 failed, 2 warnings
+EXIT=0
+=== emit-graph shows single Bash input ===
+inputs: ['Bash']
+```
+
+Tests added: `test_duplicate_allowed_tools_produce_single_input`.

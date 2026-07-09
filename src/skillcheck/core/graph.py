@@ -408,13 +408,16 @@ def extract_graph_heuristic(skill: ParsedSkill) -> CapabilityGraph:
     outputs: list[Output] = []
     capabilities: list[Capability] = []
 
-    # Step 1: frontmatter-derived tool inputs.
+    # Step 1: frontmatter-derived tool inputs. Tool IDs are content-hashed on
+    # the name alone, so a repeated tool (allowed-tools: [Bash, Bash]) would
+    # mint two nodes with the same ID and trip the duplicate-ID check. Dedupe
+    # by name first, preserving order.
     allowed_tools = skill.frontmatter.get("allowed-tools", [])
     if isinstance(allowed_tools, list):
-        for tool_name in allowed_tools:
-            if isinstance(tool_name, str) and tool_name:
-                iid = _make_id("tool", tool_name, None)
-                inputs.append(Input(id=iid, name=tool_name, kind="tool", line=None))
+        tool_names = [t for t in allowed_tools if isinstance(t, str) and t]
+        for tool_name in dict.fromkeys(tool_names):
+            iid = _make_id("tool", tool_name, None)
+            inputs.append(Input(id=iid, name=tool_name, kind="tool", line=None))
 
     # name -> id maps; edge pass reads these after the section loop completes.
     input_name_map: dict[str, str] = {inp.name: inp.id for inp in inputs}
