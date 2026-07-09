@@ -16,7 +16,10 @@ characters, so sanitization is applied only where text reaches the terminal.
 
 from __future__ import annotations
 
+import json
 import re
+
+from skillcheck.agents._response_text import strip_response_noise
 
 # Maximum size of a single ingested response (stdin or file). A real critique or
 # graph response is a few KB; 5 MiB is a generous ceiling that still bounds a
@@ -51,6 +54,91 @@ def enforce_list_cap(count: int, field: str, error_cls: type[Exception]) -> None
             f"Ingested '{field}' has {count} items, over the {MAX_INGEST_LIST_ITEMS}-item cap. "
             f"The response is unreasonably large; trim it or split the run into smaller batches."
         )
+
+
+def decode_json_or_raise(raw: str, error_cls: type[Exception]) -> object:
+    """Strip response noise, parse JSON, or raise *error_cls* on failure.
+
+    Shared by the critique and graph parsers. The error message names the
+    decoder's position and the first 200 characters received (newlines
+    collapsed) so callers get context without dumping the full response.
+
+    Args:
+        raw: Raw agent response (may include markdown fences or prose preamble).
+        error_cls: Parser-specific JSON-error type to raise (CritiqueJSONError,
+            GraphJSONError).
+
+    Returns:
+        The decoded JSON value (dict, list, or scalar; callers type-check it).
+
+    Raises:
+        error_cls: When the cleaned text is not valid JSON. The original
+            JSONDecodeError is preserved as the cause.
+    """
+    cleaned = strip_response_noise(raw)
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError as err:
+        preview = raw[:200].replace("\n", " ")
+        raise error_cls(
+            f"Response is not valid JSON (error at position {err.pos}): "
+            f"first 200 chars: {preview!r}"
+        ) from err
+
+
+def require_field(
+    obj: dict[str, object],
+    key: str,
+    expected_type: type | tuple[type, ...],
+    *,
+    error_cls: type[Exception],
+    context: str = "",
+) -> object:
+    """Extract a required field from *obj* with type checking.
+
+    Shared by the critique and graph parsers. ``bool`` is rejected for ``int``
+    fields (and for ``(int, None)`` unions), since it is an int subclass but
+    never a valid score or line number.
+
+    Args:
+        obj: Mapping to extract from.
+        key: Required field name.
+        expected_type: Acceptable Python type, or a tuple of types for a union.
+        error_cls: Parser-specific schema-error type to raise (CritiqueSchemaError,
+            GraphSchemaError).
+        context: Optional prefix for error messages, e.g. "findings[0]".
+
+    Returns:
+        The field value.
+
+    Raises:
+        error_cls: If the field is missing, has the wrong type, or is a bool
+            where an int is required.
+    """
+    full_key = f"{context}.{key}" if context else key
+    if key not in obj:
+        raise error_cls(f"Missing required field '{full_key}'")
+    value = obj[key]
+    if expected_type is int and isinstance(value, bool):
+        raise error_cls(f"Field '{full_key}' must be int, got bool: {value!r}")
+    if (
+        isinstance(expected_type, tuple)
+        and int in expected_type
+        and isinstance(value, bool)
+    ):
+        raise error_cls(f"Field '{full_key}' must be int or null, got bool: {value!r}")
+    if not isinstance(value, expected_type):
+        if isinstance(expected_type, tuple):
+            type_name = " or ".join(
+                "null" if t is type(None) else t.__name__ for t in expected_type
+            )
+        else:
+            type_name = expected_type.__name__
+        raise error_cls(
+            f"Field '{full_key}' must be {type_name}, "
+            f"got {type(value).__name__}: {value!r}"
+        )
+    return value
 
 
 def sanitize_ingested_text(text: str) -> str:

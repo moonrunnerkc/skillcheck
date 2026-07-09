@@ -41,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pre-commit` is now part of the `dev` extra, so the two `test_pre_commit.py` end-to-end hook tests actually run in CI instead of silently skipping.
 - `make verify-release` actually builds the sdist and wheel now. The old guard used `command -v python3 -c "import build"`, which only resolved the `python3` path and never tested the `build` module, so the build verification was effectively meaningless. The target also gained a drift grep asserting the README's pre-commit `rev:` matches the pyproject version, and the README `rev:` was corrected from `v1.3.0` to `v1.4.0`.
 - Internal refactors, no behavior change: the three copies of frontmatter-block extraction (`_frontmatter_block`, `_extract_frontmatter_raw`, `_extract_frontmatter_text`) are deduplicated to the single `frontmatter_common._frontmatter_block`.
+- The critique and graph parsers now share `require_field` and `decode_json_or_raise` from `agents/_ingest.py` instead of each carrying its own copy. As a side effect the critique JSON-decode error message adopts the graph parser's wording (exception type and diagnostic content unchanged).
 
 ## [1.4.0] - 2026-05-27
 

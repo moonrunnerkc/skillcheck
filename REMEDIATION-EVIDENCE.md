@@ -480,3 +480,30 @@ $ python3 -m pytest tests/ -q   ->  821 passed
 $ ruff check src tests  ->  All checks passed!    $ mypy src/skillcheck  ->  Success
 ```
 No test modified.
+
+### 3.2 Shared ingest scaffolding
+
+Finding: `agents/parser.py` and `agents/graph_parser.py` duplicate `_require_field`, the exception-hierarchy
+shape, and the JSON-decode-with-200-char-preview handling.
+
+FIX (files touched):
+- `src/skillcheck/agents/_ingest.py`: added `require_field(obj, key, expected_type, *, error_cls, context)`
+  and `decode_json_or_raise(raw, error_cls)` (the 2.1 sanitizer and 2.2 caps already live here).
+- `src/skillcheck/agents/parser.py`, `graph_parser.py`: each keeps a one-line `_require_field` that binds
+  its own error class to the shared `require_field`, so all call sites stay byte-identical; both now call
+  `decode_json_or_raise` instead of an inline `json.loads`.
+- The per-agent prompt classes (`claude.py`/`graph_claude.py` etc.) were left untouched, per scope.
+
+Behavior notes: the graph JSON-decode message is byte-identical (the shared template matches graph's prior
+wording). The critique JSON-decode message wording is now unified with graph's (previously "Agent response is
+not valid JSON (at position N). First 200 chars received: ..."); the exception type, the decoder position, and
+the preview are preserved, and the existing assertions (`match="position"`, `match="definitely not"`) still hold.
+The shared `require_field` uses graph's tuple/union formatting; critique never passed a tuple, so its old
+`"/".join` branch was dead code with no observable change.
+
+VERIFY:
+```
+$ python3 -m pytest tests/ -q   ->  821 passed
+$ ruff check src tests  ->  All checks passed!    $ mypy src/skillcheck  ->  Success
+```
+No test modified.

@@ -10,12 +10,14 @@ critique parser; see agents/_response_text.py.
 
 from __future__ import annotations
 
-import json
 from collections.abc import Mapping
 from typing import Literal
 
-from skillcheck.agents._ingest import enforce_list_cap
-from skillcheck.agents._response_text import strip_response_noise
+from skillcheck.agents._ingest import (
+    decode_json_or_raise,
+    enforce_list_cap,
+    require_field,
+)
 from skillcheck.core.graph import Capability, CapabilityGraph, Edge, Input, Output
 from skillcheck.parser import ParsedSkill
 
@@ -109,51 +111,12 @@ def _require_field(
     expected_type: type | tuple[type, ...],
     context: str = "",
 ) -> object:
-    """Extract a required field with type checking.
+    """Extract a required field, raising GraphSchemaError on missing/wrong type.
 
-    Args:
-        obj: Mapping to extract from.
-        key: Required field name.
-        expected_type: Acceptable Python type(s). For union types pass a tuple.
-        context: Optional prefix for error messages, e.g. "capabilities[0]".
-
-    Returns:
-        The field value.
-
-    Raises:
-        GraphSchemaError: If the field is missing, has wrong type, or (for int)
-            is actually a bool (bool is an int subclass but not a line number).
+    Thin binding of the shared ``require_field`` to this parser's error class;
+    see ``agents/_ingest.py`` for the checking logic.
     """
-    full_key = f"{context}.{key}" if context else key
-    if key not in obj:
-        raise GraphSchemaError(f"Missing required field '{full_key}'")
-    value = obj[key]
-    # bool is a subclass of int; reject it for integer fields.
-    if expected_type is int and isinstance(value, bool):
-        raise GraphSchemaError(
-            f"Field '{full_key}' must be int, got bool: {value!r}"
-        )
-    # For (int, NoneType) unions, bool is also rejected.
-    if (
-        isinstance(expected_type, tuple)
-        and int in expected_type
-        and isinstance(value, bool)
-    ):
-        raise GraphSchemaError(
-            f"Field '{full_key}' must be int or null, got bool: {value!r}"
-        )
-    if not isinstance(value, expected_type):
-        if isinstance(expected_type, tuple):
-            type_name = " or ".join(
-                "null" if t is type(None) else t.__name__ for t in expected_type
-            )
-        else:
-            type_name = expected_type.__name__
-        raise GraphSchemaError(
-            f"Field '{full_key}' must be {type_name}, "
-            f"got {type(value).__name__}: {value!r}"
-        )
-    return value
+    return require_field(obj, key, expected_type, error_cls=GraphSchemaError, context=context)
 
 
 def _check_no_extra_fields(obj: Mapping[str, object], allowed: Mapping[str, object], context: str) -> None:
@@ -274,16 +237,7 @@ def parse_graph_response(raw: str, skill: ParsedSkill) -> CapabilityGraph:
         GraphValueError: Schema matches but values violate semantic rules
             (out-of-range line numbers, duplicate IDs, dangling edge references).
     """
-    cleaned = strip_response_noise(raw)
-
-    try:
-        data = json.loads(cleaned)
-    except json.JSONDecodeError as exc:
-        preview = raw[:200].replace("\n", " ")
-        raise GraphJSONError(
-            f"Response is not valid JSON (error at position {exc.pos}): "
-            f"first 200 chars: {preview!r}"
-        ) from exc
+    data = decode_json_or_raise(raw, GraphJSONError)
 
     if not isinstance(data, dict):
         raise GraphSchemaError(
