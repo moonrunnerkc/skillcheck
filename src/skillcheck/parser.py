@@ -48,9 +48,16 @@ def parse(path: Path) -> ParsedSkill:
         )
 
     try:
-        frontmatter = yaml.safe_load(match.group(1)) or {}
+        loaded = yaml.safe_load(match.group(1))
     except yaml.YAMLError as exc:
         raise ParseError(f"Invalid YAML frontmatter in {path}: {exc}") from exc
+
+    frontmatter = loaded if loaded is not None else {}
+    if not isinstance(frontmatter, dict):
+        raise ParseError(
+            f"Frontmatter must be a YAML mapping, got {type(frontmatter).__name__} in {path}. "
+            "Wrap frontmatter in key: value pairs."
+        )
 
     body = raw_text[match.end():]
     return ParsedSkill(

@@ -69,3 +69,18 @@ def test_handles_bom_prefixed_file(tmp_path):
     skill_file.write_bytes(content.encode("utf-8"))
     skill = parse(skill_file)
     assert skill.frontmatter["name"] == "bom-skill"
+
+
+def test_rejects_string_frontmatter():
+    with pytest.raises(ParseError, match="must be a YAML mapping, got str"):
+        parse(FIXTURES_DIR / "bad_frontmatter_string.md")
+
+
+def test_rejects_list_frontmatter():
+    with pytest.raises(ParseError, match="must be a YAML mapping, got list"):
+        parse(FIXTURES_DIR / "bad_frontmatter_list.md")
+
+
+def test_rejects_int_frontmatter():
+    with pytest.raises(ParseError, match="must be a YAML mapping, got int"):
+        parse(FIXTURES_DIR / "bad_frontmatter_int.md")
