@@ -343,6 +343,133 @@ def _apply_config(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
 
 
 # ---------------------------------------------------------------------------
+# Mode conflict resolution
+#
+# Conflicts are declared as a static table: each entry pairs two CLI flags with
+# a one-line reason. _die_on_mode_conflict walks the table once, reports the
+# first conflicting pair, and exits 2. Hoisted to module level so the table is
+# built once at import, not rebuilt on every invocation.
+# ---------------------------------------------------------------------------
+
+_PAIRWISE_CONFLICTS: list[tuple[str, str, str]] = [
+    (
+        "--emit-critique-prompt", "--ingest-critique",
+        "Cannot use --emit-critique-prompt and --ingest-critique together. "
+        "Pick one: emit a prompt for your agent to execute, or ingest the agent's response.",
+    ),
+    (
+        "--emit-graph", "--analyze-graph",
+        "Cannot use --emit-graph with --analyze-graph. "
+        "--emit-graph is an emit mode (replaces the report). "
+        "--analyze-graph is an augment mode (adds to the report).",
+    ),
+    (
+        "--emit-graph", "--ingest-critique",
+        "Cannot use --emit-graph with --ingest-critique. "
+        "--emit-graph replaces the report; --ingest-critique augments it.",
+    ),
+    (
+        "--emit-graph-prompt", "--ingest-critique",
+        "Cannot use --emit-graph-prompt with --ingest-critique. "
+        "--emit-graph-prompt is an emit mode; --ingest-critique is an augment mode.",
+    ),
+    (
+        "--emit-graph-prompt", "--analyze-graph",
+        "Cannot use --emit-graph-prompt with --analyze-graph. "
+        "--emit-graph-prompt is an emit mode; --analyze-graph is an augment mode.",
+    ),
+    (
+        "--emit-graph-prompt", "--ingest-graph",
+        "Cannot use --emit-graph-prompt with --ingest-graph. "
+        "--emit-graph-prompt emits a prompt; --ingest-graph ingests the agent's response. "
+        "Use them in separate invocations.",
+    ),
+    (
+        "--ingest-graph", "--emit-graph",
+        "Cannot use --ingest-graph with --emit-graph. "
+        "--emit-graph replaces the report; --ingest-graph augments it.",
+    ),
+    (
+        "--ingest-graph", "--emit-critique-prompt",
+        "Cannot use --ingest-graph with --emit-critique-prompt. "
+        "--emit-critique-prompt is an emit mode; --ingest-graph is an augment mode.",
+    ),
+    (
+        "--ingest-graph", "--analyze-graph",
+        "Cannot use --ingest-graph with --analyze-graph. "
+        "--ingest-graph supersedes heuristic-only graph analysis.",
+    ),
+]
+
+
+def _die_on_mode_conflict(args: argparse.Namespace) -> None:
+    """Check for mode conflicts and exit with code 2 on any conflict.
+
+    Emit modes replace the report; augment flags add to it. Two emit modes, an
+    emit/augment pair from ``_PAIRWISE_CONFLICTS``, or an emit mode with history
+    are all rejected before any work runs.
+    """
+    emit_modes: dict[str, bool] = {
+        "--emit-critique-prompt": args.emit_critique_prompt,
+        "--emit-graph": args.emit_graph,
+        "--emit-graph-prompt": args.emit_graph_prompt,
+        "--activation-hypotheses": args.activation_hypotheses,
+    }
+    # --agent-reason is an emit mode only when not paired with ingest flags.
+    if args.agent_reason and args.ingest_critique is None and args.ingest_graph is None:
+        emit_modes["--agent-reason"] = True
+
+    augment_flags: dict[str, bool] = {
+        "--analyze-graph": args.analyze_graph,
+        "--ingest-critique": args.ingest_critique is not None,
+        "--ingest-graph": args.ingest_graph is not None,
+    }
+
+    def _flag_active(flag: str) -> bool:
+        if flag in emit_modes:
+            return emit_modes[flag]
+        if flag in augment_flags:
+            return augment_flags[flag]
+        # Defensive: an entry referenced a flag not in either dict.  The
+        # table is internal, so this should never happen at runtime.
+        raise AssertionError(f"Unknown flag in conflict table: {flag}")
+
+    active_emits = [flag for flag, on in emit_modes.items() if on]
+
+    # Two or more emit modes active -> pick-one conflict.  Reported before
+    # the pairwise table so the multi-emit case has a dedicated message.
+    if len(active_emits) > 1:
+        print(
+            f"Cannot use {' and '.join(active_emits[:2])} together. "
+            f"Pick one emit mode.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    for flag_a, flag_b, reason in _PAIRWISE_CONFLICTS:
+        if _flag_active(flag_a) and _flag_active(flag_b):
+            print(reason, file=sys.stderr)
+            sys.exit(2)
+
+    # Emit modes + --history / --show-history incompatibility.
+    for emit_flag, emit_active in emit_modes.items():
+        if emit_active and args.history:
+            print(
+                f"Cannot use --history with {emit_flag}. "
+                f"--history records validation runs; emit modes skip validation.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        if emit_active and args.show_history:
+            print(
+                f"Cannot use --show-history with {emit_flag}. "
+                f"--show-history reads the ledger; {emit_flag} emits a prompt.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
@@ -375,127 +502,7 @@ def main() -> None:
     if args.semantic and args.ingest_graph is None:
         args.analyze_graph = True
 
-    # -----------------------------------------------------------------------
-    # Mode conflict resolution
-    #
-    # Conflicts are declared as a table: each entry pairs two CLI flags with a
-    # one-line reason. _die_on_mode_conflict walks the table once, reports the
-    # first conflicting pair, and exits 2. The exit messages are identical to
-    # the prior hand-written branches; the refactor is behavior-preserving.
-    # -----------------------------------------------------------------------
-
-    _EMIT_MODES: dict[str, bool] = {
-        "--emit-critique-prompt": args.emit_critique_prompt,
-        "--emit-graph": args.emit_graph,
-        "--emit-graph-prompt": args.emit_graph_prompt,
-        "--activation-hypotheses": args.activation_hypotheses,
-    }
-    # --agent-reason is an emit mode only when not paired with ingest flags.
-    if args.agent_reason and args.ingest_critique is None and args.ingest_graph is None:
-        _EMIT_MODES["--agent-reason"] = True
-
-    _AUGMENT_FLAGS: dict[str, bool] = {
-        "--analyze-graph": args.analyze_graph,
-        "--ingest-critique": args.ingest_critique is not None,
-        "--ingest-graph": args.ingest_graph is not None,
-    }
-
-    _PAIRWISE_CONFLICTS: list[tuple[str, str, str]] = [
-        (
-            "--emit-critique-prompt", "--ingest-critique",
-            "Cannot use --emit-critique-prompt and --ingest-critique together. "
-            "Pick one: emit a prompt for your agent to execute, or ingest the agent's response.",
-        ),
-        (
-            "--emit-graph", "--analyze-graph",
-            "Cannot use --emit-graph with --analyze-graph. "
-            "--emit-graph is an emit mode (replaces the report). "
-            "--analyze-graph is an augment mode (adds to the report).",
-        ),
-        (
-            "--emit-graph", "--ingest-critique",
-            "Cannot use --emit-graph with --ingest-critique. "
-            "--emit-graph replaces the report; --ingest-critique augments it.",
-        ),
-        (
-            "--emit-graph-prompt", "--ingest-critique",
-            "Cannot use --emit-graph-prompt with --ingest-critique. "
-            "--emit-graph-prompt is an emit mode; --ingest-critique is an augment mode.",
-        ),
-        (
-            "--emit-graph-prompt", "--analyze-graph",
-            "Cannot use --emit-graph-prompt with --analyze-graph. "
-            "--emit-graph-prompt is an emit mode; --analyze-graph is an augment mode.",
-        ),
-        (
-            "--emit-graph-prompt", "--ingest-graph",
-            "Cannot use --emit-graph-prompt with --ingest-graph. "
-            "--emit-graph-prompt emits a prompt; --ingest-graph ingests the agent's response. "
-            "Use them in separate invocations.",
-        ),
-        (
-            "--ingest-graph", "--emit-graph",
-            "Cannot use --ingest-graph with --emit-graph. "
-            "--emit-graph replaces the report; --ingest-graph augments it.",
-        ),
-        (
-            "--ingest-graph", "--emit-critique-prompt",
-            "Cannot use --ingest-graph with --emit-critique-prompt. "
-            "--emit-critique-prompt is an emit mode; --ingest-graph is an augment mode.",
-        ),
-        (
-            "--ingest-graph", "--analyze-graph",
-            "Cannot use --ingest-graph with --analyze-graph. "
-            "--ingest-graph supersedes heuristic-only graph analysis.",
-        ),
-    ]
-
-    def _flag_active(flag: str) -> bool:
-        if flag in _EMIT_MODES:
-            return _EMIT_MODES[flag]
-        if flag in _AUGMENT_FLAGS:
-            return _AUGMENT_FLAGS[flag]
-        # Defensive: an entry referenced a flag not in either dict.  The
-        # table is internal, so this should never happen at runtime.
-        raise AssertionError(f"Unknown flag in conflict table: {flag}")
-
-    def _die_on_mode_conflict() -> None:
-        """Check for mode conflicts and exit with code 2 on any conflict."""
-        active_emits = [flag for flag, on in _EMIT_MODES.items() if on]
-
-        # Two or more emit modes active -> pick-one conflict.  Reported before
-        # the pairwise table so the multi-emit case has a dedicated message.
-        if len(active_emits) > 1:
-            print(
-                f"Cannot use {' and '.join(active_emits[:2])} together. "
-                f"Pick one emit mode.",
-                file=sys.stderr,
-            )
-            sys.exit(2)
-
-        for flag_a, flag_b, reason in _PAIRWISE_CONFLICTS:
-            if _flag_active(flag_a) and _flag_active(flag_b):
-                print(reason, file=sys.stderr)
-                sys.exit(2)
-
-        # Emit modes + --history / --show-history incompatibility.
-        for emit_flag, emit_active in _EMIT_MODES.items():
-            if emit_active and args.history:
-                print(
-                    f"Cannot use --history with {emit_flag}. "
-                    f"--history records validation runs; emit modes skip validation.",
-                    file=sys.stderr,
-                )
-                sys.exit(2)
-            if emit_active and args.show_history:
-                print(
-                    f"Cannot use --show-history with {emit_flag}. "
-                    f"--show-history reads the ledger; {emit_flag} emits a prompt.",
-                    file=sys.stderr,
-                )
-                sys.exit(2)
-
-    _die_on_mode_conflict()
+    _die_on_mode_conflict(args)
 
     if args.show_history and args.history:
         print(
