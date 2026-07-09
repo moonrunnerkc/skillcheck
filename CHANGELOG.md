@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- `action.yml` no longer interpolates user-controlled inputs into the shell script. Every input is passed through an `env:` mapping and referenced as `"$INPUT_*"`, so a crafted input value cannot break out of the `run:` block and execute arbitrary commands. Behavior is otherwise identical.
 - Ingested critique and graph responses are treated as untrusted input: strings taken from them (missing-context items, contradiction locations, findings, and graph node names) are stripped of terminal control characters before they reach the human-readable report. A response carrying raw ANSI escapes can no longer forge terminal output (a fake `PASS` line, a cleared screen). Control characters are rendered in a visible backslash-escaped form rather than dropped. The JSON output path is unchanged (`json.dumps` already escapes control characters).
 - Ingested responses are size-bounded. A response file or stdin payload over 5 MiB (`MAX_INGEST_BYTES`) is rejected with exit 2 before it is read into memory, and any single response list (findings, missing_context, contradictions, capabilities, inputs, outputs, edges) over 10,000 items (`MAX_INGEST_LIST_ITEMS`) is rejected with a clear error. Both messages name the actual size/count and the cap.
 

