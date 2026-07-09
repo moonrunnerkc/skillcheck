@@ -14,7 +14,7 @@
 
 Static analyzer for `SKILL.md` files. Validates frontmatter, body sizing, file references, and cross-agent compatibility against the [agentskills.io specification](https://agentskills.io/specification). No network calls. No LLM API calls. No file mutations.
 
-829 tests cover all rule modules.
+832 tests cover all rule modules.
 
 ## Install
 
@@ -62,7 +62,7 @@ Diagnostics appear as inline PR annotations. Inputs documented in [`action.yml`]
 ```yaml
 repos:
   - repo: https://github.com/moonrunnerkc/skillcheck
-    rev: v1.4.0
+    rev: v1.4.1
     hooks:
       - id: skillcheck
 ```

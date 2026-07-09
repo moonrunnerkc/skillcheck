@@ -725,3 +725,38 @@ escapes show `../..` traversal). New `_relative_to_skill_dir` helper.
 Test: assertion added to `test_broken_ref_detected` (`context == "resolved to: does-not-exist.txt"`, no host path).
 
 VERIFY: `python3 -m pytest tests/ -q` (full-suite gate below); each targeted module passes; ruff/mypy clean.
+
+---
+
+## Version bump and final gate
+
+Bumped to `1.4.1` in `pyproject.toml`, `src/skillcheck/__init__.py`, `skills/skillcheck/SKILL.md` (self-host
+frontmatter), and the README pre-commit `rev:` (guarded by `test_version_coherence` and the Makefile drift grep).
+CHANGELOG restructured: Phases 1-3 (plus the pre-existing infra entries) under `## [1.4.1] - 2026-07-09`;
+Phase 4 under `## [Unreleased]`. README test count synced to 832.
+
+```
+$ python3 -m pytest tests/ -q
+Required test coverage of 68% reached. Total coverage: 72.18%
+832 passed in 54.95s          # 0 failures, 0 skips on Linux
+
+$ ruff check src tests scripts
+All checks passed!
+
+$ mypy src/skillcheck
+Success: no issues found in 48 source files
+
+$ make verify-release
+... ruff/mypy/pytest pass ...
+OK: no 0.2.0 references in release files
+OK: no @v0 in README
+OK: README pre-commit rev matches v1.4.1
+Successfully built skillcheck-1.4.1.tar.gz and skillcheck-1.4.1-py3-none-any.whl   # build check now actually runs
+
+$ grep -rn 'uses:' .github/workflows/ | grep -vE '@[0-9a-f]{40}'
+(no output)  ->  every third-party action SHA-pinned
+```
+
+All phases complete. Every fix landed with before/after evidence, a test, a CHANGELOG entry, and a conventional
+commit. The one finding that did not reproduce (3.3a, the cli.py choice re-validation) is documented above with
+the command proving it is reachable, and was left in place rather than deleted.
