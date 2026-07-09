@@ -592,11 +592,14 @@ FIX (files touched):
 - `.github/workflows/ci.yml`: `ruff check src tests scripts`; the mypy step now runs bare `mypy` (uses the files list).
 - `Makefile`: new `lint` target and `verify-release` now run `ruff check src tests scripts` and `mypy`.
 
-Note: `scripts/skillcheck_case_study_report.py` is an untracked, pre-existing session artifact (references
-`skillcheck 1.1.0`, clones a remote repo), outside this remediation's commit scope. Because the final-gate
-command is directory-scoped (`ruff check src tests scripts`), its ruff findings (import order, `capture_output`,
-`collections.abc.Iterable`) were fixed in place so the directory gate is green, but the file is left untracked
-and is not in the mypy `files` list.
+Note: `scripts/skillcheck_case_study_report.py` was a pre-existing untracked session artifact. Because the
+directory-scoped ruff gate (`ruff check src tests scripts`) silently depended on it staying clean, it is now
+committed and fully gated rather than left as untracked drift: its ruff findings (import order, `capture_output`,
+`collections.abc.Iterable`) and mypy findings (bare `dict` type args, a missing return annotation, two
+`var-annotated` Counters, and a `count` loop-variable name clash that pinned it to `int`) were fixed with
+type annotations and a rename only (no runtime behavior change), and it was added to the mypy `files` list
+alongside `regen_self_host_fixtures.py` and `summarize_batch.py`. Its stale `EXPECTED_VERSION` and network-clone
+logic were left untouched, as those are the maintainer's to decide.
 
 AFTER:
 ```

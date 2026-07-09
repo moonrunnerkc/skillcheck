@@ -71,6 +71,7 @@ python_version = "3.10"
 files = [
     "src/skillcheck",
     "scripts/regen_self_host_fixtures.py",
+    "scripts/skillcheck_case_study_report.py",
     "scripts/summarize_batch.py",
 ]
 
