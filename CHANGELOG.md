@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The published JSON Schemas (`critique-v1.json`, `graph-v1.json`) now set `additionalProperties: false` on every object, matching the parsers, which already reject unknown fields. An agent that validates its output against the schema no longer produces responses that pass the schema but fail ingest.
 - Release automation moved to a dedicated tag-triggered `release.yml`. It builds the wheel and sdist, verifies the built version matches the tag, attests build provenance, and publishes to PyPI through trusted publishing. The dead attest step in `ci.yml` (gated on tags but on a workflow that never runs on tags) was removed, so the README's provenance claim is now backed by a workflow that actually runs. `CONTRIBUTING.md` documents the one-time PyPI trusted-publishing setup.
+- Every third-party GitHub Action is now pinned to a full commit SHA (with a trailing version comment) across all workflows and `action.yml`, replacing floating major-version tags. This closes the supply-chain window where a compromised or force-moved tag could run with the workflows' write permissions.
 
 ## [1.4.0] - 2026-05-27
 

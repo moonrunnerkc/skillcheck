@@ -365,3 +365,23 @@ VERIFY:
 $ /tmp/actionlint .github/workflows/*.yml
 actionlint EXIT=0
 ```
+
+### 2.6 Floating action tags with write permissions
+
+Finding: `release-notes.yml` used `peter-evans/create-pull-request@v6` (with `contents: write`,
+`pull-requests: write`); `actions/checkout` and `actions/setup-python` floated on major tags across workflows.
+
+FIX (files touched): pinned every third-party action to a full commit SHA (resolved via `git ls-remote`) with a
+trailing version comment, across `ci.yml`, `release-notes.yml`, `release.yml`, and `action.yml`:
+- `actions/checkout` -> `34e114876b0b11c390a56381ad16ebd13914f8d5` (v4.3.1)
+- `actions/setup-python` -> `a26af69be951a213d495a4c3e4e4022e16d87065` (v5.6.0)
+- `peter-evans/create-pull-request` -> `c5a7806660adbe173f04e3e038b0ccdcd758773c` (v6.1.0)
+- `actions/attest-build-provenance` -> `e8998f949152b193b063cb0ec769d69d929409be` (v2.4.0)
+- `pypa/gh-action-pypi-publish` -> `7f25271a4aa483500f742f9492b2ab5648d61011` (v1.12.4)
+
+VERIFY:
+```
+$ grep -rnE 'uses:\s*\S+@' .github/workflows/ | grep -vE '@[0-9a-f]{40}'
+(no output)  ->  OK: all SHA-pinned
+$ /tmp/actionlint .github/workflows/*.yml   ->  actionlint OK
+```
