@@ -9,8 +9,6 @@ control characters.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from skillcheck.agents._ingest import sanitize_ingested_text
 from skillcheck.core.graph import Capability, CapabilityGraph
 from skillcheck.core.graph_render import render_graph_json, render_graph_text
