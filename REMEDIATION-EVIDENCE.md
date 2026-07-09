@@ -204,3 +204,22 @@ read_ingest_raw non-UTF-8 response -> exit=2 : Error: cannot read .../response.j
 No traceback in any mode.
 
 Tests added: `test_modes_exit_clean_on_non_utf8_file` (parametrized over 7 modes), `test_ingest_critique_non_utf8_response_exits_two`.
+
+### 1.7 Codex provenance labeled with the Claude date constant
+
+Finding: `compat.py:117` appended `f"Codex: {_CLAUDE_DATA_DATE}"`. The label was wired to the Claude constant,
+masked because all three provenance dates happen to be equal.
+
+BEFORE / AFTER (monkeypatching `_CLAUDE_DATA_DATE` to a sentinel exposes the wiring):
+```
+=== BEFORE (buggy) ===
+Behavior of field 'allowed-tools' in codex, cursor is unverified (as of Codex: CLAUDE-SENTINEL; Cursor: 2026-04-20).
+=== AFTER (fixed) ===
+Behavior of field 'allowed-tools' in codex, cursor is unverified (as of Codex: 2026-04-20; Cursor: 2026-04-20).
+```
+
+FIX (files touched):
+- `src/skillcheck/rules/compat.py`: add `_CODEX_DATA_DATE`, use it at the Codex provenance label, mention it in the module docstring.
+- `tests/test_compat_data_freshness.py`: `test_codex_data_is_fresh` (independent freshness assertion) and `test_codex_provenance_uses_codex_date_not_claude_date` (distinct sentinels prove the label tracks the Codex constant, not the Claude one).
+
+Tests added: `test_codex_data_is_fresh`, `test_codex_provenance_uses_codex_date_not_claude_date`.
