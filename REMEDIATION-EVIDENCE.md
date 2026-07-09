@@ -605,3 +605,31 @@ ruff check src tests scripts   ->  All checks passed!
 mypy                           ->  Success: no issues found in 50 source files
 $ mypy src/skillcheck          ->  Success: no issues found in 48 source files
 ```
+
+---
+
+## Phase 4: polish
+
+### 4.1 GHA annotations over-escape message text
+
+Finding: `_gha_escape` applied property-value escaping (`:` -> `%3A`, `,` -> `%2C`) to the message text, so a
+diagnostic like `got 82): 'name'` rendered `%3A`. (The title colon was also under-escaped.)
+
+BEFORE:
+```
+::error ...title=skillcheck: frontmatter.name.max-length::Name exceeds 64 characters (got 82)%3A 'this-is-a-very-long-...'
+```
+
+FIX (files touched):
+- `src/skillcheck/formatters.py`: split `_escape_data` (message: `%`, CR, LF only) from `_escape_property`
+  (file/title: additionally `:` and `,`), per the Actions toolkit. Message uses `_escape_data`; file and title
+  use `_escape_property`.
+- `tests/test_format_github.py`: `TestGhaEscape` split into `TestEscapeData`/`TestEscapeProperty`; title
+  assertions now expect `skillcheck%3A`; the special-char message expectation is `100%25%0D%0A:,`.
+
+AFTER:
+```
+::error file=... ,title=skillcheck%3A frontmatter.name.max-length::Name exceeds 64 characters (got 82): 'this-is-a-very-long-...'
+```
+Message colon is literal; title colon is properly `%3A`. Tests changed (justified: renamed helper + corrected
+escaping): the escape-rule tests and title/message expectations.
