@@ -9,6 +9,7 @@ string is parsed. All three public functions are pure given their inputs.
 import re
 
 from skillcheck.agents import get_agent_prompt
+from skillcheck.agents._ingest import sanitize_ingested_text
 from skillcheck.agents.parser import parse_critique_response
 from skillcheck.agents.schema import SemanticCritique
 from skillcheck.parser import ParsedSkill
@@ -138,7 +139,7 @@ def ingest_critique_response(skill: ParsedSkill, raw: str) -> list[Diagnostic]:
         diagnostics.append(Diagnostic(
             rule="semantic.context.missing",
             severity=Severity.WARNING,
-            message=f"Missing context: {item}",
+            message=f"Missing context: {sanitize_ingested_text(item)}",
         ))
 
     for contradiction in critique.contradictions:
@@ -146,8 +147,9 @@ def ingest_critique_response(skill: ParsedSkill, raw: str) -> list[Diagnostic]:
             rule="semantic.contradiction.detected",
             severity=Severity.ERROR,
             message=(
-                f"Contradiction between '{contradiction.location_a}' and "
-                f"'{contradiction.location_b}': {contradiction.nature}"
+                f"Contradiction between '{sanitize_ingested_text(contradiction.location_a)}' and "
+                f"'{sanitize_ingested_text(contradiction.location_b)}': "
+                f"{sanitize_ingested_text(contradiction.nature)}"
             ),
         ))
 
@@ -156,7 +158,11 @@ def ingest_critique_response(skill: ParsedSkill, raw: str) -> list[Diagnostic]:
         diagnostics.append(Diagnostic(
             rule=f"semantic.finding.{finding.severity.value}",
             severity=finding.severity,
-            message=f"[{finding.section}] {finding.issue}: {finding.suggestion}",
+            message=(
+                f"[{sanitize_ingested_text(finding.section)}] "
+                f"{sanitize_ingested_text(finding.issue)}: "
+                f"{sanitize_ingested_text(finding.suggestion)}"
+            ),
             line=line,
         ))
 
@@ -182,22 +188,3 @@ def merge_diagnostics(
     """
     merged = list(result.diagnostics) + additional
     return ValidationResult(path=result.path, diagnostics=merged)
-
-
-def merge_critique_diagnostics(
-    result: ValidationResult,
-    critique_diagnostics: list[Diagnostic],
-) -> ValidationResult:
-    """Return a new ValidationResult with symbolic and semantic diagnostics merged.
-
-    Thin wrapper around ``merge_diagnostics`` kept for backward compatibility
-    with internal Phase 1B callers. Behavior is identical.
-
-    Args:
-        result: Existing symbolic validation result.
-        critique_diagnostics: Diagnostics from ``ingest_critique_response``.
-
-    Returns:
-        New ValidationResult combining both diagnostic lists.
-    """
-    return merge_diagnostics(result, critique_diagnostics)

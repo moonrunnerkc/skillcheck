@@ -30,6 +30,20 @@ def _load(name: str) -> dict:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
+def _object_subschemas(node: object) -> list[dict]:
+    """Return every subschema in *node* that declares ``"type": "object"``."""
+    found: list[dict] = []
+    if isinstance(node, dict):
+        if node.get("type") == "object":
+            found.append(node)
+        for value in node.values():
+            found.extend(_object_subschemas(value))
+    elif isinstance(node, list):
+        for item in node:
+            found.extend(_object_subschemas(item))
+    return found
+
+
 def test_schemas_are_valid_json() -> None:
     """Both schemas parse as JSON and declare the 2020-12 dialect."""
     for name in SCHEMAS:
@@ -97,6 +111,30 @@ def test_graph_schema_kind_enums_match_parser() -> None:
         f"edges.kind enum drifted: schema={sorted(edges_enum)} "
         f"parser={sorted(_VALID_EDGE_KINDS)}"
     )
+
+
+def test_critique_schema_forbids_additional_properties() -> None:
+    """Every object in critique-v1.json forbids extra properties, matching the
+    parser, which rejects unexpected fields at every level."""
+    objects = _object_subschemas(_load("critique-v1"))
+    assert objects, "expected at least one object subschema"
+    for obj in objects:
+        assert obj.get("additionalProperties") is False, (
+            f"object subschema missing 'additionalProperties: false': "
+            f"{sorted(obj.get('properties', {}))}"
+        )
+
+
+def test_graph_schema_forbids_additional_properties() -> None:
+    """Every object in graph-v1.json forbids extra properties, matching the
+    parser's unknown-field rejection at each node level."""
+    objects = _object_subschemas(_load("graph-v1"))
+    assert objects, "expected at least one object subschema"
+    for obj in objects:
+        assert obj.get("additionalProperties") is False, (
+            f"object subschema missing 'additionalProperties: false': "
+            f"{sorted(obj.get('properties', {}))}"
+        )
 
 
 def test_schemas_validate_known_good_fixtures() -> None:

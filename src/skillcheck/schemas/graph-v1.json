@@ -4,6 +4,7 @@
   "title": "skillcheck agent capability-graph response",
   "description": "JSON shape that skillcheck's --ingest-graph mode expects. Two additional constraints not expressible in JSON Schema: every id must be unique across capabilities, inputs, and outputs combined; for kind='requires' the target_id must reference an input id, and for kind='produces' an output id. skillcheck rejects responses that violate either constraint.",
   "type": "object",
+  "additionalProperties": false,
   "required": ["capabilities", "inputs", "outputs", "edges"],
   "properties": {
     "capabilities": {
@@ -11,6 +12,7 @@
       "description": "Capabilities the skill provides.",
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["id", "name", "description", "line"],
         "properties": {
           "id": {"type": "string", "description": "Unique across all node collections in this response."},
@@ -27,6 +29,7 @@
       "type": "array",
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["id", "name", "kind", "line"],
         "properties": {
           "id": {"type": "string"},
@@ -43,6 +46,7 @@
       "type": "array",
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["id", "name", "kind", "line"],
         "properties": {
           "id": {"type": "string"},
@@ -59,6 +63,7 @@
       "type": "array",
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["source_id", "target_id", "kind"],
         "properties": {
           "source_id": {"type": "string", "description": "Must reference a capability id."},

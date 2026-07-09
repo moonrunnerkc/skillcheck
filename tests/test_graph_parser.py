@@ -270,3 +270,14 @@ def test_line_equal_to_body_lines_is_valid() -> None:
     raw = json.dumps({"capabilities": [cap], "inputs": [], "outputs": [], "edges": []})
     graph = parse_graph_response(raw, skill)
     assert graph.capabilities[0].line == skill.body_lines
+
+
+def test_capabilities_over_cap_rejected() -> None:
+    from skillcheck.agents._ingest import MAX_INGEST_LIST_ITEMS
+    caps = [
+        {"id": str(i), "name": "n", "description": "", "line": None}
+        for i in range(MAX_INGEST_LIST_ITEMS + 1)
+    ]
+    raw = json.dumps({"capabilities": caps, "inputs": [], "outputs": [], "edges": []})
+    with pytest.raises(GraphSchemaError, match="capabilities.*over the .*-item cap"):
+        parse_graph_response(raw, _skill())

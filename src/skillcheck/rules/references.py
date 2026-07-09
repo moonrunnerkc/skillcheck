@@ -7,6 +7,7 @@ per the agentskills.io spec recommendation.
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -120,7 +121,7 @@ def check_broken_references(skill: ParsedSkill) -> list[Diagnostic]:
                     f"Reference '{ref}' resolves outside the skill directory. "
                     f"File references must stay within the skill tree."
                 ),
-                context=f"resolved to: {target}",
+                context=f"resolved to: {_relative_to_skill_dir(target, skill_dir)}",
             ))
             continue
 
@@ -129,10 +130,23 @@ def check_broken_references(skill: ParsedSkill) -> list[Diagnostic]:
                 rule="references.broken-link",
                 severity=Severity.ERROR,
                 message=f"Referenced file does not exist: '{ref}'.",
-                context=f"resolved to: {target}",
+                context=f"resolved to: {_relative_to_skill_dir(target, skill_dir)}",
             ))
 
     return diagnostics
+
+
+def _relative_to_skill_dir(target: Path, skill_dir: Path) -> str:
+    """Render *target* relative to *skill_dir* so diagnostics never leak the host path.
+
+    A contained reference shows as ``scripts/foo.py``; an escaping one shows the
+    traversal (``../../etc/passwd``). Either way the skill's absolute location on
+    the build machine stays out of CI logs.
+    """
+    try:
+        return target.relative_to(skill_dir).as_posix()
+    except ValueError:
+        return Path(os.path.relpath(target, skill_dir)).as_posix()
 
 
 def check_reference_depth(skill: ParsedSkill) -> list[Diagnostic]:

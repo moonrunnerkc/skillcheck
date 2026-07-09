@@ -7,7 +7,6 @@ from . import (
     graph_analyzers,
     graph_render,
     history,
-    reporter,
     semantic,
     symbolic,
 )
@@ -48,7 +47,6 @@ from .history import (
 )
 from .semantic import (
     ingest_critique_response,
-    merge_critique_diagnostics,
     merge_diagnostics,
     render_critique_prompt,
 )
@@ -64,7 +62,6 @@ __all__ = [
     "render_activation_json",
     "render_critique_prompt",
     "ingest_critique_response",
-    "merge_critique_diagnostics",
     "merge_diagnostics",
     "extract_backtick_refs",
     "extract_graph_heuristic",
@@ -101,5 +98,4 @@ __all__ = [
     "graph_analyzers",
     "graph_render",
     "history",
-    "reporter",
 ]

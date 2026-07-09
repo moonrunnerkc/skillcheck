@@ -9,10 +9,32 @@ from __future__ import annotations
 
 import hashlib
 import re
-from dataclasses import dataclass
 from typing import Literal
 
+from skillcheck.core.graph_model import (
+    Capability,
+    CapabilityGraph,
+    Edge,
+    Input,
+    Output,
+)
 from skillcheck.parser import ParsedSkill
+
+# Re-exported so ``from skillcheck.core.graph import CapabilityGraph`` (and the
+# other model names) keeps working now that the model lives in graph_model.py.
+__all__ = [
+    "Capability",
+    "CapabilityGraph",
+    "Edge",
+    "Input",
+    "Output",
+    "IMPERATIVE_VERBS",
+    "INPUT_SECTION_ALIASES",
+    "OUTPUT_SECTION_ALIASES",
+    "extract_backtick_refs",
+    "extract_graph_agent",
+    "extract_graph_heuristic",
+]
 
 # ---------------------------------------------------------------------------
 # Classification constants (module-level, frozen tuples, sorted alphabetically)
@@ -89,109 +111,6 @@ OUTPUT_SECTION_ALIASES: tuple[str, ...] = (
     "results",
     "returns",
 )
-
-# ---------------------------------------------------------------------------
-# Data model
-# ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class Capability:
-    """A declared capability: something the skill can do."""
-
-    id: str
-    name: str
-    description: str
-    line: int | None
-
-
-@dataclass(frozen=True)
-class Input:
-    """An input consumed by one or more capabilities."""
-
-    id: str
-    name: str
-    kind: Literal["file", "tool", "env", "context", "prerequisite"]
-    line: int | None
-
-
-@dataclass(frozen=True)
-class Output:
-    """An output produced by one or more capabilities."""
-
-    id: str
-    name: str
-    kind: Literal["file", "artifact", "side_effect", "return"]
-    line: int | None
-
-
-@dataclass(frozen=True)
-class Edge:
-    """Directed relationship between a capability and an input or output."""
-
-    source_id: str
-    target_id: str
-    kind: Literal["requires", "produces"]
-
-
-@dataclass(frozen=True)
-class CapabilityGraph:
-    """Complete capability graph for a single ParsedSkill.
-
-    All fields are tuples to preserve hashability of the frozen dataclass.
-    Constructed graphs are validated in __post_init__.
-    """
-
-    capabilities: tuple[Capability, ...]
-    inputs: tuple[Input, ...]
-    outputs: tuple[Output, ...]
-    edges: tuple[Edge, ...]
-    source: Literal["heuristic", "agent"]
-
-    def __post_init__(self) -> None:
-        capability_ids = {c.id for c in self.capabilities}
-        input_ids = {i.id for i in self.inputs}
-        output_ids = {o.id for o in self.outputs}
-
-        # Duplicate ID check across all node collections.
-        all_ids: list[str] = (
-            [c.id for c in self.capabilities]
-            + [i.id for i in self.inputs]
-            + [o.id for o in self.outputs]
-        )
-        seen: set[str] = set()
-        for nid in all_ids:
-            if nid in seen:
-                raise ValueError(
-                    f"Duplicate node ID '{nid}' appears in multiple "
-                    f"capability graph collections."
-                )
-            seen.add(nid)
-
-        # Edge referential integrity.
-        for edge in self.edges:
-            if edge.source_id not in capability_ids:
-                raise ValueError(
-                    f"Edge source_id '{edge.source_id}' does not reference a known capability "
-                    f"(edge: {edge.source_id!r} -[{edge.kind}]-> {edge.target_id!r})."
-                )
-            if edge.kind == "requires":
-                if edge.target_id not in input_ids:
-                    misrouted = "an output" if edge.target_id in output_ids else "unknown"
-                    raise ValueError(
-                        f"Edge kind='requires' has target_id '{edge.target_id}' which is not an "
-                        f"input ID ({misrouted}). "
-                        f"Edge: {edge.source_id!r} -[requires]-> {edge.target_id!r}."
-                    )
-            elif edge.kind == "produces":
-                if edge.target_id not in output_ids:
-                    misrouted = "an input" if edge.target_id in input_ids else "unknown"
-                    raise ValueError(
-                        f"Edge kind='produces' has target_id '{edge.target_id}' which is not an "
-                        f"output ID ({misrouted}). "
-                        f"Edge: {edge.source_id!r} -[produces]-> {edge.target_id!r}."
-                    )
-
 
 # ---------------------------------------------------------------------------
 # ID generation: content-derived, deterministic, stable across runs
@@ -408,13 +327,16 @@ def extract_graph_heuristic(skill: ParsedSkill) -> CapabilityGraph:
     outputs: list[Output] = []
     capabilities: list[Capability] = []
 
-    # Step 1: frontmatter-derived tool inputs.
+    # Step 1: frontmatter-derived tool inputs. Tool IDs are content-hashed on
+    # the name alone, so a repeated tool (allowed-tools: [Bash, Bash]) would
+    # mint two nodes with the same ID and trip the duplicate-ID check. Dedupe
+    # by name first, preserving order.
     allowed_tools = skill.frontmatter.get("allowed-tools", [])
     if isinstance(allowed_tools, list):
-        for tool_name in allowed_tools:
-            if isinstance(tool_name, str) and tool_name:
-                iid = _make_id("tool", tool_name, None)
-                inputs.append(Input(id=iid, name=tool_name, kind="tool", line=None))
+        tool_names = [t for t in allowed_tools if isinstance(t, str) and t]
+        for tool_name in dict.fromkeys(tool_names):
+            iid = _make_id("tool", tool_name, None)
+            inputs.append(Input(id=iid, name=tool_name, kind="tool", line=None))
 
     # name -> id maps; edge pass reads these after the section loop completes.
     input_name_map: dict[str, str] = {inp.name: inp.id for inp in inputs}

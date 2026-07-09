@@ -7,11 +7,11 @@ work in one agent but are ignored or cause breakage in others.
 This module flags fields with limited cross-agent support so authors
 can make informed decisions about portability.
 
-Provenance dates (``_CLAUDE_DATA_DATE``, ``_VSCODE_DATA_DATE``,
-``_CURSOR_DATA_DATE``) record when the compatibility data was last
-verified. The ``test_compat_data_freshness`` test asserts that these
-dates are within 365 days of today; when the test fails, update the
-constants and re-verify the agent behavior they encode.
+Provenance dates (``_CLAUDE_DATA_DATE``, ``_CODEX_DATA_DATE``,
+``_VSCODE_DATA_DATE``, ``_CURSOR_DATA_DATE``) record when the
+compatibility data was last verified. The ``test_compat_data_freshness``
+test asserts that these dates are within 365 days of today; when the test
+fails, update the constants and re-verify the agent behavior they encode.
 """
 
 from __future__ import annotations
@@ -29,6 +29,7 @@ from skillcheck.template_detection import is_template
 # ---------------------------------------------------------------------------
 
 _CLAUDE_DATA_DATE = "2026-04-20"
+_CODEX_DATA_DATE = "2026-04-20"
 _VSCODE_DATA_DATE = "2026-04-20"
 _CURSOR_DATA_DATE = "2026-04-20"
 
@@ -114,7 +115,7 @@ def check_unverified_fields(skill: ParsedSkill) -> list[Diagnostic]:
             # Provenance: attach dates for agents with "unknown" status
             date_parts = []
             if "codex" in [a.lower() for a in unknown_agents]:
-                date_parts.append(f"Codex: {_CLAUDE_DATA_DATE}")
+                date_parts.append(f"Codex: {_CODEX_DATA_DATE}")
             if "cursor" in [a.lower() for a in unknown_agents]:
                 date_parts.append(f"Cursor: {_CURSOR_DATA_DATE}")
             date_suffix = ""

@@ -16,6 +16,7 @@ from __future__ import annotations
 import dataclasses
 import json
 
+from skillcheck.agents._ingest import sanitize_ingested_text
 from skillcheck.core.graph import CapabilityGraph
 
 
@@ -31,10 +32,12 @@ def render_graph_text(graph: CapabilityGraph) -> str:
     Returns:
         Multi-line string suitable for terminal output.
     """
-    # Build a fast lookup: id -> name for capabilities and IO nodes.
-    cap_by_id = {c.id: c.name for c in graph.capabilities}
-    inp_by_id = {i.id: i.name for i in graph.inputs}
-    out_by_id = {o.id: o.name for o in graph.outputs}
+    # Build a fast lookup: id -> name for capabilities and IO nodes. Node names
+    # can come from an ingested agent graph, so escape control characters before
+    # they reach the terminal (the JSON render below stays raw; json.dumps is safe).
+    cap_by_id = {c.id: sanitize_ingested_text(c.name) for c in graph.capabilities}
+    inp_by_id = {i.id: sanitize_ingested_text(i.name) for i in graph.inputs}
+    out_by_id = {o.id: sanitize_ingested_text(o.name) for o in graph.outputs}
 
     lines: list[str] = []
     lines.append(f"source: {graph.source}")
@@ -43,30 +46,30 @@ def render_graph_text(graph: CapabilityGraph) -> str:
     lines.append(f"Capabilities ({len(graph.capabilities)}):")
     for cap in graph.capabilities:
         loc = f" [line {cap.line}]" if cap.line is not None else ""
-        lines.append(f"  {cap.name}{loc}")
+        lines.append(f"  {cap_by_id[cap.id]}{loc}")
         if cap.description:
-            lines.append(f"    {cap.description}")
+            lines.append(f"    {sanitize_ingested_text(cap.description)}")
 
     lines.append("")
     lines.append(f"Inputs ({len(graph.inputs)}):")
     for inp in graph.inputs:
         loc = f", line {inp.line}" if inp.line is not None else ""
-        lines.append(f"  {inp.name} [{inp.kind}{loc}]")
+        lines.append(f"  {inp_by_id[inp.id]} [{inp.kind}{loc}]")
 
     lines.append("")
     lines.append(f"Outputs ({len(graph.outputs)}):")
     for out in graph.outputs:
         loc = f", line {out.line}" if out.line is not None else ""
-        lines.append(f"  {out.name} [{out.kind}{loc}]")
+        lines.append(f"  {out_by_id[out.id]} [{out.kind}{loc}]")
 
     lines.append("")
     lines.append(f"Edges ({len(graph.edges)}):")
     for edge in graph.edges:
-        src_name = cap_by_id.get(edge.source_id, edge.source_id)
+        src_name = cap_by_id.get(edge.source_id, sanitize_ingested_text(edge.source_id))
         if edge.kind == "requires":
-            tgt_name = inp_by_id.get(edge.target_id, edge.target_id)
+            tgt_name = inp_by_id.get(edge.target_id, sanitize_ingested_text(edge.target_id))
         else:
-            tgt_name = out_by_id.get(edge.target_id, edge.target_id)
+            tgt_name = out_by_id.get(edge.target_id, sanitize_ingested_text(edge.target_id))
         lines.append(f"  {src_name} {edge.kind} {tgt_name}")
 
     return "\n".join(lines)

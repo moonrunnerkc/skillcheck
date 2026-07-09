@@ -10,9 +10,11 @@ graph parser; see agents/_response_text.py.
 
 from __future__ import annotations
 
-import json
-
-from skillcheck.agents._response_text import strip_response_noise
+from skillcheck.agents._ingest import (
+    decode_json_or_raise,
+    enforce_list_cap,
+    require_field,
+)
 from skillcheck.agents.schema import (
     Contradiction,
     CritiqueFinding,
@@ -74,40 +76,12 @@ class CritiqueValueError(CritiqueParseError):
 
 
 def _require_field(obj: dict[str, object], key: str, expected_type: type | tuple[type, ...], context: str = "") -> object:
-    """Extract a required field with type checking.
+    """Extract a required field, raising CritiqueSchemaError on missing/wrong type.
 
-    Args:
-        obj: Mapping to extract from.
-        key: Required field name.
-        expected_type: Acceptable Python type(s).
-        context: Optional prefix for error messages, e.g. "findings[0]".
-
-    Returns:
-        The field value.
-
-    Raises:
-        CritiqueSchemaError: If field is missing, has wrong type, or (for int)
-            is actually a bool (which is an int subclass but not a score).
+    Thin binding of the shared ``require_field`` to this parser's error class;
+    see ``agents/_ingest.py`` for the checking logic.
     """
-    full_key = f"{context}.{key}" if context else key
-    if key not in obj:
-        raise CritiqueSchemaError(f"Missing required field '{full_key}'")
-    value = obj[key]
-    # bool is a subclass of int; reject it for score fields
-    if expected_type is int and isinstance(value, bool):
-        raise CritiqueSchemaError(
-            f"Field '{full_key}' must be int, got bool: {value!r}"
-        )
-    if not isinstance(value, expected_type):
-        type_name = (
-            expected_type.__name__
-            if isinstance(expected_type, type)
-            else "/".join(t.__name__ for t in expected_type)
-        )
-        raise CritiqueSchemaError(
-            f"Field '{full_key}' must be {type_name}, got {type(value).__name__}: {value!r}"
-        )
-    return value
+    return require_field(obj, key, expected_type, error_cls=CritiqueSchemaError, context=context)
 
 
 def _parse_finding(raw: object, index: int) -> CritiqueFinding:
@@ -203,16 +177,7 @@ def parse_critique_response(raw: str) -> SemanticCritique:
         CritiqueValueError: Schema matches but a value is out of the allowed
             range. Message includes the offending value.
     """
-    cleaned = strip_response_noise(raw)
-
-    try:
-        payload = json.loads(cleaned)
-    except json.JSONDecodeError as err:
-        preview = raw[:200]
-        raise CritiqueJSONError(
-            f"Agent response is not valid JSON (at position {err.pos}). "
-            f"First 200 chars received: {preview!r}"
-        ) from err
+    payload = decode_json_or_raise(raw, CritiqueJSONError)
 
     if not isinstance(payload, dict):
         raise CritiqueSchemaError(
@@ -247,10 +212,12 @@ def parse_critique_response(raw: str) -> SemanticCritique:
 
     raw_findings = _require_field(payload, "findings", list)
     assert isinstance(raw_findings, list)
+    enforce_list_cap(len(raw_findings), "findings", CritiqueSchemaError)
     findings = tuple(_parse_finding(item, i) for i, item in enumerate(raw_findings))
 
     raw_missing = _require_field(payload, "missing_context", list)
     assert isinstance(raw_missing, list)
+    enforce_list_cap(len(raw_missing), "missing_context", CritiqueSchemaError)
     for i, item in enumerate(raw_missing):
         if not isinstance(item, str):
             raise CritiqueSchemaError(
@@ -260,6 +227,7 @@ def parse_critique_response(raw: str) -> SemanticCritique:
 
     raw_contradictions = _require_field(payload, "contradictions", list)
     assert isinstance(raw_contradictions, list)
+    enforce_list_cap(len(raw_contradictions), "contradictions", CritiqueSchemaError)
     contradictions = tuple(
         _parse_contradiction(item, i) for i, item in enumerate(raw_contradictions)
     )

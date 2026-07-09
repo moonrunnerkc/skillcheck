@@ -14,7 +14,7 @@
 
 Static analyzer for `SKILL.md` files. Validates frontmatter, body sizing, file references, and cross-agent compatibility against the [agentskills.io specification](https://agentskills.io/specification). No network calls. No LLM API calls. No file mutations.
 
-787 tests cover all rule modules.
+833 tests cover all rule modules.
 
 ## Install
 
@@ -62,7 +62,7 @@ Diagnostics appear as inline PR annotations. Inputs documented in [`action.yml`]
 ```yaml
 repos:
   - repo: https://github.com/moonrunnerkc/skillcheck
-    rev: v1.3.0
+    rev: v1.4.1
     hooks:
       - id: skillcheck
 ```
@@ -91,13 +91,15 @@ skillcheck SKILL.md --ingest-critique response.json
 
 The same flow exists for capability graph extraction (`--emit-graph-prompt` / `--ingest-graph`). Prompt variants are tuned per agent via `--critique-agent` and `--graph-agent` (`claude`, `codex`, `cursor`).
 
+An ingested response describes exactly one skill, so `--ingest-critique` and `--ingest-graph` require a single resolved SKILL.md. Pointing them at a directory that expands to more than one skill exits `2`. Run the ingest once per skill.
+
 ## Exit codes
 
 | Code | Meaning |
 |---|---|
 | `0` | No errors. Warnings alone exit 0 unless `--strict` is set. |
 | `1` | One or more errors. Also: warnings with `--strict` (the umbrella `--strict-vscode` / `--strict-cursor` only escalate their own diagnostics; the umbrella additionally escalates any warning-only run). Also: `history.skill.regressed` with `--fail-on-regression`. Also: any ingest parse failure. |
-| `2` | Input or argument error (missing path, conflicting flags, malformed input). |
+| `2` | Input or argument error (missing path, conflicting flags, malformed input, an ingest flag pointed at more than one skill). |
 | `3` | Symbolic checks passed but an ingested critique reported semantic errors. |
 
 When both `1` and `3` would apply, `1` wins so CI consumers see the higher-severity signal.
@@ -117,13 +119,13 @@ Defaults live in a `skillcheck.toml` discovered upward from the validated path. 
 
 ## Releases
 
-Tagged releases (`v*`) carry a SLSA build provenance attestation issued by `actions/attest-build-provenance@v1`. To verify a release artifact before installing:
+Pushing a version tag (`v1.2.3`) runs `.github/workflows/release.yml`, which builds the wheel and sdist, issues a SLSA build provenance attestation via `actions/attest-build-provenance`, and publishes to PyPI through trusted publishing. To verify a release artifact before installing:
 
 ```bash
 gh attestation verify dist/skillcheck-*.whl --owner moonrunnerkc
 ```
 
-This confirms the wheel was built by `moonrunnerkc/skillcheck` CI from the source at the tagged commit. Untagged builds (PR and main-branch CI) are not attested.
+This confirms the wheel was built by `moonrunnerkc/skillcheck` CI from the source at the tagged commit. Untagged builds (PR and main-branch CI) are not attested or published.
 
 ## License
 

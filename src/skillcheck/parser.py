@@ -8,9 +8,11 @@ from typing import Any
 import yaml
 
 # Matches an opening ---, YAML content, and closing ---, with optional trailing spaces
-# and optional carriage returns for cross-platform compatibility.
+# and optional carriage returns for cross-platform compatibility. The newline
+# before the closing --- is optional so an empty frontmatter block (---\n---) is
+# recognized instead of leaking the delimiters into the body.
 _FRONTMATTER_RE = re.compile(
-    r"^---[ \t]*\r?\n(.*?)\r?\n---[ \t]*(?:\r?\n|$)",
+    r"^---[ \t]*\r?\n(.*?)(?:\r?\n)?---[ \t]*(?:\r?\n|$)",
     re.DOTALL,
 )
 
@@ -48,9 +50,16 @@ def parse(path: Path) -> ParsedSkill:
         )
 
     try:
-        frontmatter = yaml.safe_load(match.group(1)) or {}
+        loaded = yaml.safe_load(match.group(1))
     except yaml.YAMLError as exc:
         raise ParseError(f"Invalid YAML frontmatter in {path}: {exc}") from exc
+
+    frontmatter = loaded if loaded is not None else {}
+    if not isinstance(frontmatter, dict):
+        raise ParseError(
+            f"Frontmatter must be a YAML mapping, got {type(frontmatter).__name__} in {path}. "
+            "Wrap frontmatter in key: value pairs."
+        )
 
     body = raw_text[match.end():]
     return ParsedSkill(
