@@ -8,9 +8,11 @@ from typing import Any
 import yaml
 
 # Matches an opening ---, YAML content, and closing ---, with optional trailing spaces
-# and optional carriage returns for cross-platform compatibility.
+# and optional carriage returns for cross-platform compatibility. The newline
+# before the closing --- is optional so an empty frontmatter block (---\n---) is
+# recognized instead of leaking the delimiters into the body.
 _FRONTMATTER_RE = re.compile(
-    r"^---[ \t]*\r?\n(.*?)\r?\n---[ \t]*(?:\r?\n|$)",
+    r"^---[ \t]*\r?\n(.*?)(?:\r?\n)?---[ \t]*(?:\r?\n|$)",
     re.DOTALL,
 )
 

@@ -84,3 +84,12 @@ def test_rejects_list_frontmatter():
 def test_rejects_int_frontmatter():
     with pytest.raises(ParseError, match="must be a YAML mapping, got int"):
         parse(FIXTURES_DIR / "bad_frontmatter_int.md")
+
+
+def test_empty_frontmatter_is_recognized(tmp_path):
+    skill_file = tmp_path / "SKILL.md"
+    skill_file.write_text("---\n---\nBody line one.\n", encoding="utf-8")
+    skill = parse(skill_file)
+    assert skill.frontmatter == {}
+    assert not skill.body.startswith("---")
+    assert skill.body_lines == 1

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -77,10 +78,19 @@ def collect_paths(target: Path) -> list[Path]:
 
     For a directory, recursively finds all files named exactly 'SKILL.md'.
     For a file, returns it directly without name filtering.
+
+    Uses ``os.walk(followlinks=False)`` so directory symlinks are not traversed:
+    a symlink into another tree cannot pull in foreign files, and a symlink cycle
+    cannot hang the scan. ``Path.rglob`` follows directory symlinks on some Python
+    versions, which this avoids.
     """
-    if target.is_dir():
-        return sorted(target.rglob("SKILL.md"))
-    return [target]
+    if not target.is_dir():
+        return [target]
+    found: list[Path] = []
+    for dirpath, _dirnames, filenames in os.walk(target, followlinks=False):
+        if "SKILL.md" in filenames:
+            found.append(Path(dirpath) / "SKILL.md")
+    return sorted(found)
 
 
 def resolve_paths(args: argparse.Namespace) -> list[Path]:

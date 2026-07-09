@@ -1,5 +1,7 @@
 import json
+import os
 import subprocess
+import sys
 
 import pytest
 
@@ -401,3 +403,22 @@ def test_ingest_response_over_size_cap_exits_two(tmp_path):
     assert result.returncode == 2
     assert "over the" in result.stderr
     assert "byte cap" in result.stderr
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="symlink creation needs privileges on Windows")
+def test_collect_paths_does_not_follow_directory_symlinks(tmp_path):
+    """A directory symlink into another tree must not pull in foreign SKILL.md files."""
+    from skillcheck.commands import collect_paths
+
+    scanned = tmp_path / "project"
+    (scanned / "real").mkdir(parents=True)
+    (scanned / "real" / "SKILL.md").write_text("---\nname: real\n---\nBody.\n")
+
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "SKILL.md").write_text("---\nname: foreign\n---\nBody.\n")
+    os.symlink(outside, scanned / "link-to-outside", target_is_directory=True)
+
+    found = [str(p) for p in collect_paths(scanned)]
+    assert any("real" in p for p in found)
+    assert not any("outside" in p for p in found)
