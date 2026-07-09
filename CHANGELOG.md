@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Non-dict frontmatter (a bare scalar or list between the `---` delimiters) no longer crashes with an `AttributeError` traceback. `parser.parse` now raises `ParseError` naming the actual YAML type and the path, which the validation pipeline renders as a clean `parse.error` diagnostic and exit 1.
+- Template detection no longer misreads bracketed acronyms as placeholders. The `[...]` branch of the placeholder pattern was unescaped, so `[ISO]`, `[API]`, and `[CLI]` in a real description matched and silently suppressed the deployment-blocking ERROR checks (`frontmatter.name.directory-mismatch`, `compat.vscode-dirname`, description scoring). The literal three-dot placeholder is now matched exactly.
 
 ## [1.4.0] - 2026-05-27
 
