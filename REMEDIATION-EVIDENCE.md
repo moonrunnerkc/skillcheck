@@ -696,3 +696,32 @@ Tests added: `test_int_type_error_includes_offending_value`, `test_bool_type_err
 `test_str_type_error_includes_offending_value`, `test_strip_inline_comment_respects_quotes`,
 `test_fallback_parser_keeps_hash_inside_quotes`, `test_find_config_stops_at_git_root`,
 `test_find_config_finds_config_at_git_root`, `test_cli_reports_loaded_config_path`.
+
+### 4.5 Small batch
+
+**(a) parser.py empty frontmatter.** `---\n---` was not recognized; the delimiters leaked into the body and its
+line count. The newline before the closing `---` is now optional.
+Before: `body startswith ---: True, body_lines: 3`. After: `frontmatter {} , body startswith ---: False, body_lines: 1`.
+Test: `test_empty_frontmatter_is_recognized`.
+
+**(b) commands.py collect_paths symlinks.** Switched `Path.rglob` to `os.walk(followlinks=False)` so a directory
+symlink cannot pull in foreign files or hang on a cycle. On the local Python 3.12 rglob already did not follow
+the foreign symlink, but os.walk makes the behavior explicit and version-independent.
+Test: `test_collect_paths_does_not_follow_directory_symlinks` (skipped on Windows).
+
+**(c) disclosure.py table bloat.** `check_body_bloat` summed every `|`-row body-wide as one table.
+Before: three 12-row tables -> "Table with 36 data rows" (false). After: three small tables -> no diagnostic;
+one 26-row table -> flagged. Grouped contiguous `|`-runs via `_contiguous_table_runs`.
+Test: `test_body_bloat_does_not_sum_separate_small_tables`.
+
+**(d) pyproject Typed classifier.** Added `Typing :: Typed` so PyPI advertises the shipped `py.typed`.
+
+**(e) tokenizer offline claim.** `estimate_tokens` docstring corrected: tiktoken downloads `cl100k_base` on first
+use (needs network or a warm cache); only later runs are offline. The whitespace fallback is always offline.
+
+**(f) references.py host-path leak.** Broken-link/escape diagnostic `context` echoed the resolved absolute path.
+Before: `resolved to: /tmp/tmp.../skill/scripts/missing.py`. After: `resolved to: scripts/missing.py` (relative;
+escapes show `../..` traversal). New `_relative_to_skill_dir` helper.
+Test: assertion added to `test_broken_ref_detected` (`context == "resolved to: does-not-exist.txt"`, no host path).
+
+VERIFY: `python3 -m pytest tests/ -q` (full-suite gate below); each targeted module passes; ruff/mypy clean.

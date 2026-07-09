@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Empty frontmatter (`---\n---`) is now recognized instead of leaking the delimiters into the body and its line count.
+- Directory scanning uses `os.walk(followlinks=False)` instead of `Path.rglob`, so a directory symlink cannot pull in files from another tree or hang the scan on a symlink cycle.
+- `disclosure.body-bloat` sizes each markdown table independently. Previously every `|`-row in the body was summed as one table, so several small tables could report a false oversized-table count.
+- Broken-reference and reference-escape diagnostics now show the resolved path relative to the skill directory (`scripts/foo.py`, or `../..` for an escape) instead of the absolute host path, so CI logs no longer leak the build machine's directory layout.
+- Corrected the `estimate_tokens` docstring: tiktoken downloads its vocabulary on first use, so it is not "fully offline" until the cache is warm; the whitespace fallback is always offline.
+- Added the `Typing :: Typed` classifier so PyPI reflects the shipped `py.typed` marker.
 - `skillcheck.toml` handling improved: config type errors now name the offending value; the Python 3.10 fallback parser no longer truncates a value at a `#` inside quotes; `find_config` stops ascending at a `.git` repository root or the user's home instead of walking to the filesystem root; and the CLI prints which config file it loaded (to stderr) when one is found.
 - History ledger writes are more durable: `save_ledger` now flushes and `fsync`s the temp file before the atomic `os.replace`, and `load_ledger` sweeps stale `.skillcheck-tmp-*` files left behind by an interrupted write. The module documents its single-writer assumption (no file locking).
 - `frontmatter.yaml-anchors` no longer false-positives on `&` or `*` inside quoted string values. A description like `"Reviews R&D notes and *only* flags risky items"` used to match the anchor/alias regexes; detection now walks the YAML event stream, so only real anchors and aliases are reported.

@@ -135,6 +135,9 @@ def test_broken_ref_detected(tmp_path):
     assert diagnostics[0].rule == "references.broken-link"
     assert diagnostics[0].severity == Severity.ERROR
     assert "does-not-exist.txt" in diagnostics[0].message
+    # Context is relative to the skill dir; the absolute host path never leaks.
+    assert diagnostics[0].context == "resolved to: does-not-exist.txt"
+    assert str(tmp_path) not in (diagnostics[0].context or "")
 
 
 def test_valid_ref_passes(tmp_path):
