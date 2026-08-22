@@ -32,7 +32,9 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Run tests
-        run: python -m pytest tests/ -v --tb=short
+        # The coverage floor is applied here rather than in pyproject addopts,
+        # which would also fail single-file local runs. See the comment there.
+        run: python -m pytest tests/ -v --tb=short --cov-fail-under=68
 
   lint:
     runs-on: ubuntu-latest

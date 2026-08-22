@@ -6,8 +6,11 @@ Run the suite from the repo root after installing the dev extras:
 
 ```bash
 pip install -e ".[dev]"
-pytest tests/ -v
+make test          # full suite, enforces the coverage floor
+pytest tests/ -v   # same suite, reports coverage but does not gate on it
 ```
+
+Coverage is measured on every run but the floor is only applied by `make test`, `make verify-release`, and CI. That keeps single-file runs (`pytest tests/test_sizing.py`) usable: whole-package coverage on one test file is near zero, and a floor in `addopts` failed those runs unconditionally.
 
 The README test-count line (`N tests cover ...`) is asserted by `tests/test_readme_test_count_claim.py`; when you add or remove tests, bump the README count in the same commit.
 
