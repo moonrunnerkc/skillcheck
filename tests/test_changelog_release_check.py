@@ -73,15 +73,11 @@ def test_heading_match_is_exact_not_prefix() -> None:
     assert load_checker().check(text, "1.4.1") == []
 
 
-def test_repo_changelog_is_releasable_for_the_current_version() -> None:
-    """The checked-in CHANGELOG must be in a state the next release can promote."""
-    from skillcheck import __version__
+def test_released_version_with_pending_next_entries_passes() -> None:
+    """Normal development after a release: entries pile up for the next version.
 
-    checker = load_checker()
-    text = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-    body = checker.unreleased_body(text)
-    promoted = checker.has_version_heading(text, __version__)
-    assert not (promoted and body), (
-        f"CHANGELOG.md has a [{__version__}] heading and non-empty [Unreleased]. "
-        "Those entries shipped in the current version but are not recorded under it."
-    )
+    The check is asked about the version being tagged, never the version already
+    shipped, so a [1.4.1] heading beside a filling [Unreleased] is expected here.
+    """
+    text = HEADER + "## [Unreleased]\n\n### Added\n\n- Next thing.\n\n## [1.4.1] - 2026-07-09\n\n- Shipped.\n"
+    assert load_checker().check(text, "1.5.0") == []
