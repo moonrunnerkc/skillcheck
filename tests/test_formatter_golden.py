@@ -21,8 +21,9 @@ matching change in formatters.py means something upstream moved.
 """
 from __future__ import annotations
 
+import json
 import os
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 import pytest
 
@@ -97,6 +98,31 @@ def _results() -> list[ValidationResult]:
     return [passing, failing]
 
 
+_FIXTURE_PATHS = ("skills/good/SKILL.md", "skills/bad/SKILL.md")
+
+
+def _to_posix_paths(text: str) -> str:
+    """Rewrite native path separators in rendered output back to POSIX.
+
+    Golden files are stored with forward slashes. Only `_format_github`
+    normalizes separators itself (it has to; GitHub will not match an
+    annotation to a file otherwise), so on Windows the other four renderers
+    emit `skills\\good\\SKILL.md` and every comparison fails.
+
+    The rewrite is scoped to the two fixture paths rather than a blanket
+    backslash replacement, which would corrupt the markdown pipe escape
+    (`docs/a\\|b.md`) that these goldens exist to pin. The JSON-escaped form is
+    replaced first because it contains the raw form.
+    """
+    for posix in _FIXTURE_PATHS:
+        native = str(Path(posix))
+        if native == posix:
+            continue
+        text = text.replace(json.dumps(native)[1:-1], posix)
+        text = text.replace(native, posix)
+    return text
+
+
 def _render(name: str) -> str:
     results = _results()
     if name == "text":
@@ -133,7 +159,7 @@ RENDERERS = ["text", "text_plain", "json", "markdown", "github", "agent"]
 @pytest.mark.parametrize("name", RENDERERS)
 def test_renderer_matches_golden(name: str) -> None:
     golden = GOLDEN_DIR / f"report.{name}.txt"
-    actual = _render(name) + "\n"
+    actual = _to_posix_paths(_render(name)) + "\n"
     if os.environ.get("SKILLCHECK_REGEN_GOLDEN"):
         golden.parent.mkdir(parents=True, exist_ok=True)
         golden.write_text(actual, encoding="utf-8")
@@ -162,3 +188,33 @@ def test_color_codes_are_absent_from_the_text_golden() -> None:
 def test_text_renderer_emits_ansi_when_color_is_on() -> None:
     """Guards the other side: --no-color must be what suppresses the codes."""
     assert "\033" in _format_text(_results(), color=True)
+
+
+def test_path_normalizer_restores_windows_separators() -> None:
+    """Proves the Windows fix without a Windows runner.
+
+    Simulates what the renderers emit when `Path` is a WindowsPath: the text
+    form with single backslashes and the JSON form where json.dumps has
+    doubled them. Both must come back as the POSIX form the goldens store.
+    """
+    win_text = str(PureWindowsPath("skills/good/SKILL.md"))
+    assert win_text == "skills\\good\\SKILL.md"
+
+    rendered_text = f"PASS  {win_text}"
+    rendered_json = json.dumps({"path": win_text})
+
+    def _normalize(text: str) -> str:
+        for posix in _FIXTURE_PATHS:
+            native = str(PureWindowsPath(posix))
+            text = text.replace(json.dumps(native)[1:-1], posix)
+            text = text.replace(native, posix)
+        return text
+
+    assert _normalize(rendered_text) == "PASS  skills/good/SKILL.md"
+    assert json.loads(_normalize(rendered_json))["path"] == "skills/good/SKILL.md"
+
+
+def test_path_normalizer_leaves_the_markdown_pipe_escape_alone() -> None:
+    """A blanket backslash replacement would corrupt `docs/a\\|b.md`."""
+    escaped = "| 41 | error | Broken reference: `docs/a\\|b.md` |"
+    assert _to_posix_paths(escaped) == escaped
