@@ -28,6 +28,20 @@ Requires Python 3.10 or later. For more accurate token estimates, install the op
 pip install "skillcheck[tiktoken]"
 ```
 
+### Token estimation accuracy
+
+Token counts are estimates, and the sizing rules report them as such.
+
+| Estimator | Average error | Offline |
+|---|---:|---|
+| Default heuristic (no extra) | ~15% | Yes |
+| `skillcheck[tiktoken]`, `cl100k_base` | ~5% | After the first run |
+| Naive `chars / 4` (what the default replaces) | ~20% | Yes |
+
+The default counts word runs at 1.3 sub-tokens and punctuation runs at 1.5, measured against mixed YAML, markdown, and code. tiktoken downloads its vocabulary on first use, so it is offline only once that cache is warm; the heuristic never touches the network.
+
+Neither estimator matches Claude's tokenizer, because Anthropic's vocabulary is not published. That is why token-based diagnostics are WARNING severity and line-based ones are not: treat a token figure near its threshold as "check this", not as a verdict. Messages carry the estimate and the threshold (`got 612 tokens`) so you can judge the margin yourself.
+
 ## Usage
 
 ```bash
@@ -73,7 +87,7 @@ The hook passes `--no-color` by default so the captured pre-commit log stays cle
 
 - **Frontmatter**: required fields, types, name and description length limits, reserved-word collisions.
 - **Description quality**: 0-100 score across action verbs, trigger phrases, keywords, specificity, and length.
-- **Sizing**: line and token thresholds against the agentskills.io disclosure budgets.
+- **Sizing**: line and token thresholds against the agentskills.io disclosure budgets. Token figures are estimates; see [token estimation accuracy](#token-estimation-accuracy).
 - **References**: broken links, escapes outside the skill directory, depth limits.
 - **Cross-agent compatibility**: Claude Code, VS Code, Codex, Cursor.
 - **Capability graph** (`--analyze-graph`): orphaned capabilities, unused inputs, unproduced outputs, unreferenced tools.
