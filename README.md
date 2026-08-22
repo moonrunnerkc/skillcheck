@@ -14,7 +14,7 @@
 
 Static analyzer for `SKILL.md` files. Validates frontmatter, body sizing, file references, and cross-agent compatibility against the [agentskills.io specification](https://agentskills.io/specification). No network calls. No LLM API calls. No file mutations.
 
-840 tests cover all rule modules.
+841 tests cover all rule modules.
 
 ## Install
 
