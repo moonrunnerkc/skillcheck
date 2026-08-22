@@ -7,28 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Added the `Typing :: Typed` classifier so PyPI reflects the shipped `py.typed` marker.
-
-### Fixed
-
-- Empty frontmatter (`---\n---`) is now recognized instead of leaking the delimiters into the body and its line count.
-- Directory scanning uses `os.walk(followlinks=False)` instead of `Path.rglob`, so a directory symlink cannot pull in files from another tree or hang the scan on a symlink cycle.
-- `disclosure.body-bloat` sizes each markdown table independently. Previously every `|`-row in the body was summed as one table, so several small tables could report a false oversized-table count.
-- Broken-reference and reference-escape diagnostics now show the resolved path relative to the skill directory (`scripts/foo.py`, or `../..` for an escape) instead of the absolute host path, so CI logs no longer leak the build machine's directory layout.
-- Corrected the `estimate_tokens` docstring: tiktoken downloads its vocabulary on first use, so it is not "fully offline" until the cache is warm; the whitespace fallback is always offline.
-- `skillcheck.toml` handling improved: config type errors now name the offending value; the Python 3.10 fallback parser no longer truncates a value at a `#` inside quotes; `find_config` stops ascending at a `.git` repository root or the user's home instead of walking to the filesystem root; and the CLI prints which config file it loaded (to stderr) when one is found.
-- History ledger writes are more durable: `save_ledger` now flushes and `fsync`s the temp file before the atomic `os.replace`, and `load_ledger` sweeps stale `.skillcheck-tmp-*` files left behind by an interrupted write. The module documents its single-writer assumption (no file locking).
-- `frontmatter.yaml-anchors` no longer false-positives on `&` or `*` inside quoted string values. A description like `"Reviews R&D notes and *only* flags risky items"` used to match the anchor/alias regexes; detection now walks the YAML event stream, so only real anchors and aliases are reported.
-- `--format github` no longer over-escapes diagnostic message text. Message data now escapes only `%`, CR, and LF (per the GitHub Actions toolkit), so a colon or comma in a message renders literally instead of as `%3A`/`%2C`. Property values (`file`, `title`) still escape `:` and `,` as required, which also fixes the previously unescaped colon in the annotation title.
-
 ## [1.4.1] - 2026-07-09
 
 ### Added
 
 - `[tool.ruff]` and `[tool.mypy]` configuration in `pyproject.toml`. Ruff lints `src` and `tests` with an explicit `E, F, I, UP, B` selection at line length 127 (`E501` ignored for unavoidable long string literals in JSON fixtures and schema text). Mypy runs `strict` against `src/skillcheck` under `python_version = "3.10"`, with an `ignore_missing_imports` override for the untyped `tiktoken` dependency and the `tomllib` 3.11+ stdlib backport branch. The source was brought clean under both with real annotations, not blanket ignores.
 - Test coverage measurement via `pytest-cov` (added to the `dev` extra). `[tool.coverage.run]` and `[tool.coverage.report]` configure the run, and `addopts` in `[tool.pytest.ini_options]` adds `--cov=skillcheck --cov-report=term-missing --cov-fail-under=68`, so the floor is enforced on every local run and in CI (which runs the same `pytest`). The floor sits a few points under the ~72% measured on CPython 3.10 to absorb matrix variance: the CLI modules run in subprocesses the in-process tracer does not see, the `tomllib` vs fallback-parser branch flips between Python 3.10 and 3.11+, and a few tests skip on Windows.
+- Added the `Typing :: Typed` classifier so PyPI reflects the shipped `py.typed` marker.
 
 ### Changed
 
@@ -54,6 +39,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--analyze-graph` no longer crashes on a repeated tool. `allowed-tools: [Bash, Bash]` minted two graph nodes with the same content-hash ID, tripping the duplicate-node-ID guard with an uncaught `ValueError`. The heuristic extractor now dedupes tool names before building nodes.
 - Emit and re-parse modes no longer surface a traceback on a file that plain validation handles cleanly. `--emit-graph`, `--emit-critique-prompt`, `--emit-graph-prompt`, `--agent-reason`, `--activation-hypotheses`, `--analyze-graph`, `--history`, and the `--ingest-*` first-path re-parse now catch `ParseError`, print the message to stderr, and exit 1. `read_ingest_raw` additionally catches `UnicodeDecodeError`, so a non-UTF-8 ingest response file takes the clean exit-2 path instead of crashing.
 - Codex compatibility provenance now carries its own `_CODEX_DATA_DATE` constant instead of borrowing `_CLAUDE_DATA_DATE`. The mislabel was invisible because all three provenance dates were equal; the date reported for Codex is now sourced from and freshness-checked against the Codex constant independently.
+- Empty frontmatter (`---\n---`) is now recognized instead of leaking the delimiters into the body and its line count.
+- Directory scanning uses `os.walk(followlinks=False)` instead of `Path.rglob`, so a directory symlink cannot pull in files from another tree or hang the scan on a symlink cycle.
+- `disclosure.body-bloat` sizes each markdown table independently. Previously every `|`-row in the body was summed as one table, so several small tables could report a false oversized-table count.
+- Broken-reference and reference-escape diagnostics now show the resolved path relative to the skill directory (`scripts/foo.py`, or `../..` for an escape) instead of the absolute host path, so CI logs no longer leak the build machine's directory layout.
+- Corrected the `estimate_tokens` docstring: tiktoken downloads its vocabulary on first use, so it is not "fully offline" until the cache is warm; the whitespace fallback is always offline.
+- `skillcheck.toml` handling improved: config type errors now name the offending value; the Python 3.10 fallback parser no longer truncates a value at a `#` inside quotes; `find_config` stops ascending at a `.git` repository root or the user's home instead of walking to the filesystem root; and the CLI prints which config file it loaded (to stderr) when one is found.
+- History ledger writes are more durable: `save_ledger` now flushes and `fsync`s the temp file before the atomic `os.replace`, and `load_ledger` sweeps stale `.skillcheck-tmp-*` files left behind by an interrupted write. The module documents its single-writer assumption (no file locking).
+- `frontmatter.yaml-anchors` no longer false-positives on `&` or `*` inside quoted string values. A description like `"Reviews R&D notes and *only* flags risky items"` used to match the anchor/alias regexes; detection now walks the YAML event stream, so only real anchors and aliases are reported.
+- `--format github` no longer over-escapes diagnostic message text. Message data now escapes only `%`, CR, and LF (per the GitHub Actions toolkit), so a colon or comma in a message renders literally instead of as `%3A`/`%2C`. Property values (`file`, `title`) still escape `:` and `,` as required, which also fixes the previously unescaped colon in the annotation title.
 
 ### Security
 
