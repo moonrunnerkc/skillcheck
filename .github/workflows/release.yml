@@ -28,6 +28,12 @@ jobs:
         with:
           python-version: "3.12"
 
+      # Runs before the build so a CHANGELOG that release-notes.yml cannot
+      # promote stops the release instead of shipping unrecorded entries.
+      # See scripts/check_changelog_release.py for the two rejected states.
+      - name: Verify the CHANGELOG can be promoted for this tag
+        run: python3 scripts/check_changelog_release.py "${GITHUB_REF_NAME}"
+
       - name: Install build tools
         run: pip install hatchling
 

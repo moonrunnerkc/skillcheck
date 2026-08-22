@@ -68,12 +68,10 @@ ignore = ["E501"]  # line-length in unchangeable string literals (JSON fixtures,
 [tool.mypy]
 strict = true
 python_version = "3.10"
-files = [
-    "src/skillcheck",
-    "scripts/regen_self_host_fixtures.py",
-    "scripts/skillcheck_case_study_report.py",
-    "scripts/summarize_batch.py",
-]
+# The whole scripts/ directory, not a per-file list: an allowlist silently
+# leaves the next script ungated, which is what ruff already avoids by taking
+# the directory.
+files = ["src/skillcheck", "scripts"]
 
 [[tool.mypy.overrides]]
 # tiktoken ships no type stubs; tomllib has no typeshed stubs under the pinned
