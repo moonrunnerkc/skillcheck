@@ -52,12 +52,20 @@ jobs:
               Path("PROMOTED.flag").write_text("empty", encoding="utf-8")
               sys.exit(0)
 
-          # If a heading for the released version already exists, the developer
-          # promoted by hand; treat as a no-op to avoid duplicating entries.
+          # A heading for the released version already exists, so the developer
+          # promoted by hand. Promoting again would duplicate entries, but going
+          # quiet is what stranded nine shipped fixes outside the v1.4.1 notes:
+          # the hand promotion was partial and the remainder stayed here. There
+          # is content and nowhere safe to put it, so fail instead of no-oping.
           if re.search(rf"^##\s*\[{re.escape(version)}\]", text, re.MULTILINE):
-              print(f"[{version}] heading already present; not promoting.")
-              Path("PROMOTED.flag").write_text("already", encoding="utf-8")
-              sys.exit(0)
+              print(
+                  f"[{version}] heading already present, but [Unreleased] still has entries. "
+                  f"They shipped in {version} and are not recorded under it. Move them under "
+                  f"[{version}] by hand, or hold them for the next version.",
+                  file=sys.stderr,
+              )
+              print(body, file=sys.stderr)
+              sys.exit(1)
 
           new_block = (
               f"## [Unreleased]\n\n"

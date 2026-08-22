@@ -1,12 +1,20 @@
 """Release coherence: pyproject.toml, __init__.__version__, CHANGELOG, and
-self-host SKILL.md frontmatter must all agree on the current version."""
+self-host SKILL.md frontmatter must all agree on the current version.
+
+Also pins the self-host skill to a single path. A second copy at the repo root
+went unmaintained from v1.3.0 to v1.4.1 and drifted to a stale version and a
+weaker description while nothing in CI could see it, because every check here
+and in the Makefile reads skills/skillcheck/SKILL.md."""
 
 import re
+import subprocess
 from pathlib import Path
 
+import pytest
 import yaml
 
 REPO_ROOT = Path(__file__).parent.parent
+SELF_HOST_SKILL = Path("skills/skillcheck/SKILL.md")
 
 
 def _pyproject_version() -> str:
@@ -74,4 +82,33 @@ def test_self_host_skill_version_matches():
     assert skill == init, (
         f"Version mismatch: skills/skillcheck/SKILL.md frontmatter has {skill!r}, "
         f"src/skillcheck/__init__.py has {init!r}"
+    )
+
+
+def _tracked_skill_files() -> list[Path]:
+    """Every tracked SKILL.md outside tests/fixtures, as repo-relative paths."""
+    result = subprocess.run(
+        ["git", "ls-files", "*SKILL.md", "SKILL.md"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        pytest.skip("not a git checkout; cannot enumerate tracked files")
+    paths = [Path(line) for line in result.stdout.split() if line]
+    return [p for p in paths if "fixtures" not in p.parts]
+
+
+def test_only_one_self_host_skill_is_tracked():
+    """One skill definition, so there is nothing to drift against.
+
+    The version, description, and body checks above all read
+    skills/skillcheck/SKILL.md. Any other SKILL.md in the tree is unguarded by
+    them, which is how the former root copy fell two versions behind.
+    """
+    found = _tracked_skill_files()
+    assert found == [SELF_HOST_SKILL], (
+        f"Expected exactly one tracked SKILL.md at {SELF_HOST_SKILL}, found "
+        f"{[str(p) for p in found]}. A second copy is not covered by the coherence "
+        f"checks in this module and will drift."
     )

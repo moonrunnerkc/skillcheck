@@ -9,19 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added the `Typing :: Typed` classifier so PyPI reflects the shipped `py.typed` marker.
+- `metadata` is recognized as an ecosystem frontmatter field. It previously produced `frontmatter.field.unknown` (warning); it now produces `frontmatter.field.ecosystem` (info), matching `license`, `repository`, `homepage`, and `template`. Thanks to @kriptoburak.
+
+### Changed
+
+- `release.yml` repoints the `v1` moving major tag after a successful publish, in a separate job that holds the only `contents: write` scope in the workflow. Moving it was a manual step in the release checklist and was missed for v1.3.0 and v1.4.1, so `uses: moonrunnerkc/skillcheck@v1` resolved to v1.2.3 source from May 7 until now. Prerelease tags that the `v*.*.*` trigger glob also matches are skipped, and the first release of a new major line creates the tag instead of updating it.
+- `release.yml` runs `scripts/check_changelog_release.py` before the build and refuses to publish when the CHANGELOG is in a state `release-notes.yml` cannot promote: a version heading that already exists alongside a non-empty `[Unreleased]`, or no heading and nothing to promote. `release-notes.yml` now fails on the first of those instead of exiting 0 with a message in the log.
+- The `--cov-fail-under=68` coverage floor moved out of pytest `addopts`, which applied it to every invocation and failed any single-file run at 0%. Coverage is still measured on a plain `pytest`; the floor is enforced by the new `make test` target, `make verify-release`, and the CI test job.
+- Mypy's `files` list takes `scripts` as a directory instead of naming each script, so a new script is type-gated on arrival rather than when someone remembers to add it.
+
+### Removed
+
+- The duplicate `SKILL.md` at the repository root. The self-host skill lives at `skills/skillcheck/SKILL.md`, which is what the coherence tests, the self-host suite, the fixture regenerator, and `make verify-release` all read. The root copy was covered by none of them and had drifted to version 1.3.0 with the older description. `tests/test_version_coherence.py` now asserts exactly one tracked `SKILL.md` outside `tests/fixtures`.
 
 ### Fixed
 
-- Empty frontmatter (`---\n---`) is now recognized instead of leaking the delimiters into the body and its line count.
-- Directory scanning uses `os.walk(followlinks=False)` instead of `Path.rglob`, so a directory symlink cannot pull in files from another tree or hang the scan on a symlink cycle.
-- `disclosure.body-bloat` sizes each markdown table independently. Previously every `|`-row in the body was summed as one table, so several small tables could report a false oversized-table count.
-- Broken-reference and reference-escape diagnostics now show the resolved path relative to the skill directory (`scripts/foo.py`, or `../..` for an escape) instead of the absolute host path, so CI logs no longer leak the build machine's directory layout.
-- Corrected the `estimate_tokens` docstring: tiktoken downloads its vocabulary on first use, so it is not "fully offline" until the cache is warm; the whitespace fallback is always offline.
-- `skillcheck.toml` handling improved: config type errors now name the offending value; the Python 3.10 fallback parser no longer truncates a value at a `#` inside quotes; `find_config` stops ascending at a `.git` repository root or the user's home instead of walking to the filesystem root; and the CLI prints which config file it loaded (to stderr) when one is found.
-- History ledger writes are more durable: `save_ledger` now flushes and `fsync`s the temp file before the atomic `os.replace`, and `load_ledger` sweeps stale `.skillcheck-tmp-*` files left behind by an interrupted write. The module documents its single-writer assumption (no file locking).
-- `frontmatter.yaml-anchors` no longer false-positives on `&` or `*` inside quoted string values. A description like `"Reviews R&D notes and *only* flags risky items"` used to match the anchor/alias regexes; detection now walks the YAML event stream, so only real anchors and aliases are reported.
-- `--format github` no longer over-escapes diagnostic message text. Message data now escapes only `%`, CR, and LF (per the GitHub Actions toolkit), so a colon or comma in a message renders literally instead of as `%3A`/`%2C`. Property values (`file`, `title`) still escape `:` and `,` as required, which also fixes the previously unescaped colon in the annotation title.
+- Ten entries that shipped in 1.4.1 are recorded under `[1.4.1]` instead of `[Unreleased]`. The release commit promoted part of the block by hand, `release-notes.yml` treats an existing version heading as already promoted, and the remainder was left behind. The published v1.4.1 release notes omitted the empty-frontmatter fix, the symlink-safe directory walk, per-table body sizing, skill-relative reference paths, the config-loader hardening, the ledger `fsync`, event-stream YAML anchor detection, and the GitHub annotation escaping.
+- The `version` input description in `action.yml` gave `1.2.3` as its example, a version with a git tag and a GitHub release but no PyPI artifact, so setting it failed the install the input feeds. It also described an empty value as "latest" when an empty value installs from the action's own checkout.
 
 ## [1.4.1] - 2026-07-09
 
@@ -29,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `[tool.ruff]` and `[tool.mypy]` configuration in `pyproject.toml`. Ruff lints `src` and `tests` with an explicit `E, F, I, UP, B` selection at line length 127 (`E501` ignored for unavoidable long string literals in JSON fixtures and schema text). Mypy runs `strict` against `src/skillcheck` under `python_version = "3.10"`, with an `ignore_missing_imports` override for the untyped `tiktoken` dependency and the `tomllib` 3.11+ stdlib backport branch. The source was brought clean under both with real annotations, not blanket ignores.
 - Test coverage measurement via `pytest-cov` (added to the `dev` extra). `[tool.coverage.run]` and `[tool.coverage.report]` configure the run, and `addopts` in `[tool.pytest.ini_options]` adds `--cov=skillcheck --cov-report=term-missing --cov-fail-under=68`, so the floor is enforced on every local run and in CI (which runs the same `pytest`). The floor sits a few points under the ~72% measured on CPython 3.10 to absorb matrix variance: the CLI modules run in subprocesses the in-process tracer does not see, the `tomllib` vs fallback-parser branch flips between Python 3.10 and 3.11+, and a few tests skip on Windows.
+- Added the `Typing :: Typed` classifier so PyPI reflects the shipped `py.typed` marker.
 
 ### Changed
 
@@ -54,6 +59,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--analyze-graph` no longer crashes on a repeated tool. `allowed-tools: [Bash, Bash]` minted two graph nodes with the same content-hash ID, tripping the duplicate-node-ID guard with an uncaught `ValueError`. The heuristic extractor now dedupes tool names before building nodes.
 - Emit and re-parse modes no longer surface a traceback on a file that plain validation handles cleanly. `--emit-graph`, `--emit-critique-prompt`, `--emit-graph-prompt`, `--agent-reason`, `--activation-hypotheses`, `--analyze-graph`, `--history`, and the `--ingest-*` first-path re-parse now catch `ParseError`, print the message to stderr, and exit 1. `read_ingest_raw` additionally catches `UnicodeDecodeError`, so a non-UTF-8 ingest response file takes the clean exit-2 path instead of crashing.
 - Codex compatibility provenance now carries its own `_CODEX_DATA_DATE` constant instead of borrowing `_CLAUDE_DATA_DATE`. The mislabel was invisible because all three provenance dates were equal; the date reported for Codex is now sourced from and freshness-checked against the Codex constant independently.
+- Empty frontmatter (`---\n---`) is now recognized instead of leaking the delimiters into the body and its line count.
+- Directory scanning uses `os.walk(followlinks=False)` instead of `Path.rglob`, so a directory symlink cannot pull in files from another tree or hang the scan on a symlink cycle.
+- `disclosure.body-bloat` sizes each markdown table independently. Previously every `|`-row in the body was summed as one table, so several small tables could report a false oversized-table count.
+- Broken-reference and reference-escape diagnostics now show the resolved path relative to the skill directory (`scripts/foo.py`, or `../..` for an escape) instead of the absolute host path, so CI logs no longer leak the build machine's directory layout.
+- Corrected the `estimate_tokens` docstring: tiktoken downloads its vocabulary on first use, so it is not "fully offline" until the cache is warm; the whitespace fallback is always offline.
+- `skillcheck.toml` handling improved: config type errors now name the offending value; the Python 3.10 fallback parser no longer truncates a value at a `#` inside quotes; `find_config` stops ascending at a `.git` repository root or the user's home instead of walking to the filesystem root; and the CLI prints which config file it loaded (to stderr) when one is found.
+- History ledger writes are more durable: `save_ledger` now flushes and `fsync`s the temp file before the atomic `os.replace`, and `load_ledger` sweeps stale `.skillcheck-tmp-*` files left behind by an interrupted write. The module documents its single-writer assumption (no file locking).
+- `frontmatter.yaml-anchors` no longer false-positives on `&` or `*` inside quoted string values. A description like `"Reviews R&D notes and *only* flags risky items"` used to match the anchor/alias regexes; detection now walks the YAML event stream, so only real anchors and aliases are reported.
+- `--format github` no longer over-escapes diagnostic message text. Message data now escapes only `%`, CR, and LF (per the GitHub Actions toolkit), so a colon or comma in a message renders literally instead of as `%3A`/`%2C`. Property values (`file`, `title`) still escape `:` and `,` as required, which also fixes the previously unescaped colon in the annotation title.
 
 ### Security
 

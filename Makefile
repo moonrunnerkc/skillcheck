@@ -1,4 +1,8 @@
-.PHONY: lint regen-self-host-fixtures verify-release
+.PHONY: lint test regen-self-host-fixtures verify-release
+
+# Coverage floor for full-suite runs. Not in pyproject addopts, which would also
+# apply it to single-file runs; see the comment there.
+COV_FLOOR := 68
 
 # Pre-1.0 sentinel version. Stale references to this string must not appear in
 # shipped files; update only if a new major version creates a new legacy line.
@@ -15,10 +19,13 @@ lint:
 	ruff check src tests scripts
 	mypy
 
+test:
+	python3 -m pytest tests/ --cov-fail-under=$(COV_FLOOR)
+
 verify-release:
 	ruff check src tests scripts
 	mypy
-	python3 -m pytest tests/ -v
+	python3 -m pytest tests/ -v --cov-fail-under=$(COV_FLOOR)
 	skillcheck --version
 	skillcheck skills/skillcheck/SKILL.md
 	skillcheck skills/skillcheck/SKILL.md --analyze-graph

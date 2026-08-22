@@ -51,11 +51,17 @@ packages = ["src/skillcheck"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# Coverage floor sits a few points under the ~72% measured on CPython 3.10 so it
+# Measurement is on by default so a plain `pytest` still reports coverage. The
+# --cov-fail-under=68 floor is NOT here: addopts applies to every invocation,
+# including `pytest tests/test_sizing.py`, where whole-package coverage is
+# meaningless and the run fails at 0%. The floor lives with the full-suite
+# callers instead, in `make test`, `make verify-release`, and the CI test job.
+#
+# The floor sits a few points under the ~72% measured on CPython 3.10 so it
 # survives matrix variance: the CLI modules (cli.py, commands.py) run in
 # subprocesses the in-process tracer does not see, the tomllib vs fallback-parser
 # branch flips between 3.10 and 3.11+, and a few tests skip on Windows.
-addopts = "--cov=skillcheck --cov-report=term-missing --cov-fail-under=68"
+addopts = "--cov=skillcheck --cov-report=term-missing"
 
 [tool.ruff]
 target-version = "py310"
@@ -68,12 +74,10 @@ ignore = ["E501"]  # line-length in unchangeable string literals (JSON fixtures,
 [tool.mypy]
 strict = true
 python_version = "3.10"
-files = [
-    "src/skillcheck",
-    "scripts/regen_self_host_fixtures.py",
-    "scripts/skillcheck_case_study_report.py",
-    "scripts/summarize_batch.py",
-]
+# The whole scripts/ directory, not a per-file list: an allowlist silently
+# leaves the next script ungated, which is what ruff already avoids by taking
+# the directory.
+files = ["src/skillcheck", "scripts"]
 
 [[tool.mypy.overrides]]
 # tiktoken ships no type stubs; tomllib has no typeshed stubs under the pinned
