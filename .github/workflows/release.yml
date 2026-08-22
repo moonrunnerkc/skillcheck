@@ -60,3 +60,40 @@ jobs:
         # pull request an image tag that does not exist (manifest unknown), and
         # would pin nothing anyway since the image is fetched by tag regardless.
         uses: pypa/gh-action-pypi-publish@v1.12.4
+
+  # README and CONTRIBUTING both tell Action users to pin `@v1`, so the moving
+  # major tag has to follow every patch release. Moving it by hand was missed
+  # for v1.3.0 and v1.4.1, which left `@v1` resolving to v1.2.3 for two months
+  # while the action installs from its own checkout. This job runs only after a
+  # successful publish and holds the only `contents: write` scope in the file,
+  # so the publishing job above stays least-privilege.
+  move-major-tag:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Point the major tag at this release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          # Plain vN.N.N only. The `v*.*.*` trigger glob also matches prerelease
+          # tags such as v2.0.0-rc1, which must not move the stable major tag.
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Tag '$TAG' is not a plain vN.N.N release tag; major tag unchanged."
+            exit 0
+          fi
+          major="${TAG%%.*}"
+          echo "Moving '$major' to $SHA ($TAG)."
+          # PATCH updates the existing ref. POST creates it on the first release
+          # of a new major line, where the major tag does not exist yet.
+          if gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/${major}" >/dev/null 2>&1; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/git/refs/tags/${major}" \
+              -f sha="$SHA" -F force=true
+          else
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+              -f ref="refs/tags/${major}" -f sha="$SHA"
+          fi
