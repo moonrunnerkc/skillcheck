@@ -65,7 +65,13 @@ jobs:
         # by release version, never by commit SHA. A SHA ref makes the inner
         # pull request an image tag that does not exist (manifest unknown), and
         # would pin nothing anyway since the image is fetched by tag regardless.
-        uses: pypa/gh-action-pypi-publish@v1.12.4
+        #
+        # Keep this current with the build backend. The step above installs
+        # hatchling unpinned, so the wheel carries whatever Metadata-Version
+        # that hatchling emits. v1.12.4 (January 2025) bundles a twine that
+        # rejects Metadata-Version 2.5, which is what hatchling writes today,
+        # and it failed the 1.5.0 publish with "not a valid metadata version".
+        uses: pypa/gh-action-pypi-publish@v1.14.2
 
   # README and CONTRIBUTING both tell Action users to pin `@v1`, so the moving
   # major tag has to follow every patch release. Moving it by hand was missed

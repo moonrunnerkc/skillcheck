@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `release.yml` runs `scripts/check_changelog_release.py` before the build and refuses to publish when the CHANGELOG is in a state `release-notes.yml` cannot promote: a version heading that already exists alongside a non-empty `[Unreleased]`, or no heading and nothing to promote. `release-notes.yml` now fails on the first of those instead of exiting 0 with a message in the log.
 - The `--cov-fail-under=68` coverage floor moved out of pytest `addopts`, which applied it to every invocation and failed any single-file run at 0%. Coverage is still measured on a plain `pytest`; the floor is enforced by the new `make test` target, `make verify-release`, and the CI test job.
 - Mypy's `files` list takes `scripts` as a directory instead of naming each script, so a new script is type-gated on arrival rather than when someone remembers to add it.
+- `pypa/gh-action-pypi-publish` moved from v1.12.4 (January 2025) to v1.14.2. The publish step installs hatchling unpinned, so the wheel carries whatever `Metadata-Version` the current backend emits; v1.12.4 bundles a twine that rejects the `2.5` hatchling writes today, and it failed the first 1.5.0 publish with "not a valid metadata version". The publisher has to track the build backend, so it is no longer left on an old pin.
 
 ### Removed
 
