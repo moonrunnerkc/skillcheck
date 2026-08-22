@@ -2,7 +2,7 @@
 
 # Coverage floor for full-suite runs. Not in pyproject addopts, which would also
 # apply it to single-file runs; see the comment there.
-COV_FLOOR := 68
+COV_FLOOR := 75
 
 # Pre-1.0 sentinel version. Stale references to this string must not appear in
 # shipped files; update only if a new major version creates a new legacy line.
