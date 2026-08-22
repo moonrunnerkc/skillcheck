@@ -166,7 +166,8 @@ def _format_markdown(
     failed = total - passed
     warnings = sum(1 for r in results for d in r.diagnostics if d.severity == Severity.WARNING)
     lines.extend([
-        f"Checked `{total}` file{'s' if total != 1 else ''}: `{passed}` passed, `{failed}` failed, `{warnings}` warnings.",
+        f"Checked `{total}` file{'s' if total != 1 else ''}: `{passed}` passed, "
+        f"`{failed}` failed, `{warnings}` warning{'s' if warnings != 1 else ''}.",
         "",
     ])
 
