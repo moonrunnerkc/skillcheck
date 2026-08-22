@@ -1,0 +1,5 @@
+::notice file=skills/good/SKILL.md,title=skillcheck%3A description.quality-score::Description quality score: 95/100.
+::error file=skills/bad/SKILL.md,line=2,title=skillcheck%3A frontmatter.name.too-long::Name exceeds 64 characters (got 82): 'a-very-long-name'
+::warning file=skills/bad/SKILL.md,title=skillcheck%3A sizing.body-lines::Body is 612 lines, over the 500-line threshold.
+::error file=skills/bad/SKILL.md,line=41,title=skillcheck%3A references.broken::Broken reference: `docs/a|b.md` (100%25 of links, comma, colon: here)
+::notice file=skills/bad/SKILL.md,title=skillcheck%3A compat.unverified::Behavior of field 'version' in codex is unverified.

@@ -7,6 +7,9 @@ from pathlib import Path
 
 import pytest
 
+from skillcheck.config import DESCRIPTION_SCORE_WEIGHTS
+from skillcheck.formatters import _format_text
+from skillcheck.result import Diagnostic, Severity, ValidationResult
 from skillcheck.rules.description import score_description
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -135,3 +138,70 @@ def test_text_explain_score_shows_breakdown():
     # Should contain dimension breakdown with /25, /15, /10 patterns
     assert "action:" in output
     assert "/25" in output
+
+# ---------------------------------------------------------------------------
+# Weight coherence: the scorer and the report must agree on the denominators
+# ---------------------------------------------------------------------------
+
+
+def test_scorer_dimensions_match_the_published_weights():
+    """Every scored dimension has a weight, and every weight has a scorer.
+
+    The maxima used to live twice: as literals inside score_description and
+    again hardcoded in formatters.py. Changing a weight in one place left
+    --explain-score reporting against the other, so a dimension worth 20 could
+    still render as "12/25".
+    """
+    breakdown = score_description("Validates SKILL.md files when linting a skill for CI.")[2]
+    assert set(breakdown) == set(DESCRIPTION_SCORE_WEIGHTS)
+
+
+def test_no_dimension_can_exceed_its_weight():
+    descriptions = [
+        "Validates and scores SKILL.md files against the agentskills.io specification; "
+        "use when linting skills for cross-agent compatibility or description quality.",
+        "",
+        "A thing.",
+        "Handles stuff seamlessly and empowers users with powerful robust capabilities.",
+    ]
+    for desc in descriptions:
+        breakdown = score_description(desc)[2]
+        for name, points in breakdown.items():
+            assert 0 <= points <= DESCRIPTION_SCORE_WEIGHTS[name], (
+                f"{name} awarded {points} against a maximum of {DESCRIPTION_SCORE_WEIGHTS[name]} "
+                f"for description {desc!r}"
+            )
+
+
+def test_weights_sum_to_one_hundred():
+    """A perfect description must be able to reach exactly 100, not 95 or 105."""
+    assert sum(DESCRIPTION_SCORE_WEIGHTS.values()) == 100
+
+
+def test_explain_score_line_renders_every_weighted_dimension():
+    """The rendered breakdown covers the weight table, in its declared order."""
+    result = ValidationResult(
+        path=Path("SKILL.md"),
+        diagnostics=[
+            Diagnostic(
+                rule="description.quality-score",
+                severity=Severity.INFO,
+                message="Description quality score: 60/100.",
+            )
+        ],
+    )
+    rendered = _format_text(
+        [result],
+        color=False,
+        score_breakdowns={
+            "SKILL.md": {"action": 25, "trigger": 0, "keywords": 25, "specificity": 0, "length": 10}
+        },
+        explain_score=True,
+    )
+    breakdown_line = next(line for line in rendered.splitlines() if "action:" in line)
+    for name, max_pts in DESCRIPTION_SCORE_WEIGHTS.items():
+        assert f"{name}: " in breakdown_line
+        assert f"/{max_pts}" in breakdown_line
+    # Declared order, not alphabetical.
+    positions = [breakdown_line.index(f"{name}: ") for name in DESCRIPTION_SCORE_WEIGHTS]
+    assert positions == sorted(positions)

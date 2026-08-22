@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Every file skillcheck reads from disk is bounded by one shared guard in the new `skillcheck.io_limits`. Only ingested agent responses were capped before; the SKILL.md, the `.skillcheck-history.json` ledger, and `skillcheck.toml` were read with a bare `read_text()`. In CI running over a fork's pull request all three arrive from the branch under test, so an oversized one was read fully into memory before any rule ran. Caps are 4 MiB for a SKILL.md, 8 MiB for a ledger, 1 MiB for a config, and the existing 5 MiB for an ingest payload, each measured with `stat` before the read. `enforce_size_cap` takes the caller's exception type, so `ParseError`, `LedgerError`, and `ConfigError` keep their own remediation text.
+- The description-score maxima have one home. `score_description` carried the per-dimension weights as literals and `formatters.py` hardcoded a second copy for the `--explain-score` denominators, so changing a weight would have left the report weighing a dimension against a stale cap. Both now read `config.DESCRIPTION_SCORE_WEIGHTS`, and the tests pin the scorer's dimensions to the weight table and assert the weights sum to 100. Rendered output is unchanged.
+- Coverage floor raised from 68% to 75%, measured at 78.7% on CPython 3.10 and 78.0% on 3.12.
+
+### Added
+
+- Golden-file tests for all five report renderers (`text`, `json`, `md`, `agent`, `github`). One fixed diagnostic set covering both outcomes, all three severities, present and absent line numbers and context, and the characters each format escapes is compared byte for byte against `tests/fixtures/golden/`. `formatters.py` is the entire user-facing surface and had only escaping-helper tests; it now measures 97%. Regenerate with `make regen-golden`.
+- Direct tests for activation hypothesis generation and its three renderers, which were reachable only through subprocess CLI tests that the coverage tracer cannot see. `core/activation.py` goes from 32% to 96% and `core/activation_render.py` from 32% to 100%.
+- README documents the token estimation error bands: ~15% for the default offline heuristic, ~5% with `skillcheck[tiktoken]`, against ~20% for the naive `chars / 4` it replaces. It also states why token diagnostics are WARNING severity, which is that no estimator matches Claude's unpublished tokenizer.
+
+### Fixed
+
+- The markdown report said "`1` warnings". The count is now pluralized like the text report.
+
 ## [1.5.0] - 2026-08-22
 
 ### Added

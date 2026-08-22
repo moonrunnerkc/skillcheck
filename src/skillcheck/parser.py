@@ -7,6 +7,8 @@ from typing import Any
 
 import yaml
 
+from skillcheck.io_limits import MAX_SKILL_BYTES, enforce_size_cap
+
 # Matches an opening ---, YAML content, and closing ---, with optional trailing spaces
 # and optional carriage returns for cross-platform compatibility. The newline
 # before the closing --- is optional so an empty frontmatter block (---\n---) is
@@ -32,6 +34,7 @@ class ParsedSkill:
 
 def parse(path: Path) -> ParsedSkill:
     """Load and structurally split a SKILL.md file into frontmatter and body."""
+    enforce_size_cap(path, MAX_SKILL_BYTES, ParseError, "SKILL.md")
     try:
         # utf-8-sig strips a leading BOM if present
         raw_text = path.read_text(encoding="utf-8-sig")

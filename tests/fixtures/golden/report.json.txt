@@ -1,0 +1,73 @@
+{
+  "version": "0.0.0-test",
+  "files_checked": 2,
+  "files_passed": 1,
+  "files_failed": 1,
+  "critique_source": "agent:claude",
+  "results": [
+    {
+      "path": "skills/good/SKILL.md",
+      "valid": true,
+      "diagnostics": [
+        {
+          "rule": "description.quality-score",
+          "severity": "info",
+          "message": "Description quality score: 95/100.",
+          "line": null,
+          "context": null,
+          "source": "advisory",
+          "confidence": "medium",
+          "breakdown": {
+            "action": 25,
+            "trigger": 20,
+            "keywords": 25,
+            "specificity": 15,
+            "length": 10
+          }
+        }
+      ]
+    },
+    {
+      "path": "skills/bad/SKILL.md",
+      "valid": false,
+      "diagnostics": [
+        {
+          "rule": "frontmatter.name.too-long",
+          "severity": "error",
+          "message": "Name exceeds 64 characters (got 82): 'a-very-long-name'",
+          "line": 2,
+          "context": null,
+          "source": "spec",
+          "confidence": "high"
+        },
+        {
+          "rule": "sizing.body-lines",
+          "severity": "warning",
+          "message": "Body is 612 lines, over the 500-line threshold.",
+          "line": null,
+          "context": "Split the body, or move detail behind a reference.",
+          "source": "spec",
+          "confidence": "high"
+        },
+        {
+          "rule": "references.broken",
+          "severity": "error",
+          "message": "Broken reference: `docs/a|b.md` (100% of links, comma, colon: here)",
+          "line": 41,
+          "context": null,
+          "source": "advisory",
+          "confidence": "medium"
+        },
+        {
+          "rule": "compat.unverified",
+          "severity": "info",
+          "message": "Behavior of field 'version' in codex is unverified.",
+          "line": null,
+          "context": null,
+          "source": "advisory",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ]
+}

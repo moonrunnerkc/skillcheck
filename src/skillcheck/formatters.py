@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 
+from skillcheck.config import DESCRIPTION_SCORE_WEIGHTS
 from skillcheck.result import Severity, ValidationResult
 
 # ---------------------------------------------------------------------------
@@ -72,13 +73,10 @@ def _format_text(
             ):
                 bd = score_breakdowns.get(str(result.path))
                 if bd:
-                    parts = [f"{k}: {v}/{max_v}" for k, (v, max_v) in {
-                        "action": (bd.get("action", 0), 25),
-                        "trigger": (bd.get("trigger", 0), 25),
-                        "keywords": (bd.get("keywords", 0), 25),
-                        "specificity": (bd.get("specificity", 0), 15),
-                        "length": (bd.get("length", 0), 10),
-                    }.items()]
+                    parts = [
+                        f"{name}: {bd.get(name, 0)}/{max_pts}"
+                        for name, max_pts in DESCRIPTION_SCORE_WEIGHTS.items()
+                    ]
                     lines.append(f"{'':>12}{' · '.join(parts)}")
 
     # summary
@@ -168,7 +166,8 @@ def _format_markdown(
     failed = total - passed
     warnings = sum(1 for r in results for d in r.diagnostics if d.severity == Severity.WARNING)
     lines.extend([
-        f"Checked `{total}` file{'s' if total != 1 else ''}: `{passed}` passed, `{failed}` failed, `{warnings}` warnings.",
+        f"Checked `{total}` file{'s' if total != 1 else ''}: `{passed}` passed, "
+        f"`{failed}` failed, `{warnings}` warning{'s' if warnings != 1 else ''}.",
         "",
     ])
 

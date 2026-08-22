@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from skillcheck.io_limits import MAX_CONFIG_BYTES, enforce_size_cap
+
 try:  # Python 3.11+
     import tomllib
 except ModuleNotFoundError:  # pragma: no cover, exercised only on Python 3.10
@@ -193,6 +195,7 @@ def load_config(path: Path | None) -> SkillcheckConfig:
     """
     if path is None:
         return SkillcheckConfig()
+    enforce_size_cap(path, MAX_CONFIG_BYTES, ConfigError, "Config")
     try:
         raw = path.read_text(encoding="utf-8")
     except OSError as exc:

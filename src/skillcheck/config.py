@@ -1,4 +1,5 @@
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
+from types import MappingProxyType
 
 MAX_BODY_LINES: int = 500
 MAX_TOKENS: int = 8000
@@ -93,4 +94,19 @@ CLAUDE_ONLY_FIELDS: frozenset[str] = frozenset({
     "hooks",
     "agent",
     "skills",
+})
+
+# Maximum points per description-scoring dimension, in report order.
+#
+# Single source of truth. `rules.description.score_description` sums against
+# these and `--explain-score` renders the denominators from them. They were
+# duplicated: the scorer carried its own literals and formatters.py hardcoded a
+# second copy, so changing a weight would have left the report showing a stale
+# cap ("12/25" against a dimension worth 20).
+DESCRIPTION_SCORE_WEIGHTS: Mapping[str, int] = MappingProxyType({
+    "action": 25,
+    "trigger": 25,
+    "keywords": 25,
+    "specificity": 15,
+    "length": 10,
 })

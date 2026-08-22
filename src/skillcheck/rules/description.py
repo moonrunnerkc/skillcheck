@@ -229,23 +229,28 @@ def _score_length(desc: str) -> tuple[int, str | None]:
     return 10, None
 
 
+# Dimension name to scorer. Keys and order mirror DESCRIPTION_SCORE_WEIGHTS,
+# which carries the maximum each dimension can award; test_explain_score.py
+# pins the two together so a dimension cannot gain a scorer without a weight.
+_SCORERS: dict[str, Callable[[str], tuple[int, str | None]]] = {
+    "action": _score_action_verbs,
+    "trigger": _score_trigger_phrases,
+    "keywords": _score_keyword_density,
+    "specificity": _score_specificity,
+    "length": _score_length,
+}
+
+
 def score_description(desc: str) -> tuple[int, list[str], dict[str, int]]:
     """Score a description string from 0-100 with improvement suggestions and breakdown.
 
     Returns (score, suggestions, breakdown) where suggestions is a list of
     actionable strings and breakdown maps each dimension name to its points.
     """
-    scorers = [
-        ("action", 25, _score_action_verbs),
-        ("trigger", 25, _score_trigger_phrases),
-        ("keywords", 25, _score_keyword_density),
-        ("specificity", 15, _score_specificity),
-        ("length", 10, _score_length),
-    ]
     total = 0
     suggestions: list[str] = []
     breakdown: dict[str, int] = {}
-    for name, _max_pts, scorer in scorers:
+    for name, scorer in _SCORERS.items():
         points, suggestion = scorer(desc)
         total += points
         breakdown[name] = points

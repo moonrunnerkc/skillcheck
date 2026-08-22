@@ -52,15 +52,17 @@ packages = ["src/skillcheck"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # Measurement is on by default so a plain `pytest` still reports coverage. The
-# --cov-fail-under=68 floor is NOT here: addopts applies to every invocation,
+# --cov-fail-under=75 floor is NOT here: addopts applies to every invocation,
 # including `pytest tests/test_sizing.py`, where whole-package coverage is
 # meaningless and the run fails at 0%. The floor lives with the full-suite
 # callers instead, in `make test`, `make verify-release`, and the CI test job.
 #
-# The floor sits a few points under the ~72% measured on CPython 3.10 so it
-# survives matrix variance: the CLI modules (cli.py, commands.py) run in
-# subprocesses the in-process tracer does not see, the tomllib vs fallback-parser
-# branch flips between 3.10 and 3.11+, and a few tests skip on Windows.
+# The floor sits a few points under measured coverage so it survives matrix
+# variance: 79% on CPython 3.10 and 78% on 3.12, the difference being the
+# tomllib vs fallback-parser branch that only executes below 3.11. A few tests
+# also skip on Windows, and the CLI modules (cli.py, commands.py) run in
+# subprocesses the in-process tracer does not see, which is why the ceiling is
+# nowhere near 100.
 addopts = "--cov=skillcheck --cov-report=term-missing"
 
 [tool.ruff]

@@ -1,0 +1,22 @@
+# skillcheck report
+
+Critique source: `agent:claude`
+
+Graph source: `heuristic`
+
+Checked `2` files: `1` passed, `1` failed, `1` warning.
+
+## PASS: skills/good/SKILL.md
+
+| Line | Severity | Rule | Source | Confidence | Message |
+|---:|---|---|---|---|---|
+|  | info | `description.quality-score` | advisory | medium | Description quality score: 95/100. |
+
+## FAIL: skills/bad/SKILL.md
+
+| Line | Severity | Rule | Source | Confidence | Message |
+|---:|---|---|---|---|---|
+| 2 | error | `frontmatter.name.too-long` | spec | high | Name exceeds 64 characters (got 82): 'a-very-long-name' |
+|  | warning | `sizing.body-lines` | spec | high | Body is 612 lines, over the 500-line threshold. |
+| 41 | error | `references.broken` | advisory | medium | Broken reference: `docs/a\|b.md` (100% of links, comma, colon: here) |
+|  | info | `compat.unverified` | advisory | medium | Behavior of field 'version' in codex is unverified. |

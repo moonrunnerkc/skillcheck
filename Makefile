@@ -1,8 +1,8 @@
-.PHONY: lint test regen-self-host-fixtures verify-release
+.PHONY: lint test regen-golden regen-self-host-fixtures verify-release
 
 # Coverage floor for full-suite runs. Not in pyproject addopts, which would also
 # apply it to single-file runs; see the comment there.
-COV_FLOOR := 68
+COV_FLOOR := 75
 
 # Pre-1.0 sentinel version. Stale references to this string must not appear in
 # shipped files; update only if a new major version creates a new legacy line.
@@ -14,6 +14,12 @@ VERSION := $(shell grep -m1 '^version' pyproject.toml | sed 's/.*"\(.*\)".*/\1/'
 
 regen-self-host-fixtures:
 	python3 scripts/regen_self_host_fixtures.py
+
+# Rewrite tests/fixtures/golden/ from the current renderers. Read the diff
+# before committing: a golden that moves without a formatters.py change means
+# something upstream shifted.
+regen-golden:
+	SKILLCHECK_REGEN_GOLDEN=1 python3 -m pytest tests/test_formatter_golden.py -q
 
 lint:
 	ruff check src tests scripts
