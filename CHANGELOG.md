@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `metadata` is recognized as an ecosystem frontmatter field. It previously produced `frontmatter.field.unknown` (warning); it now produces `frontmatter.field.ecosystem` (info), matching `license`, `repository`, `homepage`, and `template`. Thanks to @kriptoburak.
+
+### Changed
+
+- `release.yml` repoints the `v1` moving major tag after a successful publish, in a separate job that holds the only `contents: write` scope in the workflow. Moving it was a manual step in the release checklist and was missed for v1.3.0 and v1.4.1, so `uses: moonrunnerkc/skillcheck@v1` resolved to v1.2.3 source from May 7 until now. Prerelease tags that the `v*.*.*` trigger glob also matches are skipped, and the first release of a new major line creates the tag instead of updating it.
+- `release.yml` runs `scripts/check_changelog_release.py` before the build and refuses to publish when the CHANGELOG is in a state `release-notes.yml` cannot promote: a version heading that already exists alongside a non-empty `[Unreleased]`, or no heading and nothing to promote. `release-notes.yml` now fails on the first of those instead of exiting 0 with a message in the log.
+- The `--cov-fail-under=68` coverage floor moved out of pytest `addopts`, which applied it to every invocation and failed any single-file run at 0%. Coverage is still measured on a plain `pytest`; the floor is enforced by the new `make test` target, `make verify-release`, and the CI test job.
+- Mypy's `files` list takes `scripts` as a directory instead of naming each script, so a new script is type-gated on arrival rather than when someone remembers to add it.
+
+### Removed
+
+- The duplicate `SKILL.md` at the repository root. The self-host skill lives at `skills/skillcheck/SKILL.md`, which is what the coherence tests, the self-host suite, the fixture regenerator, and `make verify-release` all read. The root copy was covered by none of them and had drifted to version 1.3.0 with the older description. `tests/test_version_coherence.py` now asserts exactly one tracked `SKILL.md` outside `tests/fixtures`.
+
+### Fixed
+
+- Ten entries that shipped in 1.4.1 are recorded under `[1.4.1]` instead of `[Unreleased]`. The release commit promoted part of the block by hand, `release-notes.yml` treats an existing version heading as already promoted, and the remainder was left behind. The published v1.4.1 release notes omitted the empty-frontmatter fix, the symlink-safe directory walk, per-table body sizing, skill-relative reference paths, the config-loader hardening, the ledger `fsync`, event-stream YAML anchor detection, and the GitHub annotation escaping.
+- The `version` input description in `action.yml` gave `1.2.3` as its example, a version with a git tag and a GitHub release but no PyPI artifact, so setting it failed the install the input feeds. It also described an empty value as "latest" when an empty value installs from the action's own checkout.
+
 ## [1.4.1] - 2026-07-09
 
 ### Added
