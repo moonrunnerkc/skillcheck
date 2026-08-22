@@ -33,6 +33,7 @@ CHANGELOG = REPO_ROOT / "CHANGELOG.md"
 
 _UNRELEASED = re.compile(r"^##\s*\[Unreleased\]\s*$", re.MULTILINE)
 _ANY_HEADING = re.compile(r"^##\s*\[", re.MULTILINE)
+_VERSION = re.compile(r"\d+\.\d+\.\d+")
 
 
 def unreleased_body(text: str) -> str:
@@ -79,6 +80,14 @@ def main(argv: list[str]) -> int:
         return 2
 
     version = argv[1].lstrip("v")
+    # An unset or malformed version must not pass silently. Empty matches no
+    # heading and leaves a filling [Unreleased] looking like the normal
+    # between-releases state, so the gate would wave through a release whose
+    # tag name never reached this script.
+    if not _VERSION.fullmatch(version):
+        print(f"Expected a version like 1.4.2 or v1.4.2, got {argv[1]!r}.", file=sys.stderr)
+        return 2
+
     path = Path(argv[2]) if len(argv) == 3 else CHANGELOG
 
     problems = check(path.read_text(encoding="utf-8"), version)

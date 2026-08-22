@@ -73,6 +73,22 @@ def test_heading_match_is_exact_not_prefix() -> None:
     assert load_checker().check(text, "1.4.1") == []
 
 
+def test_main_rejects_a_version_that_is_not_a_version(tmp_path: Path) -> None:
+    """An unset or malformed tag name must not pass the gate silently.
+
+    An empty version matches no heading, which leaves a filling [Unreleased]
+    looking like the normal between-releases state, so `check` alone would
+    report the CHANGELOG as ready.
+    """
+    changelog = tmp_path / "CHANGELOG.md"
+    changelog.write_text(HEADER + "## [Unreleased]\n\n### Added\n\n- Pending.\n", encoding="utf-8")
+    main = load_checker().main
+
+    assert main(["check", "", str(changelog)]) == 2
+    assert main(["check", "not-a-version", str(changelog)]) == 2
+    assert main(["check", "v1.5.0", str(changelog)]) == 0
+
+
 def test_released_version_with_pending_next_entries_passes() -> None:
     """Normal development after a release: entries pile up for the next version.
 
