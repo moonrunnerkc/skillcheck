@@ -20,11 +20,13 @@ import json
 import re
 
 from skillcheck.agents._response_text import strip_response_noise
+from skillcheck.io_limits import MAX_INGEST_BYTES as _MAX_INGEST_BYTES
 
 # Maximum size of a single ingested response (stdin or file). A real critique or
 # graph response is a few KB; 5 MiB is a generous ceiling that still bounds a
-# hostile or runaway payload.
-MAX_INGEST_BYTES = 5 * 1024 * 1024
+# hostile or runaway payload. Re-exported from skillcheck.io_limits, which holds
+# the cap for every file skillcheck reads, so the four limits sit together.
+MAX_INGEST_BYTES = _MAX_INGEST_BYTES
 
 # Maximum number of items in any single ingested list (findings, missing_context,
 # contradictions, capabilities, inputs, outputs, edges). A real response has a
