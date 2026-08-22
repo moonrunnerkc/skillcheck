@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-08-22
+
 ### Added
 
 - `metadata` is recognized as an ecosystem frontmatter field. It previously produced `frontmatter.field.unknown` (warning); it now produces `frontmatter.field.ecosystem` (info), matching `license`, `repository`, `homepage`, and `template`. Thanks to @kriptoburak.
