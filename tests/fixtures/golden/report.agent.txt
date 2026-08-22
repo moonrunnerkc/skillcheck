@@ -1,0 +1,12 @@
+skillcheck agent report
+status: fail
+files_checked: 2
+files_failed: 1
+warnings: 1
+critique_source: agent:claude
+graph_source: heuristic
+
+next_actions:
+- Fix frontmatter.name.too-long in skills/bad/SKILL.md:2: Name exceeds 64 characters (got 82): 'a-very-long-name'
+- Fix sizing.body-lines in skills/bad/SKILL.md: Body is 612 lines, over the 500-line threshold.
+- Fix references.broken in skills/bad/SKILL.md:41: Broken reference: `docs/a|b.md` (100% of links, comma, colon: here)
