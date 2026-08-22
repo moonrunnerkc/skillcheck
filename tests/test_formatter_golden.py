@@ -41,8 +41,15 @@ GOLDEN_DIR = Path(__file__).parent / "fixtures" / "golden"
 # Pinned so the JSON golden does not churn on every release.
 _VERSION = "0.0.0-test"
 
+_GOOD_PATH = Path("skills/good/SKILL.md")
+_BAD_PATH = Path("skills/bad/SKILL.md")
+
+# Keyed by str(Path(...)), not a POSIX literal. Both renderers look the
+# breakdown up with `str(result.path)`, which is native, so a hardcoded
+# forward-slash key silently misses on Windows and the breakdown vanishes from
+# the report instead of failing loudly.
 _BREAKDOWNS = {
-    "skills/good/SKILL.md": {
+    str(_GOOD_PATH): {
         "action": 25,
         "trigger": 20,
         "keywords": 25,
@@ -55,7 +62,7 @@ _BREAKDOWNS = {
 def _results() -> list[ValidationResult]:
     """One passing file and one failing file, covering every renderer branch."""
     passing = ValidationResult(
-        path=Path("skills/good/SKILL.md"),
+        path=_GOOD_PATH,
         diagnostics=[
             Diagnostic(
                 rule="description.quality-score",
@@ -65,7 +72,7 @@ def _results() -> list[ValidationResult]:
         ],
     )
     failing = ValidationResult(
-        path=Path("skills/bad/SKILL.md"),
+        path=_BAD_PATH,
         diagnostics=[
             Diagnostic(
                 rule="frontmatter.name.too-long",
@@ -218,3 +225,14 @@ def test_path_normalizer_leaves_the_markdown_pipe_escape_alone() -> None:
     """A blanket backslash replacement would corrupt `docs/a\\|b.md`."""
     escaped = "| 41 | error | Broken reference: `docs/a\\|b.md` |"
     assert _to_posix_paths(escaped) == escaped
+
+
+def test_breakdown_key_matches_what_the_renderers_look_up() -> None:
+    """The lookup is `str(result.path)`, so the fixture key must be native.
+
+    A POSIX literal here passes on Linux and macOS while silently dropping the
+    --explain-score line on Windows, which is exactly how it first failed: the
+    golden kept the breakdown row and the Windows run rendered without it.
+    """
+    good = next(r for r in _results() if r.valid)
+    assert str(good.path) in _BREAKDOWNS
