@@ -41,6 +41,7 @@ def _format_text(
     critique_source: str | None = None,
     graph_source: str | None = None,
     score_breakdowns: dict[str, dict[str, int]] | None = None,
+    score_reasons: dict[str, dict[str, str]] | None = None,
     explain_score: bool = False,
 ) -> str:
     lines: list[str] = []
@@ -78,6 +79,15 @@ def _format_text(
                         for name, max_pts in DESCRIPTION_SCORE_WEIGHTS.items()
                     ]
                     lines.append(f"{'':>12}{' · '.join(parts)}")
+                    # Why each dimension scored what it did. Five bare numbers
+                    # say a dimension lost points but not which phrasing earns
+                    # them back, and the aggregate suggestion list does not say
+                    # which dimension it belongs to.
+                    reasons = (score_reasons or {}).get(str(result.path)) or {}
+                    for name in DESCRIPTION_SCORE_WEIGHTS:
+                        if name in reasons:
+                            detail = _style(reasons[name], _DIM, color=color)
+                            lines.append(f"{'':>14}{name}: {detail}")
 
     # summary
     total = len(results)

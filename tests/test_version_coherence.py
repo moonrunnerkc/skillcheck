@@ -96,7 +96,10 @@ def _tracked_skill_files() -> list[Path]:
     if result.returncode != 0:
         pytest.skip("not a git checkout; cannot enumerate tracked files")
     paths = [Path(line) for line in result.stdout.split() if line]
-    return [p for p in paths if "fixtures" not in p.parts]
+    # Test data is not a second self-host skill. tests/fixtures holds parser
+    # inputs and tests/golden holds pinned rule outputs; both legitimately
+    # contain files named SKILL.md, and neither is a skill this repo publishes.
+    return [p for p in paths if not {"fixtures", "golden"} & set(p.parts)]
 
 
 def test_only_one_self_host_skill_is_tracked():

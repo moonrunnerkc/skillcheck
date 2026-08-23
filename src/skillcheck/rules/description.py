@@ -48,7 +48,20 @@ _ACTION_VERBS = frozenset({
          "sign", "signal", "simplify", "snapshot", "sort", "stage", "store", "stream", 
          "structure", "summarize", "sync", "synchronize", "tag", "target", "test", "transform", 
          "translate", "transport", "treat", "triage", "troubleshoot", "update", "upload", "validate", 
-         "visualize", "wrap", 
+         "visualize", "wrap",
+         # Added after scoring a corpus of 61 installed skills. Six descriptions
+         # scored zero on this dimension purely because "use" was absent, and
+         # "Use when receiving code review feedback, before implementing
+         # suggestions" is the house style for a whole family of real skills.
+         # "review", "implement", "write", "add", and "verify" were missing from
+         # a 170-entry list for the same reason: it was written by enumeration
+         # rather than measured against descriptions people actually ship.
+         #
+         # Deliberately still excluded: "help", "support", and "provide", which
+         # name no observable action, alongside the pre-existing exclusions.
+         "add", "brainstorm", "bundle", "choose", "debug", "design", "dispatch",
+         "finish", "guide", "implement", "package", "plan", "receive", "review",
+         "solve", "start", "use", "verify", "write",
 })
 
 
@@ -90,8 +103,22 @@ def _is_action_verb(word: str) -> bool:
             return True  # scanning -> scan, tagging -> tag
     return False
 
-# Trigger phrases that signal when a skill should activate.
-_TRIGGER_PATTERNS = [
+# Trigger phrases that signal when a skill should activate, in two tiers.
+#
+# STRONG forms name activation explicitly: an imperative aimed at the agent, or
+# a clause naming what the user did. CONTEXTUAL forms are bare temporal clauses
+# that state activation context without the imperative.
+#
+# The split exists because a single tier over-credits incidental prose. Scoring
+# a corpus of 61 installed skills showed 12 descriptions at zero and not one
+# reaching the 25-point tier, since that tier needs two matches and the original
+# patterns were near-synonyms of one phrasing. Adding bare temporal forms fixed
+# the false negatives but created false positives: "A nice helper when using
+# things" earned the same trigger credit as "Use when receiving code review
+# feedback" because both contain a gerund after a preposition. Weighting the
+# tiers separately keeps the real openers at full credit and leaves incidental
+# gerunds partial.
+_STRONG_TRIGGER_PATTERNS = [
     re.compile(r"\buse\s+(?:this\s+)?(?:skill\s+)?when\b", re.IGNORECASE),
     re.compile(r"\bactivate\s+(?:this\s+)?(?:skill\s+)?(?:for|when)\b", re.IGNORECASE),
     re.compile(r"\brun\s+(?:this\s+)?(?:skill\s+)?when\b", re.IGNORECASE),
@@ -99,7 +126,27 @@ _TRIGGER_PATTERNS = [
     re.compile(r"\bwhenever\s+(?:the\s+)?user\s+(?:mentions?|asks?|requests?|needs?|wants?)\b", re.IGNORECASE),
     re.compile(r"\bmake\s+sure\s+to\s+use\s+this\s+skill\b", re.IGNORECASE),
     re.compile(r"\btrigger(?:s|ed)?\s+(?:when|for|by)\b", re.IGNORECASE),
+    # "This skill should be used when the user asks to ..." is the single most
+    # common opener in the corpus and matched nothing above: those patterns all
+    # require "use" as an active verb directly before "when".
+    re.compile(r"\b(?:should\s+be\s+)?used\s+when\b", re.IGNORECASE),
+    # "whenever the user asks" was covered; plain "when the user asks" was not,
+    # despite being the more common of the two.
+    re.compile(r"\bwhen\s+(?:the\s+)?user\s+(?:mentions?|asks?|requests?|needs?|wants?)\b", re.IGNORECASE),
+    re.compile(r"\bwhen\s+asked\s+to\b", re.IGNORECASE),
 ]
+
+# "when building new UI", "before implementing suggestions". Real activation
+# context, but also what ordinary prose looks like, so worth less on its own.
+_CONTEXTUAL_TRIGGER_PATTERNS = [
+    re.compile(r"\bwhen\s+\w+ing\b", re.IGNORECASE),
+    re.compile(r"\bbefore\s+\w+ing\b", re.IGNORECASE),
+    re.compile(r"\bafter\s+\w+ing\b", re.IGNORECASE),
+]
+
+# Retained as the union for callers that only ask whether any trigger form is
+# present, and so the two tiers cannot drift apart silently.
+_TRIGGER_PATTERNS = _STRONG_TRIGGER_PATTERNS + _CONTEXTUAL_TRIGGER_PATTERNS
 
 # Generic filler words that reduce specificity.
 #
@@ -161,12 +208,21 @@ def _score_action_verbs(desc: str) -> tuple[int, str | None]:
 
 
 def _score_trigger_phrases(desc: str) -> tuple[int, str | None]:
-    """Score 0-25 based on trigger phrase presence."""
-    matches = sum(1 for p in _TRIGGER_PATTERNS if p.search(desc))
-    if matches >= 2:
+    """Score 0-25 based on trigger phrase presence, weighting explicit forms."""
+    strong = sum(1 for p in _STRONG_TRIGGER_PATTERNS if p.search(desc))
+    contextual = sum(1 for p in _CONTEXTUAL_TRIGGER_PATTERNS if p.search(desc))
+
+    if strong and strong + contextual >= 2:
         return 25, None
-    if matches == 1:
+    if strong:
         return 20, None
+    if contextual >= 2:
+        return 20, None
+    if contextual == 1:
+        return 15, (
+            "Trigger context is implicit. An explicit form routes better: "
+            "'Use when...' or 'This skill should be used when the user asks to...'."
+        )
     # Check for weaker contextual signals
     weak_signals = [
         re.compile(r"\bfor\s+\w+ing\b", re.IGNORECASE),
@@ -257,6 +313,62 @@ def score_description(desc: str) -> tuple[int, list[str], dict[str, int]]:
         if suggestion:
             suggestions.append(suggestion)
     return total, suggestions, breakdown
+
+
+def explain_components(desc: str) -> dict[str, str]:
+    """Say what each dimension matched or failed to match, for --explain-score.
+
+    The breakdown line used to be five bare numbers. "trigger: 15/25" tells an
+    author the dimension lost points but not which phrasing would earn them, and
+    the aggregate suggestion list does not say which dimension it belongs to.
+    Each entry here names the concrete signal behind the score.
+    """
+    words = re.findall(r"[a-zA-Z]+", desc)
+    explanations: dict[str, str] = {}
+
+    if words and _is_action_verb(words[0]):
+        explanations["action"] = f"leads with the action verb '{words[0]}'"
+    else:
+        verbs = [w for w in words if _is_action_verb(w)]
+        if verbs:
+            explanations["action"] = (
+                f"{len(verbs)} action verb{'s' if len(verbs) != 1 else ''} "
+                f"('{verbs[0]}'), but not in the leading position"
+            )
+        else:
+            explanations["action"] = "no action verb matched"
+
+    strong = [p.pattern for p in _STRONG_TRIGGER_PATTERNS if p.search(desc)]
+    contextual = [p.pattern for p in _CONTEXTUAL_TRIGGER_PATTERNS if p.search(desc)]
+    if strong:
+        matched = _first_match_text(_STRONG_TRIGGER_PATTERNS, desc)
+        extra = f" plus {len(contextual)} contextual" if contextual else ""
+        explanations["trigger"] = f"explicit trigger '{matched}'{extra}"
+    elif contextual:
+        matched = _first_match_text(_CONTEXTUAL_TRIGGER_PATTERNS, desc)
+        explanations["trigger"] = f"contextual trigger '{matched}' only, no explicit form"
+    else:
+        explanations["trigger"] = "no trigger form matched"
+
+    content = [w for w in words if w.lower() not in _STOP_WORDS]
+    ratio = len(content) / len(words) if words else 0.0
+    explanations["keywords"] = f"{len(content)} of {len(words)} words carry content ({ratio:.0%})"
+
+    vague = sorted({w.lower() for w in words if w.lower() in _VAGUE_WORDS})
+    explanations["specificity"] = (
+        f"vague filler: {', '.join(vague)}" if vague else "no vague filler"
+    )
+
+    explanations["length"] = f"{len(desc)} characters"
+    return explanations
+
+
+def _first_match_text(patterns: list[re.Pattern[str]], desc: str) -> str:
+    for pattern in patterns:
+        found = pattern.search(desc)
+        if found is not None:
+            return found.group().strip()
+    return ""
 
 
 def check_description_quality(skill: ParsedSkill) -> list[Diagnostic]:

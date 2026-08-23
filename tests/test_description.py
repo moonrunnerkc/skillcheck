@@ -204,7 +204,11 @@ def test_newly_added_verbs_all_count_as_action_verbs():
              "automate", "scaffold", "provision", "migrate", "sync",
        })
        newly_added = sorted(_ACTION_VERBS - _ORIGINAL)
-       assert len(newly_added) == 127, f"Expected 127 new verbs, got {len(newly_added)}"
+       # No hardcoded count. It recorded how many verbs the 1.0.2 expansion
+       # added and had to be edited every time the list grew, which says
+       # nothing about behavior. The loop below is the real assertion, and it
+       # now covers every verb in the list rather than a fixed number of them.
+       assert newly_added, "the expansion set should not be empty"
        for verb in newly_added:
              score, suggestions = _score_action_verbs(f"{verb.title()} something.")
              assert score >= 20, (

@@ -469,12 +469,14 @@ def _print_report(
     """Print the report in the requested format (no-op under --quiet)."""
     # Compute description quality score breakdowns when relevant.
     score_breakdowns: dict[str, dict[str, int]] = {}
+    score_reasons: dict[str, dict[str, str]] = {}
     has_quality_diag = any(
         d.rule == "description.quality-score"
         for r in results
         for d in r.diagnostics
     )
     if has_quality_diag:
+        from skillcheck.rules.description import explain_components as _explain
         from skillcheck.rules.description import score_description as _score
         from skillcheck.template_detection import is_template
         for r in results:
@@ -486,6 +488,8 @@ def _print_report(
                         if desc and isinstance(desc, str) and desc.strip() and not is_template(skill):
                             _, _, bd = _score(desc)
                             score_breakdowns[str(r.path)] = bd
+                            if args.explain_score:
+                                score_reasons[str(r.path)] = _explain(desc)
                     except Exception:
                         pass
                     break  # one description per file
@@ -523,6 +527,7 @@ def _print_report(
             critique_source=critique_source,
             graph_source=graph_source_text,
             score_breakdowns=score_breakdowns or None,
+            score_reasons=score_reasons or None,
             explain_score=args.explain_score,
         ))
 
