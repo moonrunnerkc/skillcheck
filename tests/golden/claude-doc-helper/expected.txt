@@ -1,0 +1,2 @@
+description.quality-score	info	line=-	Description quality score: 75/100. Suggestions: No trigger context found. Add phrases like 'Use this skill whenever the user mentions...'.
+frontmatter.name.reserved-word	warning	line=2	Name contains the term 'claude' which may collide with platform-reserved namespaces. Verify with the target agent's documentation.

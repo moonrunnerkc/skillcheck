@@ -1,0 +1,1 @@
+description.quality-score	info	line=-	Description quality score: 75/100. Suggestions: No trigger context found. Add phrases like 'Use this skill whenever the user mentions...'.

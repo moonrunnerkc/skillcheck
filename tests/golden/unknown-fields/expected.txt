@@ -1,0 +1,4 @@
+description.quality-score	info	line=-	Description quality score: 85/100. Suggestions: Add explicit trigger phrases like 'Use when...' or 'Activate for...'.
+frontmatter.field.ecosystem	info	line=6	Field 'license' is ecosystem-common but not in the agentskills.io spec. Add it to skillcheck.toml under [frontmatter] extension_fields if intentional.
+frontmatter.field.unknown	warning	line=4	Unknown frontmatter field 'owner'. Known fields: agent, allowed-tools, author, context, description, disable-model-invocation, hooks, mode, model, name, skills, tags, user-invocable, version.
+frontmatter.field.unknown	warning	line=5	Unknown frontmatter field 'sla'. Known fields: agent, allowed-tools, author, context, description, disable-model-invocation, hooks, mode, model, name, skills, tags, user-invocable, version.
