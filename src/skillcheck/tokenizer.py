@@ -11,9 +11,20 @@ from typing import Any
 #     Each contiguous run is ~1.5 tokens: a short symbol like ":" or "-" is 1 token;
 #     a longer run like "---" or "/**" is typically 2-3 tokens but not one per char.
 #
-# This outperforms the naive char//4 heuristic (~20% average error) on mixed
-# YAML/markdown/code content, reaching ~15% average error. It is fully offline.
-# Install `tiktoken` to get ~5% error with the cl100k_base BPE vocabulary.
+# Measured against tiktoken cl100k_base over 61 real SKILL.md files with
+# scripts/measure_token_error.py: 23.0% median relative error on a whole file,
+# 30.7% at p95, reading high on 61 of 61. It is fully offline.
+#
+# This comment used to claim ~15% average error and that the approach beat the
+# naive char//4 rule of thumb at ~20%. Both were wrong on that corpus, and the
+# ordering was backwards: chars//4 measured 6.3% median. The estimator is left
+# alone because swapping it would move every token diagnostic, which is not a
+# documentation change; the measurement is recorded in the README so the choice
+# can be made deliberately.
+#
+# Install `tiktoken` for counts from cl100k_base directly. Its own residual
+# error against Claude's tokenizer is unknown, Anthropic's vocabulary not being
+# published, so no figure is claimed for it here.
 _WORD_RE = re.compile(r"\w+")
 _PUNCT_RE = re.compile(r"[^\w\s]+")
 
@@ -49,15 +60,17 @@ def estimate_tokens(text: str) -> int:
     """Estimate the BPE token count of a text string.
 
     Priority:
-    1. tiktoken (cl100k_base) if installed: ~5% error. tiktoken downloads the
-       cl100k_base vocabulary from the internet on first use and caches it, so
-       the very first run needs network access (or a pre-warmed cache); later
-       runs are offline.
-    2. Word-run + punctuation-run heuristic: ~15% error, no dependencies, always offline.
+    1. tiktoken (cl100k_base) if installed. tiktoken downloads the cl100k_base
+       vocabulary from the internet on first use and caches it, so the very
+       first run needs network access (or a pre-warmed cache); later runs are
+       offline.
+    2. Word-run + punctuation-run heuristic: 23% median error against
+       cl100k_base and reading high on every file measured, no dependencies,
+       always offline. See the module comment above for the measurement.
 
     Neither gives exact Claude token counts (Anthropic's vocabulary is not
-    publicly released), but both are accurate enough for a WARNING-level
-    size check where a 15% threshold margin is acceptable.
+    publicly released), which is why token-based diagnostics are WARNING
+    severity. Prefer the tiktoken extra when a count lands near a budget.
     """
     enc = _get_tiktoken_enc()
     if enc is not None:

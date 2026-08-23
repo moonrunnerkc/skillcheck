@@ -14,7 +14,7 @@
 
 Static analyzer for `SKILL.md` files. Validates frontmatter, body sizing, file references, and cross-agent compatibility against the [agentskills.io specification](https://agentskills.io/specification). No network calls. No LLM API calls. No file mutations.
 
-1051 tests cover all rule modules.
+1056 tests cover all rule modules.
 
 ## Install
 
@@ -30,17 +30,21 @@ pip install "skillcheck[tiktoken]"
 
 ### Token estimation accuracy
 
-Token counts are estimates, and the sizing rules report them as such.
+Token counts are estimates, and the sizing rules report them as such. The bands below are measured, not estimated: `scripts/measure_token_error.py` compares the offline heuristic against `tiktoken` `cl100k_base` across a corpus of 61 real `SKILL.md` files, for the three spans the rules actually size.
 
-| Estimator | Average error | Offline |
-|---|---:|---|
-| Default heuristic (no extra) | ~15% | Yes |
-| `skillcheck[tiktoken]`, `cl100k_base` | ~5% | After the first run |
-| Naive `chars / 4` (what the default replaces) | ~20% | Yes |
+| Span | Rule | Median error | p95 error | Direction |
+|---|---|---:|---:|---|
+| Whole file | `sizing.total-tokens` | 23.0% | 30.7% | over-estimates 61/61 |
+| Frontmatter | `disclosure.metadata-budget` | 25.9% | 35.3% | over-estimates 61/61 |
+| Body | `disclosure.body-budget` | 22.7% | 30.7% | over-estimates 61/61 |
 
-The default counts word runs at 1.3 sub-tokens and punctuation runs at 1.5, measured against mixed YAML, markdown, and code. tiktoken downloads its vocabulary on first use, so it is offline only once that cache is warm; the heuristic never touches the network.
+The bias is one-directional: the offline heuristic read high on every file in the corpus. For a budget check that is the safer direction, since it warns early rather than missing a skill that is genuinely over, but it means a warning close to a threshold is as likely to be the estimator as the file.
 
-Neither estimator matches Claude's tokenizer, because Anthropic's vocabulary is not published. That is why token-based diagnostics are WARNING severity and line-based ones are not: treat a token figure near its threshold as "check this", not as a verdict. Messages carry the estimate and the threshold (`got 612 tokens`) so you can judge the margin yourself.
+**Install the tiktoken extra before trusting a diagnostic near a budget limit.** With `pip install "skillcheck[tiktoken]"` the counts come from `cl100k_base` directly instead of the heuristic. tiktoken downloads its vocabulary on first use and caches it, so it is offline only once that cache is warm; the heuristic never touches the network.
+
+Neither option reproduces Claude's own tokenizer, because Anthropic's vocabulary is not published, so the residual error against what Claude actually counts is unknown and not measured here. That is why token-based diagnostics are WARNING severity while line-based ones are not, and why messages carry the estimate and the threshold (`got 612 tokens`) so you can judge the margin yourself.
+
+One measured result is worth flagging: the plain `chars / 4` rule of thumb scored a 6.3% median error on the same corpus, against the word-run heuristic's 23.0%. The comment in `tokenizer.py` claimed the opposite. Changing the estimator would move every token diagnostic, so it has not been changed here; the number is recorded so the decision can be made deliberately.
 
 ## Usage
 
