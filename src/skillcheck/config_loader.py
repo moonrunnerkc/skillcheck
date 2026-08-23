@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from skillcheck.io_limits import MAX_CONFIG_BYTES, enforce_size_cap
+from skillcheck.io_limits import MAX_CONFIG_BYTES, read_guarded_text
 
 try:  # Python 3.11+
     import tomllib
@@ -195,9 +195,8 @@ def load_config(path: Path | None) -> SkillcheckConfig:
     """
     if path is None:
         return SkillcheckConfig()
-    enforce_size_cap(path, MAX_CONFIG_BYTES, ConfigError, "Config")
     try:
-        raw = path.read_text(encoding="utf-8")
+        raw = read_guarded_text(path, max_bytes=MAX_CONFIG_BYTES, what="Config", error_cls=ConfigError)
     except OSError as exc:
         raise ConfigError(f"Cannot read {path}: {exc}. Check file permissions and retry.") from exc
 

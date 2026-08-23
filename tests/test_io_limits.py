@@ -51,7 +51,10 @@ def test_file_over_the_cap_raises_the_callers_error_type(tmp_path: Path) -> None
     assert "Thing" in message
     assert "101 bytes" in message
     assert "100-byte limit" in message
-    assert str(target) in message
+    # The file is named, but never by absolute path: diagnostics must not
+    # publish the host's directory layout. See display_path.
+    assert "big.txt" in message
+    assert str(tmp_path) not in message
 
 
 def test_file_exactly_at_the_cap_is_accepted(tmp_path: Path) -> None:

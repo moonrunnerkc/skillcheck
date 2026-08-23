@@ -54,6 +54,12 @@ from skillcheck.formatters import (
     _format_markdown,
     _format_text,
 )
+from skillcheck.io_limits import (
+    UntrustedInputError,
+    display_path,
+    read_guarded_text,
+    reject_control_characters,
+)
 from skillcheck.parser import ParsedSkill, ParseError
 from skillcheck.parser import parse as _parse_skill
 from skillcheck.result import Diagnostic, Severity, ValidationResult
@@ -124,23 +130,29 @@ def read_ingest_raw(ingest_path: str) -> str:
                 file=sys.stderr,
             )
             sys.exit(2)
+        # stdin arrives already decoded, so only the control-character half of
+        # the policy applies. A pipe carrying NULs is a binary stream, not JSON.
+        try:
+            reject_control_characters(raw, what="Ingest payload", source="stdin")
+        except UntrustedInputError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(2)
         return raw
     p = Path(ingest_path)
     if not p.exists():
+        # Echoed verbatim, not through display_path. This is the string the user
+        # typed on the command line, so shortening it hides which path they got
+        # wrong. display_path exists to keep discovered content from publishing
+        # the host layout, which does not apply to the user's own argument.
         print(f"Error: critique response file not found: {p}", file=sys.stderr)
         sys.exit(2)
-    size = p.stat().st_size
-    if size > MAX_INGEST_BYTES:
-        print(
-            f"Error: ingest response {p} is {size} bytes, over the {MAX_INGEST_BYTES}-byte cap. "
-            f"Trim the response or split the run into smaller batches.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
     try:
-        return p.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError) as exc:
-        print(f"Error: cannot read {p}: {exc}", file=sys.stderr)
+        return read_guarded_text(p, max_bytes=MAX_INGEST_BYTES, what="Ingest response")
+    except UntrustedInputError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(2)
+    except OSError as exc:
+        print(f"Error: cannot read {display_path(p)}: {exc}", file=sys.stderr)
         sys.exit(2)
 
 
@@ -310,8 +322,11 @@ def run_show_history(args: argparse.Namespace, paths: list[Path]) -> None:
     try:
         ledger = load_ledger(lp)
     except LedgerError as exc:
+        # Exit 2: README documents it as the code for malformed input, and an
+        # unreadable ledger is exactly that. This path returned 1 before, which
+        # contradicted the documented contract.
         print(f"Error: {exc}", file=sys.stderr)
-        sys.exit(1)
+        sys.exit(2)
     if ledger is None:
         print(f"No history ledger found for {target_path}.", file=sys.stderr)
         sys.exit(2)
