@@ -1,0 +1,362 @@
+[
+  {
+    "flags": [
+      "--activation-hypotheses",
+      "--agent-reason"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --activation-hypotheses and --agent-reason together. Pick one emit mode.\n"
+  },
+  {
+    "flags": [
+      "--activation-hypotheses",
+      "--analyze-graph"
+    ],
+    "exit_code": 2,
+    "stderr": "Error: path not found: __does_not_exist__/SKILL.md\n"
+  },
+  {
+    "flags": [
+      "--activation-hypotheses",
+      "--emit-critique-prompt"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --emit-critique-prompt and --activation-hypotheses together. Pick one emit mode.\n"
+  },
+  {
+    "flags": [
+      "--activation-hypotheses",
+      "--emit-graph"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --emit-graph and --activation-hypotheses together. Pick one emit mode.\n"
+  },
+  {
+    "flags": [
+      "--activation-hypotheses",
+      "--emit-graph-prompt"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --emit-graph-prompt and --activation-hypotheses together. Pick one emit mode.\n"
+  },
+  {
+    "flags": [
+      "--activation-hypotheses",
+      "--history"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --history with --activation-hypotheses. --history records validation runs; emit modes skip validation.\n"
+  },
+  {
+    "flags": [
+      "--activation-hypotheses",
+      "--ingest-critique"
+    ],
+    "exit_code": 2,
+    "stderr": "Error: path not found: __does_not_exist__/SKILL.md\n"
+  },
+  {
+    "flags": [
+      "--activation-hypotheses",
+      "--ingest-graph"
+    ],
+    "exit_code": 2,
+    "stderr": "Error: path not found: __does_not_exist__/SKILL.md\n"
+  },
+  {
+    "flags": [
+      "--activation-hypotheses",
+      "--show-history"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --show-history with --activation-hypotheses. --show-history reads the ledger; --activation-hypotheses emits a prompt.\n"
+  },
+  {
+    "flags": [
+      "--agent-reason",
+      "--analyze-graph"
+    ],
+    "exit_code": 2,
+    "stderr": "Error: path not found: __does_not_exist__/SKILL.md\n"
+  },
+  {
+    "flags": [
+      "--agent-reason",
+      "--emit-critique-prompt"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --emit-critique-prompt and --agent-reason together. Pick one emit mode.\n"
+  },
+  {
+    "flags": [
+      "--agent-reason",
+      "--emit-graph"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --emit-graph and --agent-reason together. Pick one emit mode.\n"
+  },
+  {
+    "flags": [
+      "--agent-reason",
+      "--emit-graph-prompt"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --emit-graph-prompt and --agent-reason together. Pick one emit mode.\n"
+  },
+  {
+    "flags": [
+      "--agent-reason",
+      "--history"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --history with --agent-reason. --history records validation runs; emit modes skip validation.\n"
+  },
+  {
+    "flags": [
+      "--agent-reason",
+      "--ingest-critique"
+    ],
+    "exit_code": 2,
+    "stderr": "Error: path not found: __does_not_exist__/SKILL.md\n"
+  },
+  {
+    "flags": [
+      "--agent-reason",
+      "--ingest-graph"
+    ],
+    "exit_code": 2,
+    "stderr": "Error: path not found: __does_not_exist__/SKILL.md\n"
+  },
+  {
+    "flags": [
+      "--agent-reason",
+      "--show-history"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --show-history with --agent-reason. --show-history reads the ledger; --agent-reason emits a prompt.\n"
+  },
+  {
+    "flags": [
+      "--analyze-graph",
+      "--emit-critique-prompt"
+    ],
+    "exit_code": 2,
+    "stderr": "Error: path not found: __does_not_exist__/SKILL.md\n"
+  },
+  {
+    "flags": [
+      "--analyze-graph",
+      "--emit-graph"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --emit-graph with --analyze-graph. --emit-graph is an emit mode (replaces the report). --analyze-graph is an augment mode (adds to the report).\n"
+  },
+  {
+    "flags": [
+      "--analyze-graph",
+      "--emit-graph-prompt"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --emit-graph-prompt with --analyze-graph. --emit-graph-prompt is an emit mode; --analyze-graph is an augment mode.\n"
+  },
+  {
+    "flags": [
+      "--analyze-graph",
+      "--history"
+    ],
+    "exit_code": 2,
+    "stderr": "Error: path not found: __does_not_exist__/SKILL.md\n"
+  },
+  {
+    "flags": [
+      "--analyze-graph",
+      "--ingest-critique"
+    ],
+    "exit_code": 2,
+    "stderr": "Error: path not found: __does_not_exist__/SKILL.md\n"
+  },
+  {
+    "flags": [
+      "--analyze-graph",
+      "--ingest-graph"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --ingest-graph with --analyze-graph. --ingest-graph supersedes heuristic-only graph analysis.\n"
+  },
+  {
+    "flags": [
+      "--analyze-graph",
+      "--show-history"
+    ],
+    "exit_code": 2,
+    "stderr": "Error: path not found: __does_not_exist__/SKILL.md\n"
+  },
+  {
+    "flags": [
+      "--emit-critique-prompt",
+      "--emit-graph"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --emit-critique-prompt and --emit-graph together. Pick one emit mode.\n"
+  },
+  {
+    "flags": [
+      "--emit-critique-prompt",
+      "--emit-graph-prompt"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --emit-critique-prompt and --emit-graph-prompt together. Pick one emit mode.\n"
+  },
+  {
+    "flags": [
+      "--emit-critique-prompt",
+      "--history"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --history with --emit-critique-prompt. --history records validation runs; emit modes skip validation.\n"
+  },
+  {
+    "flags": [
+      "--emit-critique-prompt",
+      "--ingest-critique"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --emit-critique-prompt and --ingest-critique together. Pick one: emit a prompt for your agent to execute, or ingest the agent's response.\n"
+  },
+  {
+    "flags": [
+      "--emit-critique-prompt",
+      "--ingest-graph"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --ingest-graph with --emit-critique-prompt. --emit-critique-prompt is an emit mode; --ingest-graph is an augment mode.\n"
+  },
+  {
+    "flags": [
+      "--emit-critique-prompt",
+      "--show-history"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --show-history with --emit-critique-prompt. --show-history reads the ledger; --emit-critique-prompt emits a prompt.\n"
+  },
+  {
+    "flags": [
+      "--emit-graph",
+      "--emit-graph-prompt"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --emit-graph and --emit-graph-prompt together. Pick one emit mode.\n"
+  },
+  {
+    "flags": [
+      "--emit-graph",
+      "--history"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --history with --emit-graph. --history records validation runs; emit modes skip validation.\n"
+  },
+  {
+    "flags": [
+      "--emit-graph",
+      "--ingest-critique"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --emit-graph with --ingest-critique. --emit-graph replaces the report; --ingest-critique augments it.\n"
+  },
+  {
+    "flags": [
+      "--emit-graph",
+      "--ingest-graph"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --ingest-graph with --emit-graph. --emit-graph replaces the report; --ingest-graph augments it.\n"
+  },
+  {
+    "flags": [
+      "--emit-graph",
+      "--show-history"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --show-history with --emit-graph. --show-history reads the ledger; --emit-graph emits a prompt.\n"
+  },
+  {
+    "flags": [
+      "--emit-graph-prompt",
+      "--history"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --history with --emit-graph-prompt. --history records validation runs; emit modes skip validation.\n"
+  },
+  {
+    "flags": [
+      "--emit-graph-prompt",
+      "--ingest-critique"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --emit-graph-prompt with --ingest-critique. --emit-graph-prompt is an emit mode; --ingest-critique is an augment mode.\n"
+  },
+  {
+    "flags": [
+      "--emit-graph-prompt",
+      "--ingest-graph"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --emit-graph-prompt with --ingest-graph. --emit-graph-prompt emits a prompt; --ingest-graph ingests the agent's response. Use them in separate invocations.\n"
+  },
+  {
+    "flags": [
+      "--emit-graph-prompt",
+      "--show-history"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --show-history with --emit-graph-prompt. --show-history reads the ledger; --emit-graph-prompt emits a prompt.\n"
+  },
+  {
+    "flags": [
+      "--history",
+      "--ingest-critique"
+    ],
+    "exit_code": 2,
+    "stderr": "Error: path not found: __does_not_exist__/SKILL.md\n"
+  },
+  {
+    "flags": [
+      "--history",
+      "--ingest-graph"
+    ],
+    "exit_code": 2,
+    "stderr": "Error: path not found: __does_not_exist__/SKILL.md\n"
+  },
+  {
+    "flags": [
+      "--history",
+      "--show-history"
+    ],
+    "exit_code": 2,
+    "stderr": "Cannot use --show-history with --history. --show-history reads the ledger; --history writes to it. Pick one.\n"
+  },
+  {
+    "flags": [
+      "--ingest-critique",
+      "--ingest-graph"
+    ],
+    "exit_code": 2,
+    "stderr": "Error: path not found: __does_not_exist__/SKILL.md\n"
+  },
+  {
+    "flags": [
+      "--ingest-critique",
+      "--show-history"
+    ],
+    "exit_code": 2,
+    "stderr": "Error: path not found: __does_not_exist__/SKILL.md\n"
+  },
+  {
+    "flags": [
+      "--ingest-graph",
+      "--show-history"
+    ],
+    "exit_code": 2,
+    "stderr": "Error: path not found: __does_not_exist__/SKILL.md\n"
+  }
+]
