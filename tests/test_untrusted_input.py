@@ -50,8 +50,26 @@ def _skill(directory: Path, name: str = "guarded") -> Path:
 
 def test_valid_utf8_within_the_cap_is_returned(tmp_path: Path) -> None:
     target = tmp_path / "f.json"
-    target.write_text('{"ok": true}\n', encoding="utf-8")
+    target.write_bytes(b'{"ok": true}\n')
     assert read_guarded_text(target, max_bytes=1024, what="Thing") == '{"ok": true}\n'
+
+
+def test_crlf_is_normalized_like_read_text_did(tmp_path: Path) -> None:
+    """The guard replaced `read_text`, which applied universal newlines.
+
+    Reading bytes and decoding skips that translation, so without normalizing
+    a CRLF file would hand callers literal "\r\n" on Windows where they used
+    to see "\n". Caught by CI on all four Windows jobs.
+    """
+    target = tmp_path / "f.json"
+    target.write_bytes(b'{"ok":\r\n true}\r\n')
+    assert read_guarded_text(target, max_bytes=1024, what="Thing") == '{"ok":\n true}\n'
+
+
+def test_lone_carriage_return_is_also_normalized(tmp_path: Path) -> None:
+    target = tmp_path / "f.json"
+    target.write_bytes(b'{"ok":\r true}')
+    assert read_guarded_text(target, max_bytes=1024, what="Thing") == '{"ok":\n true}'
 
 
 def test_file_exactly_at_the_cap_is_accepted(tmp_path: Path) -> None:
@@ -218,11 +236,16 @@ def test_oversized_config_is_rejected(tmp_path: Path) -> None:
 
 
 def test_valid_config_at_exactly_the_cap_still_loads(tmp_path: Path) -> None:
-    """Padding to the cap with comment bytes must not trip the guard."""
+    """Padding to the cap with comment bytes must not trip the guard.
+
+    Written as bytes, not text: write_text translates newlines on Windows, so a
+    size computed from the string is three bytes short of what lands on disk and
+    the test measures the wrong thing.
+    """
     config = tmp_path / "skillcheck.toml"
-    body = '[frontmatter]\nextension_fields = ["x-team"]\n'
-    padding = "#" + "p" * (MAX_CONFIG_BYTES - len(body) - 2) + "\n"
-    config.write_text(body + padding, encoding="utf-8")
+    body = b'[frontmatter]\nextension_fields = ["x-team"]\n'
+    padding = b"#" + b"p" * (MAX_CONFIG_BYTES - len(body) - 2) + b"\n"
+    config.write_bytes(body + padding)
     assert config.stat().st_size == MAX_CONFIG_BYTES
     assert load_config(config).extension_fields == frozenset({"x-team"})
 

@@ -172,7 +172,14 @@ def read_guarded_text(
         ) from exc
 
     reject_control_characters(text, what=what, source=shown, error_cls=error_cls)
-    return text
+
+    # Universal newlines, matching the `read_text` calls this replaced. Reading
+    # bytes and decoding skips the translation Python's text mode performs, so
+    # without this a CRLF file would hand every caller literal "\\r\\n" where it
+    # previously saw "\\n". Nothing downstream is known to break on that today,
+    # the TOML fallback splits lines and strips, but the guard should be a
+    # drop-in for what it replaced rather than a platform-dependent variant.
+    return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
 def reject_control_characters(
