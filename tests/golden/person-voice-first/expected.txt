@@ -1,0 +1,2 @@
+description.quality-score	info	line=-	Description quality score: 65/100. Suggestions: Start the description with an action verb (e.g., 'Generates...', 'Validates...').; No trigger context found. Add phrases like 'Use this skill whenever the user mentions...'.
+frontmatter.description.person-voice	warning	line=3	Description appears to use first-person voice ('I'); the spec recommends third-person for routing clarity.

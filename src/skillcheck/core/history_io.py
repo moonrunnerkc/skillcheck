@@ -34,7 +34,7 @@ from skillcheck.core.history import (
     ValidationModes,
     _entry_to_dict,
 )
-from skillcheck.io_limits import MAX_LEDGER_BYTES, enforce_size_cap
+from skillcheck.io_limits import MAX_LEDGER_BYTES, read_guarded_text
 from skillcheck.parser import ParsedSkill
 
 
@@ -107,9 +107,8 @@ def load_ledger(path: Path) -> Ledger | None:
     _sweep_stale_tmp_files(path.parent)
     if not path.exists():
         return None
-    enforce_size_cap(path, MAX_LEDGER_BYTES, LedgerError, "Ledger")
     try:
-        raw = path.read_text(encoding="utf-8")
+        raw = read_guarded_text(path, max_bytes=MAX_LEDGER_BYTES, what="Ledger", error_cls=LedgerError)
     except OSError as exc:
         raise LedgerError(
             f"Cannot read ledger at {path}: {exc}. "

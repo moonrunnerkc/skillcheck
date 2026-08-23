@@ -387,7 +387,11 @@ def test_ingest_critique_non_utf8_response_exits_two(tmp_path):
     )
     assert result.returncode == 2
     assert "Traceback" not in result.stderr
-    assert "cannot read" in result.stderr
+    # Wording converged when ingest, ledger, and config moved onto the one
+    # guard in io_limits. What matters is the same as before: exit 2, no
+    # traceback, and a message naming the file and the reason.
+    assert "not valid UTF-8" in result.stderr
+    assert "response.json" in result.stderr
 
 
 def test_ingest_response_over_size_cap_exits_two(tmp_path):
@@ -402,7 +406,8 @@ def test_ingest_response_over_size_cap_exits_two(tmp_path):
     )
     assert result.returncode == 2
     assert "over the" in result.stderr
-    assert "byte cap" in result.stderr
+    assert "byte" in result.stderr
+    assert "response.json" in result.stderr
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="symlink creation needs privileges on Windows")
